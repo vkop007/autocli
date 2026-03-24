@@ -23,6 +23,11 @@ Reference points:
   - `post` with media + caption
   - `like`
   - `comment`
+- LinkedIn
+  - `login`
+  - `post` / `share` with text
+  - `like`
+  - `comment`
 - X
   - `login`
   - `post` / `tweet` with optional image
@@ -54,9 +59,11 @@ That gives you a much more durable production system than relying on private web
     │   ├── base.ts
     │   ├── index.ts
     │   ├── instagram.ts
+    │   ├── linkedin.ts
     │   └── x.ts
     ├── commands
     │   ├── instagram.ts
+    │   ├── linkedin.ts
     │   ├── status.ts
     │   └── x.ts
     ├── utils
@@ -170,6 +177,20 @@ Like or reply on X:
 ```bash
 autocli x like https://x.com/user/status/1234567890
 autocli x comment 1234567890 "Nice work"
+```
+
+Import LinkedIn cookies:
+
+```bash
+autocli linkedin login --cookies ./linkedin.cookies.txt
+```
+
+Post, like, or comment on LinkedIn:
+
+```bash
+autocli linkedin post "Shipping browserless automation from the terminal"
+autocli linkedin like "https://www.linkedin.com/feed/update/urn:li:activity:1234567890123456789/"
+autocli linkedin comment "urn:li:activity:1234567890123456789" "Nice launch"
 ```
 
 If you connect multiple accounts for the same platform, AutoCLI keeps them all as named session files and uses the most recently logged-in one by default.

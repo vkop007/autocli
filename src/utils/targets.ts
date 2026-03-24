@@ -52,6 +52,49 @@ export function parseXTarget(target: string): {
   };
 }
 
+export function parseLinkedInTarget(target: string): {
+  entityUrns: string[];
+  url?: string;
+} {
+  const trimmed = target.trim();
+
+  if (trimmed.startsWith("urn:li:activity:") || trimmed.startsWith("urn:li:ugcPost:")) {
+    return {
+      entityUrns: [trimmed],
+    };
+  }
+
+  if (/^\d+$/.test(trimmed)) {
+    return {
+      entityUrns: [`urn:li:activity:${trimmed}`, `urn:li:ugcPost:${trimmed}`],
+    };
+  }
+
+  const explicitUrnMatch = trimmed.match(/urn%3Ali%3A(activity|ugcPost)%3A(\d+)|urn:li:(activity|ugcPost):(\d+)/i);
+  if (explicitUrnMatch) {
+    const kind = explicitUrnMatch[1] ?? explicitUrnMatch[3];
+    const id = explicitUrnMatch[2] ?? explicitUrnMatch[4];
+    if (kind && id) {
+      return {
+        entityUrns: [`urn:li:${kind}:${id}`],
+        url: trimmed,
+      };
+    }
+  }
+
+  const activityMatch = trimmed.match(/activity-(\d+)/i);
+  if (activityMatch?.[1]) {
+    return {
+      entityUrns: [`urn:li:activity:${activityMatch[1]}`, `urn:li:ugcPost:${activityMatch[1]}`],
+      url: trimmed,
+    };
+  }
+
+  throw new AutoCliError("INVALID_TARGET", "Expected a LinkedIn URL, urn:li target, or numeric activity ID.", {
+    details: { target },
+  });
+}
+
 export function instagramShortcodeToMediaId(shortcode: string): string {
   let value = 0n;
 
