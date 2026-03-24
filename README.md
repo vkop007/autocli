@@ -253,14 +253,20 @@ Import YouTube cookies:
 autocli youtube login --cookies ./youtube.cookies.txt
 ```
 
-Like or comment on YouTube:
+Use YouTube engagement actions:
 
 ```bash
+autocli youtube search "rick astley"
+autocli youtube videoid "dQw4w9WgXcQ"
 autocli youtube like "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+autocli youtube dislike "dQw4w9WgXcQ"
+autocli youtube unlike "dQw4w9WgXcQ"
 autocli youtube comment "dQw4w9WgXcQ" "Nice video"
+autocli youtube subscribe "@RickAstleyYT"
+autocli youtube unsubscribe "https://www.youtube.com/channel/UCuAXFkgsw1L7xaCfnd5JJOw"
 ```
 
-YouTube video uploads and community posting are not implemented yet. The current YouTube adapter is focused on session-based engagement actions.
+YouTube video uploads and community posting are not implemented yet. `autocli youtube upload ...` exists as the eventual entrypoint, but it currently returns a structured unsupported-action error because the Studio upload flow is separate from the watch-page action flow.
 
 If you connect multiple accounts for the same platform, AutoCLI keeps them all as named session files and uses the most recently logged-in one by default.
 

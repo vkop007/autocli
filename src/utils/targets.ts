@@ -200,6 +200,57 @@ export function parseYouTubeTarget(target: string): {
   });
 }
 
+export function parseYouTubeChannelTarget(target: string): {
+  channelId?: string;
+  url?: string;
+  handle?: string;
+  path?: string;
+} {
+  const trimmed = target.trim();
+
+  if (/^UC[A-Za-z0-9_-]{22}$/.test(trimmed)) {
+    return { channelId: trimmed };
+  }
+
+  const channelMatch = trimmed.match(/youtube\.com\/channel\/(UC[A-Za-z0-9_-]{22})/i);
+  if (channelMatch?.[1]) {
+    return {
+      channelId: channelMatch[1],
+      url: trimmed,
+    };
+  }
+
+  const handleMatch = trimmed.match(/youtube\.com\/(@[A-Za-z0-9._-]+)/i);
+  if (handleMatch?.[1]) {
+    return {
+      handle: handleMatch[1],
+      url: trimmed,
+    };
+  }
+
+  if (/^@[A-Za-z0-9._-]+$/.test(trimmed)) {
+    return {
+      handle: trimmed,
+    };
+  }
+
+  const customPathMatch = trimmed.match(/youtube\.com\/((?:c|user)\/[A-Za-z0-9._-]+)/i);
+  if (customPathMatch?.[1]) {
+    return {
+      path: `/${customPathMatch[1]}`,
+      url: trimmed,
+    };
+  }
+
+  throw new AutoCliError(
+    "INVALID_TARGET",
+    "Expected a YouTube channel URL, @handle, /channel/<id> URL, or raw UC... channel ID.",
+    {
+      details: { target },
+    },
+  );
+}
+
 export function instagramShortcodeToMediaId(shortcode: string): string {
   let value = 0n;
 

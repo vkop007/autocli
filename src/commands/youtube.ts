@@ -2,14 +2,28 @@ import { Command } from "commander";
 
 import { YouTubeAdapter } from "../adapters/youtube.js";
 import { Logger } from "../logger.js";
+import { printJson } from "../utils/output.js";
 import { printActionResult, resolveCommandContext, runCommandAction } from "../utils/cli.js";
+
+import type { AdapterActionResult } from "../types.js";
 
 const adapter = new YouTubeAdapter();
 
 export function createYouTubeCommand(): Command {
   const command = new Command("youtube")
     .alias("yt")
-    .description("Interact with YouTube using an imported browser session");
+    .description("Interact with YouTube using an imported browser session")
+    .addHelpText(
+      "afterAll",
+      `
+Examples:
+  autocli youtube login --cookies ./youtube.cookies.json
+  autocli youtube search "rick astley"
+  autocli youtube videoid dQw4w9WgXcQ
+  autocli youtube like https://www.youtube.com/watch?v=dQw4w9WgXcQ
+  autocli youtube subscribe @RickAstleyYT
+`,
+    );
 
   command
     .command("login")
@@ -31,6 +45,30 @@ export function createYouTubeCommand(): Command {
             cookieFile: options.cookies,
             cookieString: options.cookieString,
             cookieJson: options.cookieJson,
+          }),
+        onSuccess: (result) => {
+          printActionResult(result, ctx.json);
+        },
+      });
+    });
+
+  command
+    .command("upload <mediaPath>")
+    .description("Upload a YouTube video with the saved session")
+    .option("--caption <text>", "Optional title or description text for a future upload flow")
+    .option("--account <name>", "Optional override for a specific saved YouTube session")
+    .action(async (mediaPath, options, cmd) => {
+      const ctx = resolveCommandContext(cmd);
+      const logger = new Logger(ctx);
+      const spinner = logger.spinner("Checking YouTube upload support...");
+      await runCommandAction({
+        spinner,
+        successMessage: "YouTube upload completed.",
+        action: () =>
+          adapter.postMedia({
+            account: options.account,
+            mediaPath,
+            caption: options.caption,
           }),
         onSuccess: (result) => {
           printActionResult(result, ctx.json);
@@ -61,6 +99,53 @@ export function createYouTubeCommand(): Command {
     });
 
   command
+    .command("search <query>")
+    .description("Search YouTube videos")
+    .option("--limit <number>", "Maximum number of results to return (1-25, default: 5)", parseLimitOption)
+    .option("--account <name>", "Optional override for a specific saved YouTube session")
+    .action(async (query, options, cmd) => {
+      const ctx = resolveCommandContext(cmd);
+      const logger = new Logger(ctx);
+      const spinner = logger.spinner("Searching YouTube...");
+      await runCommandAction({
+        spinner,
+        successMessage: "YouTube search completed.",
+        action: () =>
+          adapter.search({
+            account: options.account,
+            query,
+            limit: options.limit,
+          }),
+        onSuccess: (result) => {
+          printYouTubeSearchResult(result, ctx.json);
+        },
+      });
+    });
+
+  command
+    .command("videoid <target>")
+    .alias("info")
+    .description("Load exact YouTube video details by URL or 11-character video ID")
+    .option("--account <name>", "Optional override for a specific saved YouTube session")
+    .action(async (target, options, cmd) => {
+      const ctx = resolveCommandContext(cmd);
+      const logger = new Logger(ctx);
+      const spinner = logger.spinner("Loading YouTube video details...");
+      await runCommandAction({
+        spinner,
+        successMessage: "YouTube video details loaded.",
+        action: () =>
+          adapter.info({
+            account: options.account,
+            target,
+          }),
+        onSuccess: (result) => {
+          printYouTubeInfoResult(result, ctx.json);
+        },
+      });
+    });
+
+  command
     .command("like <target>")
     .description("Like a YouTube video by URL or 11-character video ID using the latest saved session by default")
     .option("--account <name>", "Optional override for a specific saved YouTube session")
@@ -73,6 +158,50 @@ export function createYouTubeCommand(): Command {
         successMessage: "YouTube video liked.",
         action: () =>
           adapter.like({
+            account: options.account,
+            target,
+          }),
+        onSuccess: (result) => {
+          printActionResult(result, ctx.json);
+        },
+      });
+    });
+
+  command
+    .command("dislike <target>")
+    .description("Dislike a YouTube video by URL or 11-character video ID")
+    .option("--account <name>", "Optional override for a specific saved YouTube session")
+    .action(async (target, options, cmd) => {
+      const ctx = resolveCommandContext(cmd);
+      const logger = new Logger(ctx);
+      const spinner = logger.spinner("Disliking YouTube video...");
+      await runCommandAction({
+        spinner,
+        successMessage: "YouTube video disliked.",
+        action: () =>
+          adapter.dislike({
+            account: options.account,
+            target,
+          }),
+        onSuccess: (result) => {
+          printActionResult(result, ctx.json);
+        },
+      });
+    });
+
+  command
+    .command("unlike <target>")
+    .description("Clear the current like/dislike state for a YouTube video")
+    .option("--account <name>", "Optional override for a specific saved YouTube session")
+    .action(async (target, options, cmd) => {
+      const ctx = resolveCommandContext(cmd);
+      const logger = new Logger(ctx);
+      const spinner = logger.spinner("Clearing YouTube video preference...");
+      await runCommandAction({
+        spinner,
+        successMessage: "YouTube video preference cleared.",
+        action: () =>
+          adapter.unlike({
             account: options.account,
             target,
           }),
@@ -105,5 +234,138 @@ export function createYouTubeCommand(): Command {
       });
     });
 
+  command
+    .command("subscribe <target>")
+    .description("Subscribe to a YouTube channel by URL, @handle, or UC... channel ID")
+    .option("--account <name>", "Optional override for a specific saved YouTube session")
+    .action(async (target, options, cmd) => {
+      const ctx = resolveCommandContext(cmd);
+      const logger = new Logger(ctx);
+      const spinner = logger.spinner("Subscribing to YouTube channel...");
+      await runCommandAction({
+        spinner,
+        successMessage: "YouTube channel subscribed.",
+        action: () =>
+          adapter.subscribe({
+            account: options.account,
+            target,
+          }),
+        onSuccess: (result) => {
+          printActionResult(result, ctx.json);
+        },
+      });
+    });
+
+  command
+    .command("unsubscribe <target>")
+    .description("Unsubscribe from a YouTube channel by URL, @handle, or UC... channel ID")
+    .option("--account <name>", "Optional override for a specific saved YouTube session")
+    .action(async (target, options, cmd) => {
+      const ctx = resolveCommandContext(cmd);
+      const logger = new Logger(ctx);
+      const spinner = logger.spinner("Unsubscribing from YouTube channel...");
+      await runCommandAction({
+        spinner,
+        successMessage: "YouTube channel unsubscribed.",
+        action: () =>
+          adapter.unsubscribe({
+            account: options.account,
+            target,
+          }),
+        onSuccess: (result) => {
+          printActionResult(result, ctx.json);
+        },
+      });
+    });
+
   return command;
+}
+
+function parseLimitOption(value: string): number {
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    throw new Error("Expected --limit to be a positive integer.");
+  }
+
+  return parsed;
+}
+
+function printYouTubeSearchResult(result: AdapterActionResult, json: boolean): void {
+  if (json) {
+    printJson(result);
+    return;
+  }
+
+  printActionResult(result, false);
+
+  const results = Array.isArray(result.data?.results) ? result.data.results : [];
+  if (results.length === 0) {
+    return;
+  }
+
+  for (const [index, rawItem] of results.entries()) {
+    if (!rawItem || typeof rawItem !== "object") {
+      continue;
+    }
+
+    const item = rawItem as {
+      title?: string;
+      channel?: string;
+      duration?: string;
+      views?: string;
+      published?: string;
+      url?: string;
+    };
+
+    const meta = [item.channel, item.views, item.published, item.duration].filter(
+      (value): value is string => typeof value === "string" && value.length > 0,
+    );
+
+    console.log(`${index + 1}. ${item.title ?? "Untitled video"}`);
+    if (meta.length > 0) {
+      console.log(`   ${meta.join(" • ")}`);
+    }
+    if (item.url) {
+      console.log(`   ${item.url}`);
+    }
+  }
+}
+
+function printYouTubeInfoResult(result: AdapterActionResult, json: boolean): void {
+  if (json) {
+    printJson(result);
+    return;
+  }
+
+  printActionResult(result, false);
+
+  const data = result.data;
+  if (!data || typeof data !== "object") {
+    return;
+  }
+
+  const channel = typeof data.channel === "string" ? data.channel : undefined;
+  const published = typeof data.published === "string" ? data.published : undefined;
+  const views = typeof data.views === "string" ? data.views : undefined;
+  const duration = typeof data.duration === "string" ? data.duration : undefined;
+  const category = typeof data.category === "string" ? data.category : undefined;
+  const channelUrl = typeof data.channelUrl === "string" ? data.channelUrl : undefined;
+  const description = typeof data.description === "string" ? data.description : undefined;
+
+  const meta = [channel, views, published, duration, category].filter(
+    (value): value is string => typeof value === "string" && value.length > 0,
+  );
+
+  if (meta.length > 0) {
+    console.log(meta.join(" • "));
+  }
+
+  if (channelUrl) {
+    console.log(`channel: ${channelUrl}`);
+  }
+
+  if (description) {
+    const preview = description.length > 300 ? `${description.slice(0, 300)}...` : description;
+    console.log(preview);
+  }
 }
