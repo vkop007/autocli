@@ -1,5 +1,6 @@
 import { CookieJar } from "tough-cookie";
 
+import { getPlatformAuthCookieNames, getPlatformHomeUrl } from "../platforms.js";
 import type { Platform, PlatformSession } from "../types.js";
 
 export type AutoRefreshCapability = "auto" | "manual";
@@ -42,20 +43,6 @@ const AUTO_REFRESH_KEY = "autoRefresh";
 const DEFAULT_KEEPALIVE_INTERVAL_MS = 12 * 60 * 60 * 1000;
 const DEFAULT_REFRESH_WINDOW_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_ATTEMPT_COOLDOWN_MS = 15 * 60 * 1000;
-
-const IMPORTANT_COOKIE_NAMES: Record<Platform, string[]> = {
-  instagram: ["sessionid", "csrftoken", "ds_user_id"],
-  linkedin: ["li_at", "JSESSIONID"],
-  x: ["auth_token", "ct0"],
-  youtube: ["SAPISID", "LOGIN_INFO", "__Secure-3PSID", "SSID"],
-};
-
-const PLATFORM_ORIGINS: Record<Platform, string> = {
-  instagram: "https://www.instagram.com/",
-  linkedin: "https://www.linkedin.com/",
-  x: "https://x.com/",
-  youtube: "https://www.youtube.com/",
-};
 
 export async function maybeAutoRefreshSession(input: {
   platform: Platform;
@@ -147,8 +134,8 @@ export async function inspectAutoRefresh(input: {
   attemptCooldownMs?: number;
 }): Promise<AutoRefreshInspection> {
   const now = new Date();
-  const importantCookies = IMPORTANT_COOKIE_NAMES[input.platform];
-  const cookies = await input.jar.getCookies(PLATFORM_ORIGINS[input.platform]);
+  const importantCookies = getPlatformAuthCookieNames(input.platform);
+  const cookies = await input.jar.getCookies(getPlatformHomeUrl(input.platform));
   const cookieMap = new Map(cookies.map((cookie) => [cookie.key, cookie]));
   const present = importantCookies.filter((name) => cookieMap.has(name));
   const missing = importantCookies.filter((name) => !cookieMap.has(name));

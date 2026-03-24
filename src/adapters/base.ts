@@ -1,12 +1,16 @@
 import { CookieManager, createSessionFile, serializeCookieJar } from "../utils/cookie-manager.js";
 import { SessionHttpClient } from "../utils/http-client.js";
+import { getPlatformDisplayName } from "../platforms.js";
 import type { AdapterStatusResult, Platform, PlatformAdapter, PlatformSession, SessionStatus, SessionUser } from "../types.js";
 
 export abstract class BasePlatformAdapter implements PlatformAdapter {
   readonly cookieManager = new CookieManager();
 
   abstract readonly platform: Platform;
-  abstract readonly displayName: string;
+
+  get displayName(): string {
+    return getPlatformDisplayName(this.platform);
+  }
 
   abstract login(input: Parameters<PlatformAdapter["login"]>[0]): ReturnType<PlatformAdapter["login"]>;
   abstract getStatus(account?: string): ReturnType<PlatformAdapter["getStatus"]>;

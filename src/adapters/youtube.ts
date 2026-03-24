@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 
 import { AutoCliError, isAutoCliError } from "../errors.js";
 import { maybeAutoRefreshSession } from "../utils/autorefresh.js";
+import { getPlatformHomeUrl, getPlatformOrigin } from "../platforms.js";
 import { parseYouTubeTarget } from "../utils/targets.js";
 import { BasePlatformAdapter } from "./base.js";
 import { Cookie, CookieJar } from "tough-cookie";
@@ -18,8 +19,8 @@ import type {
   TextPostInput,
 } from "../types.js";
 
-const YOUTUBE_ORIGIN = "https://www.youtube.com";
-const YOUTUBE_HOME = `${YOUTUBE_ORIGIN}/`;
+const YOUTUBE_ORIGIN = getPlatformOrigin("youtube");
+const YOUTUBE_HOME = getPlatformHomeUrl("youtube");
 const YOUTUBE_WATCH = `${YOUTUBE_ORIGIN}/watch?v=`;
 const YOUTUBE_CLIENT_NAME = "WEB";
 const YOUTUBE_CLIENT_NAME_ID = "1";
@@ -65,7 +66,6 @@ interface YouTubePageConfig {
 
 export class YouTubeAdapter extends BasePlatformAdapter {
   readonly platform = "youtube" as const;
-  readonly displayName = "YouTube";
 
   async login(input: LoginInput): Promise<AdapterActionResult> {
     const imported = await this.cookieManager.importCookies(this.platform, input);

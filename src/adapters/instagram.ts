@@ -5,6 +5,7 @@ import { maybeAutoRefreshSession } from "../utils/autorefresh.js";
 import { serializeCookieJar } from "../utils/cookie-manager.js";
 import { readMediaFile } from "../utils/media.js";
 import { parseInstagramTarget } from "../utils/targets.js";
+import { getPlatformHomeUrl, getPlatformOrigin } from "../platforms.js";
 import { BasePlatformAdapter } from "./base.js";
 
 import type {
@@ -20,8 +21,8 @@ import type {
   TextPostInput,
 } from "../types.js";
 
-const INSTAGRAM_ORIGIN = "https://www.instagram.com";
-const INSTAGRAM_HOME = `${INSTAGRAM_ORIGIN}/`;
+const INSTAGRAM_ORIGIN = getPlatformOrigin("instagram");
+const INSTAGRAM_HOME = getPlatformHomeUrl("instagram");
 const INSTAGRAM_APP_ID = "936619743392459";
 const INSTAGRAM_USER_AGENT =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36";
@@ -56,7 +57,6 @@ interface InstagramMutationResponse {
 
 export class InstagramAdapter extends BasePlatformAdapter {
   readonly platform = "instagram" as const;
-  readonly displayName = "Instagram";
 
   async login(input: LoginInput): Promise<AdapterActionResult> {
     const imported = await this.cookieManager.importCookies(this.platform, input);

@@ -3,6 +3,7 @@ import { parseXTarget } from "../utils/targets.js";
 import { AutoCliError } from "../errors.js";
 import { maybeAutoRefreshSession } from "../utils/autorefresh.js";
 import { serializeCookieJar } from "../utils/cookie-manager.js";
+import { getPlatformOrigin } from "../platforms.js";
 import { BasePlatformAdapter } from "./base.js";
 
 import type {
@@ -18,7 +19,7 @@ import type {
   TextPostInput,
 } from "../types.js";
 
-const X_ORIGIN = "https://x.com";
+const X_ORIGIN = getPlatformOrigin("x");
 const X_HOME = `${X_ORIGIN}/home`;
 const X_VERIFY_CREDENTIALS_ENDPOINTS = [
   "https://api.x.com/1.1/account/verify_credentials.json?include_entities=false&skip_status=true&include_email=false",
@@ -81,7 +82,6 @@ interface XMediaUploadResponse {
 
 export class XAdapter extends BasePlatformAdapter {
   readonly platform = "x" as const;
-  readonly displayName = "X";
 
   async login(input: LoginInput): Promise<AdapterActionResult> {
     const imported = await this.cookieManager.importCookies(this.platform, input);
