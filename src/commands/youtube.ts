@@ -20,6 +20,10 @@ Examples:
   autocli youtube login --cookies ./youtube.cookies.json
   autocli youtube search "rick astley"
   autocli youtube videoid dQw4w9WgXcQ
+  autocli youtube channelid @RickAstleyYT
+  autocli youtube playlistid PLFgquLnL59alCl_2TQvOiD5Vgm1hCaGSI
+  autocli youtube related dQw4w9WgXcQ
+  autocli youtube captions dQw4w9WgXcQ
   autocli youtube like https://www.youtube.com/watch?v=dQw4w9WgXcQ
   autocli youtube subscribe @RickAstleyYT
 `,
@@ -141,6 +145,100 @@ Examples:
           }),
         onSuccess: (result) => {
           printYouTubeInfoResult(result, ctx.json);
+        },
+      });
+    });
+
+  command
+    .command("channelid <target>")
+    .alias("channel")
+    .description("Load exact YouTube channel details by URL, @handle, or UC... channel ID")
+    .option("--account <name>", "Optional override for a specific saved YouTube session")
+    .action(async (target, options, cmd) => {
+      const ctx = resolveCommandContext(cmd);
+      const logger = new Logger(ctx);
+      const spinner = logger.spinner("Loading YouTube channel details...");
+      await runCommandAction({
+        spinner,
+        successMessage: "YouTube channel details loaded.",
+        action: () =>
+          adapter.channelInfo({
+            account: options.account,
+            target,
+          }),
+        onSuccess: (result) => {
+          printYouTubeChannelResult(result, ctx.json);
+        },
+      });
+    });
+
+  command
+    .command("playlistid <target>")
+    .alias("playlist")
+    .description("Load exact YouTube playlist details by URL or playlist ID")
+    .option("--limit <number>", "Maximum number of playlist items to show (1-25, default: 5)", parseLimitOption)
+    .option("--account <name>", "Optional override for a specific saved YouTube session")
+    .action(async (target, options, cmd) => {
+      const ctx = resolveCommandContext(cmd);
+      const logger = new Logger(ctx);
+      const spinner = logger.spinner("Loading YouTube playlist details...");
+      await runCommandAction({
+        spinner,
+        successMessage: "YouTube playlist details loaded.",
+        action: () =>
+          adapter.playlistInfo({
+            account: options.account,
+            target,
+            limit: options.limit,
+          }),
+        onSuccess: (result) => {
+          printYouTubePlaylistResult(result, ctx.json);
+        },
+      });
+    });
+
+  command
+    .command("related <target>")
+    .description("Load related YouTube videos for a given video URL or ID")
+    .option("--limit <number>", "Maximum number of related videos to return (1-25, default: 5)", parseLimitOption)
+    .option("--account <name>", "Optional override for a specific saved YouTube session")
+    .action(async (target, options, cmd) => {
+      const ctx = resolveCommandContext(cmd);
+      const logger = new Logger(ctx);
+      const spinner = logger.spinner("Loading related YouTube videos...");
+      await runCommandAction({
+        spinner,
+        successMessage: "Related YouTube videos loaded.",
+        action: () =>
+          adapter.related({
+            account: options.account,
+            target,
+            limit: options.limit,
+          }),
+        onSuccess: (result) => {
+          printYouTubeSearchResult(result, ctx.json);
+        },
+      });
+    });
+
+  command
+    .command("captions <target>")
+    .description("List available YouTube caption tracks for a video URL or ID")
+    .option("--account <name>", "Optional override for a specific saved YouTube session")
+    .action(async (target, options, cmd) => {
+      const ctx = resolveCommandContext(cmd);
+      const logger = new Logger(ctx);
+      const spinner = logger.spinner("Loading YouTube caption tracks...");
+      await runCommandAction({
+        spinner,
+        successMessage: "YouTube caption tracks loaded.",
+        action: () =>
+          adapter.captions({
+            account: options.account,
+            target,
+          }),
+        onSuccess: (result) => {
+          printYouTubeCaptionsResult(result, ctx.json);
         },
       });
     });
@@ -367,5 +465,116 @@ function printYouTubeInfoResult(result: AdapterActionResult, json: boolean): voi
   if (description) {
     const preview = description.length > 300 ? `${description.slice(0, 300)}...` : description;
     console.log(preview);
+  }
+}
+
+function printYouTubeChannelResult(result: AdapterActionResult, json: boolean): void {
+  if (json) {
+    printJson(result);
+    return;
+  }
+
+  printActionResult(result, false);
+  const data = result.data;
+  if (!data || typeof data !== "object") {
+    return;
+  }
+
+  const meta = [data.handle, data.subscriberCount].filter(
+    (value): value is string => typeof value === "string" && value.length > 0,
+  );
+  if (meta.length > 0) {
+    console.log(meta.join(" • "));
+  }
+
+  if (typeof data.rssUrl === "string") {
+    console.log(`rss: ${data.rssUrl}`);
+  }
+
+  if (typeof data.description === "string" && data.description.length > 0) {
+    const preview = data.description.length > 300 ? `${data.description.slice(0, 300)}...` : data.description;
+    console.log(preview);
+  }
+}
+
+function printYouTubePlaylistResult(result: AdapterActionResult, json: boolean): void {
+  if (json) {
+    printJson(result);
+    return;
+  }
+
+  printActionResult(result, false);
+  const data = result.data;
+  if (!data || typeof data !== "object") {
+    return;
+  }
+
+  const meta = [data.videoCount, data.viewCount, data.updated].filter(
+    (value): value is string => typeof value === "string" && value.length > 0,
+  );
+  if (meta.length > 0) {
+    console.log(meta.join(" • "));
+  }
+
+  const items = Array.isArray(data.items) ? data.items : [];
+  for (const [index, rawItem] of items.entries()) {
+    if (!rawItem || typeof rawItem !== "object") {
+      continue;
+    }
+
+    const item = rawItem as {
+      title?: string;
+      channel?: string;
+      duration?: string;
+      url?: string;
+    };
+
+    const itemMeta = [item.channel, item.duration].filter(
+      (value): value is string => typeof value === "string" && value.length > 0,
+    );
+
+    console.log(`${index + 1}. ${item.title ?? "Untitled video"}`);
+    if (itemMeta.length > 0) {
+      console.log(`   ${itemMeta.join(" • ")}`);
+    }
+    if (item.url) {
+      console.log(`   ${item.url}`);
+    }
+  }
+}
+
+function printYouTubeCaptionsResult(result: AdapterActionResult, json: boolean): void {
+  if (json) {
+    printJson(result);
+    return;
+  }
+
+  printActionResult(result, false);
+  const data = result.data;
+  const tracks = data && typeof data === "object" && Array.isArray(data.tracks) ? data.tracks : [];
+  for (const [index, rawTrack] of tracks.entries()) {
+    if (!rawTrack || typeof rawTrack !== "object") {
+      continue;
+    }
+
+    const track = rawTrack as {
+      language?: string;
+      languageCode?: string;
+      autoGenerated?: boolean;
+      kind?: string;
+      isTranslatable?: boolean;
+    };
+
+    const meta = [
+      track.languageCode,
+      track.autoGenerated ? "auto-generated" : undefined,
+      track.kind,
+      track.isTranslatable ? "translatable" : undefined,
+    ].filter((value): value is string => typeof value === "string" && value.length > 0);
+
+    console.log(`${index + 1}. ${track.language ?? "Unknown language"}`);
+    if (meta.length > 0) {
+      console.log(`   ${meta.join(" • ")}`);
+    }
   }
 }

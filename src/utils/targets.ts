@@ -251,6 +251,32 @@ export function parseYouTubeChannelTarget(target: string): {
   );
 }
 
+export function parseYouTubePlaylistTarget(target: string): {
+  playlistId: string;
+  url?: string;
+} {
+  const trimmed = target.trim();
+
+  const directMatch = trimmed.match(/^(?:PL|UU|LL|FL|RD|OLAK5uy_)[A-Za-z0-9_-]+$/);
+  if (directMatch) {
+    return {
+      playlistId: trimmed,
+    };
+  }
+
+  const urlMatch = trimmed.match(/[?&]list=([A-Za-z0-9_-]+)/i);
+  if (urlMatch?.[1]) {
+    return {
+      playlistId: urlMatch[1],
+      url: trimmed,
+    };
+  }
+
+  throw new AutoCliError("INVALID_TARGET", "Expected a YouTube playlist URL or playlist ID.", {
+    details: { target },
+  });
+}
+
 export function instagramShortcodeToMediaId(shortcode: string): string {
   let value = 0n;
 

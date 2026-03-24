@@ -258,6 +258,10 @@ Use YouTube engagement actions:
 ```bash
 autocli youtube search "rick astley"
 autocli youtube videoid "dQw4w9WgXcQ"
+autocli youtube channelid "@RickAstleyYT"
+autocli youtube playlistid "PLFgquLnL59alCl_2TQvOiD5Vgm1hCaGSI"
+autocli youtube related "dQw4w9WgXcQ"
+autocli youtube captions "dQw4w9WgXcQ"
 autocli youtube like "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
 autocli youtube dislike "dQw4w9WgXcQ"
 autocli youtube unlike "dQw4w9WgXcQ"

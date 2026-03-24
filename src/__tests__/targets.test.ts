@@ -1,6 +1,12 @@
 import { describe, expect, test } from "bun:test";
 
-import { parseFacebookTarget, parseTikTokTarget, parseYouTubeChannelTarget, parseYouTubeTarget } from "../utils/targets.js";
+import {
+  parseFacebookTarget,
+  parseTikTokTarget,
+  parseYouTubeChannelTarget,
+  parseYouTubePlaylistTarget,
+  parseYouTubeTarget,
+} from "../utils/targets.js";
 
 describe("parseFacebookTarget", () => {
   test("accepts a raw numeric object id", () => {
@@ -71,6 +77,21 @@ describe("parseYouTubeChannelTarget", () => {
   test("parses a handle target", () => {
     expect(parseYouTubeChannelTarget("@RickAstleyYT")).toEqual({
       handle: "@RickAstleyYT",
+    });
+  });
+});
+
+describe("parseYouTubePlaylistTarget", () => {
+  test("accepts a raw playlist id", () => {
+    expect(parseYouTubePlaylistTarget("PLFgquLnL59alCl_2TQvOiD5Vgm1hCaGSI")).toEqual({
+      playlistId: "PLFgquLnL59alCl_2TQvOiD5Vgm1hCaGSI",
+    });
+  });
+
+  test("parses a playlist url", () => {
+    expect(parseYouTubePlaylistTarget("https://www.youtube.com/playlist?list=PLFgquLnL59alCl_2TQvOiD5Vgm1hCaGSI")).toEqual({
+      playlistId: "PLFgquLnL59alCl_2TQvOiD5Vgm1hCaGSI",
+      url: "https://www.youtube.com/playlist?list=PLFgquLnL59alCl_2TQvOiD5Vgm1hCaGSI",
     });
   });
 });
