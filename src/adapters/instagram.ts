@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import { AutoCliError } from "../errors.js";
+import { maybeAutoRefreshSession } from "../utils/autorefresh.js";
 import { serializeCookieJar } from "../utils/cookie-manager.js";
 import { readMediaFile } from "../utils/media.js";
 import { parseInstagramTarget } from "../utils/targets.js";
@@ -109,7 +110,7 @@ export class InstagramAdapter extends BasePlatformAdapter {
   }
 
   async getStatus(account?: string): Promise<AdapterStatusResult> {
-    const { session, path } = await this.loadSession(account);
+    const { session, path } = await this.prepareSession(account);
     const probe = await this.probeSession(session);
     await this.persistSessionState(session, probe);
     return this.buildStatusResult({
@@ -121,7 +122,7 @@ export class InstagramAdapter extends BasePlatformAdapter {
   }
 
   async postMedia(input: PostMediaInput): Promise<AdapterActionResult> {
-    const { session } = await this.loadSession(input.account);
+    const { session } = await this.prepareSession(input.account);
     const probe = await this.ensureActiveSession(session);
     const media = await readMediaFile(input.mediaPath);
     const client = await this.createInstagramClient(session);
@@ -213,7 +214,7 @@ export class InstagramAdapter extends BasePlatformAdapter {
   }
 
   async like(input: LikeInput): Promise<AdapterActionResult> {
-    const { session } = await this.loadSession(input.account);
+    const { session } = await this.prepareSession(input.account);
     const probe = await this.ensureActiveSession(session);
     const client = await this.createInstagramClient(session);
     const target = parseInstagramTarget(input.target);
@@ -248,7 +249,7 @@ export class InstagramAdapter extends BasePlatformAdapter {
   }
 
   async comment(input: CommentInput): Promise<AdapterActionResult> {
-    const { session } = await this.loadSession(input.account);
+    const { session } = await this.prepareSession(input.account);
     const probe = await this.ensureActiveSession(session);
     const client = await this.createInstagramClient(session);
     const target = parseInstagramTarget(input.target);
@@ -457,19 +458,50 @@ export class InstagramAdapter extends BasePlatformAdapter {
     return input.match(pattern)?.[1];
   }
 
+  private async prepareSession(account?: string): Promise<{ session: PlatformSession; path: string }> {
+    const loaded = await this.loadSession(account);
+    return {
+      path: loaded.path,
+      session: await this.maybeAutoRefresh(loaded.session),
+    };
+  }
+
+  private async maybeAutoRefresh(session: PlatformSession): Promise<PlatformSession> {
+    const client = await this.createInstagramClient(session);
+    const refresh = await maybeAutoRefreshSession({
+      platform: this.platform,
+      session,
+      jar: client.jar,
+      strategy: "homepage_keepalive",
+      capability: "auto",
+      refresh: async () => {
+        await client.request<string>(INSTAGRAM_HOME, {
+          responseType: "text",
+          expectedStatus: 200,
+          headers: {
+            referer: INSTAGRAM_HOME,
+          },
+        });
+      },
+    });
+
+    return this.persistExistingSession(session, {
+      jar: client.jar,
+      metadata: {
+        ...(session.metadata ?? {}),
+        ...refresh.metadata,
+      },
+    });
+  }
+
   private async persistSessionState(session: PlatformSession, probe: InstagramProbe): Promise<void> {
-    const jar = await this.cookieManager.createJar(session);
-    await this.saveSession({
-      account: session.account,
-      source: session.source,
+    await this.persistExistingSession(session, {
       user: probe.user ?? session.user,
       status: probe.status,
       metadata: {
         ...(session.metadata ?? {}),
         ...(probe.metadata ?? {}),
       },
-      jar,
-      existingSession: session,
     });
   }
 

@@ -1,6 +1,7 @@
 import { readMediaFile } from "../utils/media.js";
 import { parseXTarget } from "../utils/targets.js";
 import { AutoCliError } from "../errors.js";
+import { maybeAutoRefreshSession } from "../utils/autorefresh.js";
 import { serializeCookieJar } from "../utils/cookie-manager.js";
 import { BasePlatformAdapter } from "./base.js";
 
@@ -134,7 +135,7 @@ export class XAdapter extends BasePlatformAdapter {
   }
 
   async getStatus(account?: string): Promise<AdapterStatusResult> {
-    const { session, path } = await this.loadSession(account);
+    const { session, path } = await this.prepareSession(account);
     const probe = await this.probeSession(session);
     await this.persistSessionState(session, probe);
     return this.buildStatusResult({
@@ -154,7 +155,7 @@ export class XAdapter extends BasePlatformAdapter {
   }
 
   async postText(input: TextPostInput): Promise<AdapterActionResult> {
-    const { session } = await this.loadSession(input.account);
+    const { session } = await this.prepareSession(input.account);
     const probe = await this.ensureActiveSession(session);
     const client = await this.createXClient(session);
     const bearerToken = await this.resolveBearerToken(session, client, probe.metadata);
@@ -191,7 +192,7 @@ export class XAdapter extends BasePlatformAdapter {
   }
 
   async like(input: LikeInput): Promise<AdapterActionResult> {
-    const { session } = await this.loadSession(input.account);
+    const { session } = await this.prepareSession(input.account);
     const probe = await this.ensureActiveSession(session);
     const client = await this.createXClient(session);
     const bearerToken = await this.resolveBearerToken(session, client, probe.metadata);
@@ -220,7 +221,7 @@ export class XAdapter extends BasePlatformAdapter {
   }
 
   async comment(input: CommentInput): Promise<AdapterActionResult> {
-    const { session } = await this.loadSession(input.account);
+    const { session } = await this.prepareSession(input.account);
     const probe = await this.ensureActiveSession(session);
     const client = await this.createXClient(session);
     const bearerToken = await this.resolveBearerToken(session, client, probe.metadata);
@@ -269,6 +270,42 @@ export class XAdapter extends BasePlatformAdapter {
     }
 
     return probe;
+  }
+
+  private async prepareSession(account?: string): Promise<{ session: PlatformSession; path: string }> {
+    const loaded = await this.loadSession(account);
+    return {
+      path: loaded.path,
+      session: await this.maybeAutoRefresh(loaded.session),
+    };
+  }
+
+  private async maybeAutoRefresh(session: PlatformSession): Promise<PlatformSession> {
+    const client = await this.createXClient(session);
+    const refresh = await maybeAutoRefreshSession({
+      platform: this.platform,
+      session,
+      jar: client.jar,
+      strategy: "home_keepalive",
+      capability: "auto",
+      refresh: async () => {
+        await client.request<string>(X_HOME, {
+          responseType: "text",
+          expectedStatus: 200,
+          headers: {
+            referer: X_HOME,
+          },
+        });
+      },
+    });
+
+    return this.persistExistingSession(session, {
+      jar: client.jar,
+      metadata: {
+        ...(session.metadata ?? {}),
+        ...refresh.metadata,
+      },
+    });
   }
 
   private async probeSession(session: PlatformSession): Promise<XProbe> {
@@ -526,18 +563,13 @@ export class XAdapter extends BasePlatformAdapter {
   }
 
   private async persistSessionState(session: PlatformSession, probe: XProbe): Promise<void> {
-    const jar = await this.cookieManager.createJar(session);
-    await this.saveSession({
-      account: session.account,
-      source: session.source,
+    await this.persistExistingSession(session, {
       user: probe.user ?? session.user,
       status: probe.status,
       metadata: {
         ...(session.metadata ?? {}),
         ...(probe.metadata ?? {}),
       },
-      jar,
-      existingSession: session,
     });
   }
 
