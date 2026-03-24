@@ -40,4 +40,25 @@ describe("CookieManager", () => {
     const cookies = await jar.getCookies("https://x.com/");
     expect(cookies[0]?.key).toBe("auth_token");
   });
+
+  test("accepts browser cookie JSON with null sameSite", async () => {
+    const manager = new CookieManager();
+    const jar = await manager.parseCookieJson(
+      "linkedin",
+      JSON.stringify([
+        {
+          name: "li_at",
+          value: "aaa",
+          domain: ".linkedin.com",
+          path: "/",
+          secure: true,
+          httpOnly: true,
+          sameSite: null,
+        },
+      ]),
+    );
+
+    const cookies = await jar.getCookies("https://www.linkedin.com/");
+    expect(cookies[0]?.key).toBe("li_at");
+  });
 });

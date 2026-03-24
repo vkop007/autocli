@@ -24,6 +24,20 @@ export class SessionHttpClient {
   }
 
   async request<T = unknown>(url: string, options: RequestOptions = {}): Promise<T> {
+    const result = await this.requestWithResponse<T>(url, options);
+    return result.data;
+  }
+
+  async requestWithResponse<T = unknown>(
+    url: string,
+    options: RequestOptions = {},
+  ): Promise<{ data: T; response: Response }> {
+    const response = await this.executeRequest(url, options);
+    const data = await this.parseResponse<T>(url, response, options.responseType ?? "json");
+    return { data, response };
+  }
+
+  private async executeRequest(url: string, options: RequestOptions): Promise<Response> {
     const headers = new Headers(this.defaultHeaders);
     const incomingHeaders = new Headers(options.headers);
 
@@ -43,7 +57,15 @@ export class SessionHttpClient {
       throw await createHttpError(url, response);
     }
 
-    switch (options.responseType ?? "json") {
+    return response;
+  }
+
+  private async parseResponse<T>(
+    url: string,
+    response: Response,
+    responseType: NonNullable<RequestOptions["responseType"]>,
+  ): Promise<T> {
+    switch (responseType) {
       case "text":
         return (await response.text()) as T;
       case "arrayBuffer":

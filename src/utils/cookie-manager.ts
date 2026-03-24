@@ -28,12 +28,12 @@ const BrowserCookieSchema = z.object({
   httpOnly: z.boolean().optional(),
   expirationDate: z.number().optional(),
   expires: z.union([z.string(), z.number(), z.null()]).optional(),
-  sameSite: z.string().optional(),
+  sameSite: z.string().nullable().optional(),
 });
 
 const SessionFileSchema = z.object({
   version: z.literal(1),
-  platform: z.enum(["instagram", "x"]),
+  platform: z.enum(["instagram", "linkedin", "x"]),
   account: z.string(),
   createdAt: z.string(),
   updatedAt: z.string(),
@@ -166,7 +166,7 @@ export class CookieManager {
       }
 
       const platform = entry.name as Platform;
-      if (platform !== "instagram" && platform !== "x") {
+      if (platform !== "instagram" && platform !== "linkedin" && platform !== "x") {
         continue;
       }
 
@@ -229,7 +229,21 @@ export class CookieManager {
 
     const jar = new CookieJar();
     for (const rawCookie of rawCookies) {
-      const cookie = BrowserCookieSchema.parse(rawCookie);
+      const parsedCookie = BrowserCookieSchema.safeParse(rawCookie);
+      if (!parsedCookie.success) {
+        throw new AutoCliError(
+          "INVALID_COOKIE_JSON",
+          "Cookie JSON contains an unsupported cookie object.",
+          {
+            details: {
+              issues: parsedCookie.error.issues,
+            },
+            cause: parsedCookie.error,
+          },
+        );
+      }
+
+      const cookie = parsedCookie.data;
       await setCookieOnJar(jar, createCookieFromLooseObject(platform, cookie));
     }
 
@@ -389,7 +403,15 @@ function platformOrigin(platform: Platform): string {
 }
 
 function defaultCookieDomain(platform: Platform): string {
-  return platform === "instagram" ? "instagram.com" : "x.com";
+  if (platform === "instagram") {
+    return "instagram.com";
+  }
+
+  if (platform === "linkedin") {
+    return "linkedin.com";
+  }
+
+  return "x.com";
 }
 
 function looksLikeNetscapeCookies(content: string): boolean {
@@ -440,7 +462,7 @@ function createCookieFromLooseObject(
     path: cookie.path ?? "/",
     secure: cookie.secure ?? true,
     httpOnly: cookie.httpOnly ?? false,
-    sameSite: normalizeSameSite(cookie.sameSite),
+    sameSite: normalizeSameSite(cookie.sameSite ?? undefined),
     expires: expiresRaw === undefined ? "Infinity" : parseCookieExpiry(String(expiresRaw)),
   });
 }

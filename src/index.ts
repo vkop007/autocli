@@ -5,6 +5,7 @@ import pc from "picocolors";
 
 import packageJson from "../package.json" with { type: "json" };
 import { createInstagramCommand } from "./commands/instagram.js";
+import { createLinkedInCommand } from "./commands/linkedin.js";
 import { createStatusCommand } from "./commands/status.js";
 import { createXCommand } from "./commands/x.js";
 import { errorToJson } from "./errors.js";
@@ -34,10 +35,13 @@ Examples:
   autocli x post "Launching AutoCLI"
   autocli instagram login --cookies ./instagram.cookies.txt
   autocli instagram post ./photo.jpg --caption "Ship it"
+  autocli linkedin login --cookies ./linkedin.cookies.json
+  autocli linkedin post "Posting from AutoCLI"
 `,
     )
     .addCommand(createStatusCommand())
     .addCommand(createInstagramCommand())
+    .addCommand(createLinkedInCommand())
     .addCommand(createXCommand());
 
   try {
