@@ -5,6 +5,8 @@ import {
   parseInstagramProfileTarget,
   parseInstagramTarget,
   parseTikTokTarget,
+  parseXProfileTarget,
+  parseXTarget,
   parseYouTubeChannelTarget,
   parseYouTubePlaylistTarget,
   parseYouTubeTarget,
@@ -73,6 +75,42 @@ describe("parseInstagramProfileTarget", () => {
     expect(parseInstagramProfileTarget("https://www.instagram.com/blackpink/")).toEqual({
       username: "blackpink",
       url: "https://www.instagram.com/blackpink/",
+    });
+  });
+});
+
+describe("parseXTarget", () => {
+  test("accepts a raw numeric tweet id", () => {
+    expect(parseXTarget("2035857535140545016")).toEqual({
+      tweetId: "2035857535140545016",
+    });
+  });
+
+  test("parses a status URL", () => {
+    expect(parseXTarget("https://x.com/elonmusk/status/2035857535140545016")).toEqual({
+      tweetId: "2035857535140545016",
+      url: "https://x.com/elonmusk/status/2035857535140545016",
+    });
+  });
+});
+
+describe("parseXProfileTarget", () => {
+  test("parses a raw handle", () => {
+    expect(parseXProfileTarget("OpenAI")).toEqual({
+      username: "OpenAI",
+    });
+  });
+
+  test("parses an @handle", () => {
+    expect(parseXProfileTarget("@OpenAI")).toEqual({
+      username: "OpenAI",
+    });
+  });
+
+  test("parses a profile URL", () => {
+    expect(parseXProfileTarget("https://x.com/OpenAI")).toEqual({
+      username: "OpenAI",
+      url: "https://x.com/OpenAI",
     });
   });
 });

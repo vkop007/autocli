@@ -133,6 +133,39 @@ export function parseXTarget(target: string): {
   };
 }
 
+export function parseXProfileTarget(target: string): {
+  userId?: string;
+  username?: string;
+  url?: string;
+} {
+  const trimmed = target.trim();
+
+  if (/^\d+$/.test(trimmed)) {
+    return {
+      userId: trimmed,
+    };
+  }
+
+  const urlMatch = trimmed.match(/(?:x|twitter)\.com\/(?!i\/|home\/|search\/|explore\/|notifications\/|messages\/|settings\/)([A-Za-z0-9_]+)/i);
+  if (urlMatch?.[1]) {
+    return {
+      username: urlMatch[1],
+      url: trimmed,
+    };
+  }
+
+  const normalized = trimmed.startsWith("@") ? trimmed.slice(1) : trimmed;
+  if (/^[A-Za-z0-9_]{1,15}$/.test(normalized)) {
+    return {
+      username: normalized,
+    };
+  }
+
+  throw new AutoCliError("INVALID_TARGET", "Expected an X profile URL, @handle, handle, or numeric user ID.", {
+    details: { target },
+  });
+}
+
 export function parseLinkedInTarget(target: string): {
   entityUrns: string[];
   url?: string;

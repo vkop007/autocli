@@ -39,7 +39,12 @@ Reference points:
 - X
   - `login`
   - `post` / `tweet` with optional image
+  - `search` for accounts
+  - `tweetid` / `info`
+  - `profileid` / `profile`
+  - `tweets`
   - `like`
+  - `unlike`
   - `comment`
 - Global
   - `status`
@@ -224,10 +229,20 @@ autocli x post "Launching AutoCLI" --image ./launch.png
 autocli x tweet "Plain text post" --json
 ```
 
+Inspect and search X:
+
+```bash
+autocli x search "openai" --limit 5
+autocli x profileid @OpenAI
+autocli x tweets @OpenAI --limit 5
+autocli x tweetid https://x.com/OpenAI/status/2029620619743219811
+```
+
 Like or reply on X:
 
 ```bash
 autocli x like https://x.com/user/status/1234567890
+autocli x unlike 1234567890
 autocli x comment 1234567890 "Nice work"
 ```
 
