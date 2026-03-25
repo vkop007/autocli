@@ -4,6 +4,11 @@ import {
   parseFacebookTarget,
   parseInstagramProfileTarget,
   parseInstagramTarget,
+  parseSpotifyAlbumTarget,
+  parseSpotifyArtistTarget,
+  parseSpotifyEntityTarget,
+  parseSpotifyPlaylistTarget,
+  parseSpotifyTrackTarget,
   parseTikTokTarget,
   parseXProfileTarget,
   parseXTarget,
@@ -38,6 +43,58 @@ describe("parseTikTokTarget", () => {
     expect(parseTikTokTarget("https://www.tiktok.com/@scout2015/video/6718335390845095173")).toEqual({
       itemId: "6718335390845095173",
       url: "https://www.tiktok.com/@scout2015/video/6718335390845095173",
+    });
+  });
+});
+
+describe("parseSpotifyEntityTarget", () => {
+  test("parses a spotify track url", () => {
+    expect(parseSpotifyEntityTarget("https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC")).toEqual({
+      type: "track",
+      id: "4uLU6hMCjMI75M1A2tKUQC",
+      url: "https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC",
+    });
+  });
+
+  test("parses a spotify artist uri", () => {
+    expect(parseSpotifyEntityTarget("spotify:artist:0gxyHStUsqpMadRV0Di1Qt")).toEqual({
+      type: "artist",
+      id: "0gxyHStUsqpMadRV0Di1Qt",
+      uri: "spotify:artist:0gxyHStUsqpMadRV0Di1Qt",
+    });
+  });
+});
+
+describe("parseSpotifyTrackTarget", () => {
+  test("accepts a raw track id", () => {
+    expect(parseSpotifyTrackTarget("4uLU6hMCjMI75M1A2tKUQC")).toEqual({
+      trackId: "4uLU6hMCjMI75M1A2tKUQC",
+    });
+  });
+});
+
+describe("parseSpotifyAlbumTarget", () => {
+  test("parses a canonical album url", () => {
+    expect(parseSpotifyAlbumTarget("https://open.spotify.com/album/6JWc4iAiJ9FjyK0B59ABb4")).toEqual({
+      albumId: "6JWc4iAiJ9FjyK0B59ABb4",
+      url: "https://open.spotify.com/album/6JWc4iAiJ9FjyK0B59ABb4",
+    });
+  });
+});
+
+describe("parseSpotifyArtistTarget", () => {
+  test("accepts a raw artist id", () => {
+    expect(parseSpotifyArtistTarget("0gxyHStUsqpMadRV0Di1Qt")).toEqual({
+      artistId: "0gxyHStUsqpMadRV0Di1Qt",
+    });
+  });
+});
+
+describe("parseSpotifyPlaylistTarget", () => {
+  test("parses a canonical playlist url", () => {
+    expect(parseSpotifyPlaylistTarget("https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M")).toEqual({
+      playlistId: "37i9dQZF1DXcBWIGoYBM5M",
+      url: "https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M",
     });
   });
 });

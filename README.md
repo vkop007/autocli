@@ -60,6 +60,12 @@ Reference points:
   - `post` with media + caption
   - `like`
   - `comment`
+- News
+  - `sources`
+  - `top`
+  - `search`
+  - `feed <url>`
+  - no API key required
 - LinkedIn
   - `login`
   - `post` / `share` with text
@@ -101,6 +107,41 @@ Reference points:
   - `send-file`
   - `edit`
   - `delete`
+- Spotify
+  - `login`
+  - `me`
+  - `search`
+  - `trackid` / `info`
+  - `albumid`
+  - `artistid`
+  - `playlistid`
+  - `devices`
+  - `status`
+  - `recent`
+  - `top`
+  - `savedtracks`
+  - `playlists`
+  - `playlistcreate`
+  - `playlisttracks`
+  - `playlistadd`
+  - `playlistremove`
+  - `device` / `transfer`
+  - `play`
+  - `pause`
+  - `next`
+  - `previous`
+  - `seek`
+  - `volume`
+  - `shuffle`
+  - `repeat`
+  - `queue`
+  - `queueadd`
+  - `like`
+  - `unlike`
+  - `followartist`
+  - `unfollowartist`
+  - `followplaylist`
+  - `unfollowplaylist`
 - Telegram Bot
   - `login --token`
   - `me`
@@ -351,8 +392,23 @@ autocli websearch engines
 autocli websearch search "bun cookies fetch"
 autocli websearch search "bun cookies fetch" --summary
 autocli websearch search "typescript cli" --engine bing
+autocli websearch search "typescript cli" --engine yahoo
+autocli websearch search "typescript cli" --engine yandex
+autocli websearch search "typescript cli" --engine baidu
 autocli websearch search "llm agent frameworks" --engine brave --limit 5
 autocli websearch search "terminal weather" --all --limit 3
+```
+
+## News
+
+Read headlines and feeds from no-key sources such as Google News RSS, GDELT, Hacker News, Reddit, and generic RSS/Atom URLs:
+
+```bash
+autocli news sources
+autocli news top
+autocli news search "typescript cli"
+autocli news search "ai agents" --source google
+autocli news feed "https://news.ycombinator.com/rss"
 ```
 
 ## Default flow
