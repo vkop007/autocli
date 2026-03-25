@@ -2,6 +2,8 @@ import { describe, expect, test } from "bun:test";
 
 import {
   parseFacebookTarget,
+  parseInstagramProfileTarget,
+  parseInstagramTarget,
   parseTikTokTarget,
   parseYouTubeChannelTarget,
   parseYouTubePlaylistTarget,
@@ -34,6 +36,43 @@ describe("parseTikTokTarget", () => {
     expect(parseTikTokTarget("https://www.tiktok.com/@scout2015/video/6718335390845095173")).toEqual({
       itemId: "6718335390845095173",
       url: "https://www.tiktok.com/@scout2015/video/6718335390845095173",
+    });
+  });
+});
+
+describe("parseInstagramTarget", () => {
+  test("accepts a raw numeric media id", () => {
+    expect(parseInstagramTarget("3859277693849754125")).toEqual({
+      mediaId: "3859277693849754125",
+    });
+  });
+
+  test("parses a canonical post URL", () => {
+    expect(parseInstagramTarget("https://www.instagram.com/p/DWO6J1_gNoN/")).toEqual({
+      mediaId: "3859277693849754125",
+      shortcode: "DWO6J1_gNoN",
+      url: "https://www.instagram.com/p/DWO6J1_gNoN/",
+    });
+  });
+});
+
+describe("parseInstagramProfileTarget", () => {
+  test("parses a raw username", () => {
+    expect(parseInstagramProfileTarget("blackpink")).toEqual({
+      username: "blackpink",
+    });
+  });
+
+  test("parses a handle target", () => {
+    expect(parseInstagramProfileTarget("@blackpink")).toEqual({
+      username: "blackpink",
+    });
+  });
+
+  test("parses a profile URL", () => {
+    expect(parseInstagramProfileTarget("https://www.instagram.com/blackpink/")).toEqual({
+      username: "blackpink",
+      url: "https://www.instagram.com/blackpink/",
     });
   });
 });

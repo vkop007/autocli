@@ -4,7 +4,7 @@ import { AutoCliError } from "../errors.js";
 import { maybeAutoRefreshSession } from "../utils/autorefresh.js";
 import { serializeCookieJar } from "../utils/cookie-manager.js";
 import { readMediaFile } from "../utils/media.js";
-import { parseInstagramTarget } from "../utils/targets.js";
+import { parseInstagramProfileTarget, parseInstagramTarget } from "../utils/targets.js";
 import { getPlatformHomeUrl, getPlatformOrigin } from "../platforms.js";
 import { BasePlatformAdapter } from "./base.js";
 
@@ -53,6 +53,123 @@ interface InstagramMutationResponse {
     id?: string;
     code?: string;
   };
+  friendship_status?: {
+    following?: boolean;
+    outgoing_request?: boolean;
+  };
+  previous_following?: boolean;
+  error?: string | null;
+}
+
+interface InstagramSearchResponse {
+  users?: Array<{
+    position?: number;
+    user?: InstagramUserPayload;
+  }>;
+}
+
+interface InstagramUserPayload {
+  pk?: string | number;
+  id?: string | number;
+  username?: string;
+  full_name?: string;
+  biography?: string;
+  external_url?: string | null;
+  is_private?: boolean;
+  is_verified?: boolean;
+  profile_pic_url?: string;
+  profile_pic_url_hd?: string;
+  edge_followed_by?: {
+    count?: number;
+  };
+  edge_follow?: {
+    count?: number;
+  };
+  edge_owner_to_timeline_media?: {
+    count?: number;
+  };
+  follower_count?: number;
+  following_count?: number;
+  media_count?: number;
+}
+
+interface InstagramProfileInfoResponse {
+  status?: string;
+  data?: {
+    user?: InstagramUserPayload;
+  };
+  user?: InstagramUserPayload;
+}
+
+interface InstagramMediaInfoResponse {
+  status?: string;
+  items?: InstagramMediaPayload[];
+}
+
+interface InstagramMediaPayload {
+  id?: string;
+  pk?: string | number;
+  code?: string;
+  media_type?: number;
+  product_type?: string;
+  like_count?: number;
+  comment_count?: number;
+  play_count?: number;
+  view_count?: number;
+  taken_at?: number;
+  user?: InstagramUserPayload;
+  caption?: {
+    text?: string;
+  };
+  image_versions2?: {
+    candidates?: Array<{
+      url?: string;
+    }>;
+  };
+  video_versions?: Array<{
+    url?: string;
+  }>;
+}
+
+interface InstagramSearchResultItem {
+  id: string;
+  username: string;
+  fullName?: string;
+  url: string;
+  isPrivate?: boolean;
+  isVerified?: boolean;
+  followerCount?: number;
+  profilePicUrl?: string;
+}
+
+interface InstagramProfileInfo {
+  id: string;
+  username?: string;
+  fullName?: string;
+  biography?: string;
+  url?: string;
+  externalUrl?: string;
+  isPrivate?: boolean;
+  isVerified?: boolean;
+  followerCount?: number;
+  followingCount?: number;
+  mediaCount?: number;
+  profilePicUrl?: string;
+}
+
+interface InstagramMediaInfo {
+  id: string;
+  shortcode?: string;
+  url?: string;
+  ownerUsername?: string;
+  ownerUrl?: string;
+  mediaType?: string;
+  likeCount?: number;
+  commentCount?: number;
+  playCount?: number;
+  caption?: string;
+  takenAt?: string;
+  thumbnailUrl?: string;
 }
 
 export class InstagramAdapter extends BasePlatformAdapter {
@@ -248,6 +365,41 @@ export class InstagramAdapter extends BasePlatformAdapter {
     };
   }
 
+  async unlike(input: LikeInput): Promise<AdapterActionResult> {
+    const { session } = await this.prepareSession(input.account);
+    const probe = await this.ensureActiveSession(session);
+    const client = await this.createInstagramClient(session);
+    const target = parseInstagramTarget(input.target);
+
+    await this.tryRequestChain(
+      [
+        async () =>
+          client.request(`${INSTAGRAM_ORIGIN}/web/likes/${target.mediaId}/unlike/`, {
+            method: "POST",
+            expectedStatus: [200, 201],
+            headers: await this.buildInstagramHeaders(client, probe.metadata),
+          }),
+        async () =>
+          client.request(`${INSTAGRAM_ORIGIN}/api/v1/web/likes/${target.mediaId}/unlike/`, {
+            method: "POST",
+            expectedStatus: [200, 201],
+            headers: await this.buildInstagramHeaders(client, probe.metadata),
+          }),
+      ],
+      "Failed to unlike the Instagram post.",
+    );
+
+    return {
+      ok: true,
+      platform: this.platform,
+      account: session.account,
+      action: "unlike",
+      message: `Instagram post unliked for ${session.account}.`,
+      id: target.mediaId,
+      user: probe.user,
+    };
+  }
+
   async comment(input: CommentInput): Promise<AdapterActionResult> {
     const { session } = await this.prepareSession(input.account);
     const probe = await this.ensureActiveSession(session);
@@ -294,6 +446,189 @@ export class InstagramAdapter extends BasePlatformAdapter {
       user: probe.user,
       data: {
         text: input.text,
+      },
+    };
+  }
+
+  async search(input: {
+    account?: string;
+    query: string;
+    limit?: number;
+  }): Promise<AdapterActionResult> {
+    const { session } = await this.prepareSession(input.account);
+    const probe = await this.ensureActiveSession(session);
+    const client = await this.createInstagramClient(session);
+    const query = input.query.trim();
+
+    if (!query) {
+      throw new AutoCliError("INVALID_SEARCH_QUERY", "Expected a non-empty Instagram search query.");
+    }
+
+    const limit = this.normalizeSearchLimit(input.limit);
+    const response = await client.request<InstagramSearchResponse>(
+      `${INSTAGRAM_ORIGIN}/web/search/topsearch/?context=blended&count=${limit}&query=${encodeURIComponent(query)}`,
+      {
+        expectedStatus: 200,
+        headers: await this.buildInstagramHeaders(client, probe.metadata),
+      },
+    );
+
+    const results = (response.users ?? [])
+      .map((item) => item.user)
+      .filter((user): user is InstagramUserPayload => Boolean(user?.username))
+      .slice(0, limit)
+      .map((user) => this.toInstagramSearchResult(user));
+
+    return {
+      ok: true,
+      platform: this.platform,
+      account: session.account,
+      action: "search",
+      message:
+        results.length > 0
+          ? `Found ${results.length} Instagram account result${results.length === 1 ? "" : "s"} for "${query}".`
+          : `No Instagram account results found for "${query}".`,
+      user: probe.user,
+      data: {
+        query,
+        limit,
+        results: results.map((result) => ({ ...result })),
+      },
+    };
+  }
+
+  async mediaInfo(input: {
+    account?: string;
+    target: string;
+  }): Promise<AdapterActionResult> {
+    const { session } = await this.prepareSession(input.account);
+    const probe = await this.ensureActiveSession(session);
+    const client = await this.createInstagramClient(session);
+    const target = parseInstagramTarget(input.target);
+
+    const response = await client.request<InstagramMediaInfoResponse>(
+      `${INSTAGRAM_ORIGIN}/api/v1/media/${target.mediaId}/info/`,
+      {
+        expectedStatus: 200,
+        headers: await this.buildInstagramHeaders(client, probe.metadata),
+      },
+    );
+
+    const media = response.items?.[0];
+    if (!media?.id && !media?.pk) {
+      throw new AutoCliError("INSTAGRAM_MEDIA_NOT_FOUND", "Instagram could not find that media item.", {
+        details: {
+          target: input.target,
+          mediaId: target.mediaId,
+        },
+      });
+    }
+
+    const info = this.toInstagramMediaInfo(media, target.url);
+
+    return {
+      ok: true,
+      platform: this.platform,
+      account: session.account,
+      action: "mediaid",
+      message: `Loaded Instagram media details for ${info.id}.`,
+      id: info.id,
+      url: info.url,
+      user: probe.user,
+      data: { ...info },
+    };
+  }
+
+  async profileInfo(input: {
+    account?: string;
+    target: string;
+  }): Promise<AdapterActionResult> {
+    const { session } = await this.prepareSession(input.account);
+    const probe = await this.ensureActiveSession(session);
+    const client = await this.createInstagramClient(session);
+    const info = await this.resolveInstagramProfileInfo(client, probe.metadata, input.target);
+
+    return {
+      ok: true,
+      platform: this.platform,
+      account: session.account,
+      action: "profileid",
+      message: `Loaded Instagram profile details for ${info.username ?? info.id}.`,
+      id: info.id,
+      url: info.url,
+      user: probe.user,
+      data: { ...info },
+    };
+  }
+
+  async follow(input: LikeInput): Promise<AdapterActionResult> {
+    const { session } = await this.prepareSession(input.account);
+    const probe = await this.ensureActiveSession(session);
+    const client = await this.createInstagramClient(session);
+    const info = await this.resolveInstagramProfileInfo(client, probe.metadata, input.target);
+
+    const response = await client.request<InstagramMutationResponse>(
+      `${INSTAGRAM_ORIGIN}/api/v1/friendships/create/${info.id}/`,
+      {
+        method: "POST",
+        expectedStatus: 200,
+        headers: {
+          ...(await this.buildInstagramHeaders(client, probe.metadata)),
+          "content-type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams(),
+      },
+    );
+
+    return {
+      ok: true,
+      platform: this.platform,
+      account: session.account,
+      action: "follow",
+      message: `Instagram follow request sent for ${info.username ?? info.id}.`,
+      id: info.id,
+      url: info.url,
+      user: probe.user,
+      data: {
+        username: info.username,
+        following: response.friendship_status?.following,
+        outgoingRequest: response.friendship_status?.outgoing_request,
+      },
+    };
+  }
+
+  async unfollow(input: LikeInput): Promise<AdapterActionResult> {
+    const { session } = await this.prepareSession(input.account);
+    const probe = await this.ensureActiveSession(session);
+    const client = await this.createInstagramClient(session);
+    const info = await this.resolveInstagramProfileInfo(client, probe.metadata, input.target);
+
+    const response = await client.request<InstagramMutationResponse>(
+      `${INSTAGRAM_ORIGIN}/api/v1/friendships/destroy/${info.id}/`,
+      {
+        method: "POST",
+        expectedStatus: 200,
+        headers: {
+          ...(await this.buildInstagramHeaders(client, probe.metadata)),
+          "content-type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams(),
+      },
+    );
+
+    return {
+      ok: true,
+      platform: this.platform,
+      account: session.account,
+      action: "unfollow",
+      message: `Instagram unfollow request sent for ${info.username ?? info.id}.`,
+      id: info.id,
+      url: info.url,
+      user: probe.user,
+      data: {
+        username: info.username,
+        following: response.friendship_status?.following,
+        previousFollowing: response.previous_following,
       },
     };
   }
@@ -456,6 +791,155 @@ export class InstagramAdapter extends BasePlatformAdapter {
 
   private extractFirst(input: string, pattern: RegExp): string | undefined {
     return input.match(pattern)?.[1];
+  }
+
+  private normalizeSearchLimit(limit?: number): number {
+    if (!limit || !Number.isFinite(limit)) {
+      return 5;
+    }
+
+    return Math.max(1, Math.min(25, Math.floor(limit)));
+  }
+
+  private toInstagramSearchResult(user: InstagramUserPayload): InstagramSearchResultItem {
+    const id = String(user.pk ?? user.id ?? "");
+    const username = user.username ?? id;
+    return {
+      id,
+      username,
+      fullName: user.full_name ?? undefined,
+      url: `${INSTAGRAM_ORIGIN}/${username}/`,
+      isPrivate: user.is_private,
+      isVerified: user.is_verified,
+      followerCount: user.follower_count ?? user.edge_followed_by?.count,
+      profilePicUrl: user.profile_pic_url_hd ?? user.profile_pic_url,
+    };
+  }
+
+  private toInstagramProfileInfo(user: InstagramUserPayload, fallbackUrl?: string): InstagramProfileInfo {
+    const id = String(user.pk ?? user.id ?? "");
+    const username = user.username ?? undefined;
+    return {
+      id,
+      username,
+      fullName: user.full_name ?? undefined,
+      biography: user.biography ?? undefined,
+      url: username ? `${INSTAGRAM_ORIGIN}/${username}/` : fallbackUrl,
+      externalUrl: user.external_url ?? undefined,
+      isPrivate: user.is_private,
+      isVerified: user.is_verified,
+      followerCount: user.follower_count ?? user.edge_followed_by?.count,
+      followingCount: user.following_count ?? user.edge_follow?.count,
+      mediaCount: user.media_count ?? user.edge_owner_to_timeline_media?.count,
+      profilePicUrl: user.profile_pic_url_hd ?? user.profile_pic_url,
+    };
+  }
+
+  private toInstagramMediaInfo(media: InstagramMediaPayload, fallbackUrl?: string): InstagramMediaInfo {
+    const id = String(media.pk ?? media.id ?? "");
+    const shortcode = media.code ?? undefined;
+    return {
+      id,
+      shortcode,
+      url: shortcode ? `${INSTAGRAM_ORIGIN}/p/${shortcode}/` : fallbackUrl,
+      ownerUsername: media.user?.username ?? undefined,
+      ownerUrl: media.user?.username ? `${INSTAGRAM_ORIGIN}/${media.user.username}/` : undefined,
+      mediaType: this.describeInstagramMediaType(media),
+      likeCount: media.like_count,
+      commentCount: media.comment_count,
+      playCount: media.play_count ?? media.view_count,
+      caption: media.caption?.text ?? undefined,
+      takenAt: this.toIsoTimestamp(media.taken_at),
+      thumbnailUrl: media.image_versions2?.candidates?.[0]?.url ?? media.video_versions?.[0]?.url,
+    };
+  }
+
+  private describeInstagramMediaType(media: InstagramMediaPayload): string | undefined {
+    if (media.product_type === "clips") {
+      return "reel";
+    }
+
+    switch (media.media_type) {
+      case 1:
+        return "photo";
+      case 2:
+        return "video";
+      case 8:
+        return "carousel";
+      default:
+        return media.product_type ?? undefined;
+    }
+  }
+
+  private toIsoTimestamp(value?: number): string | undefined {
+    if (!value || !Number.isFinite(value)) {
+      return undefined;
+    }
+
+    return new Date(value * 1_000).toISOString();
+  }
+
+  private async resolveInstagramProfileInfo(
+    client: Awaited<ReturnType<InstagramAdapter["createInstagramClient"]>>,
+    metadata: Record<string, unknown> | undefined,
+    target: string,
+  ): Promise<InstagramProfileInfo> {
+    const parsed = parseInstagramProfileTarget(target);
+    const user = parsed.userId
+      ? await this.fetchInstagramUserById(client, metadata, parsed.userId)
+      : parsed.username
+        ? await this.fetchInstagramUserByUsername(client, metadata, parsed.username)
+        : undefined;
+
+    if (!user) {
+      throw new AutoCliError("INSTAGRAM_PROFILE_NOT_FOUND", "Instagram could not find that profile.", {
+        details: {
+          target,
+        },
+      });
+    }
+
+    return this.toInstagramProfileInfo(user, parsed.url);
+  }
+
+  private async fetchInstagramUserByUsername(
+    client: Awaited<ReturnType<InstagramAdapter["createInstagramClient"]>>,
+    metadata: Record<string, unknown> | undefined,
+    username: string,
+  ): Promise<InstagramUserPayload | undefined> {
+    const response = await this.tryRequestChain<InstagramProfileInfoResponse | null>(
+      [
+        async () =>
+          client.request(`${INSTAGRAM_ORIGIN}/api/v1/users/web_profile_info/?username=${encodeURIComponent(username)}`, {
+            expectedStatus: 200,
+            headers: await this.buildInstagramHeaders(client, metadata),
+          }),
+      ],
+      "",
+      true,
+    );
+
+    return response?.data?.user ?? response?.user;
+  }
+
+  private async fetchInstagramUserById(
+    client: Awaited<ReturnType<InstagramAdapter["createInstagramClient"]>>,
+    metadata: Record<string, unknown> | undefined,
+    userId: string,
+  ): Promise<InstagramUserPayload | undefined> {
+    const response = await this.tryRequestChain<InstagramProfileInfoResponse | null>(
+      [
+        async () =>
+          client.request(`${INSTAGRAM_ORIGIN}/api/v1/users/${encodeURIComponent(userId)}/info/`, {
+            expectedStatus: 200,
+            headers: await this.buildInstagramHeaders(client, metadata),
+          }),
+      ],
+      "",
+      true,
+    );
+
+    return response?.data?.user ?? response?.user;
   }
 
   private async prepareSession(account?: string): Promise<{ session: PlatformSession; path: string }> {

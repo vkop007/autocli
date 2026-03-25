@@ -169,8 +169,14 @@ autocli instagram post ./photo.jpg --caption "Shipping from the terminal"
 Like or comment on Instagram:
 
 ```bash
+autocli instagram search "blackpink"
+autocli instagram mediaid https://www.instagram.com/p/SHORTCODE/
+autocli instagram profileid @username
 autocli instagram like https://www.instagram.com/p/SHORTCODE/
+autocli instagram unlike https://www.instagram.com/p/SHORTCODE/
 autocli instagram comment https://www.instagram.com/p/SHORTCODE/ "Looks great"
+autocli instagram follow @username
+autocli instagram unfollow @username
 ```
 
 Import Facebook cookies:

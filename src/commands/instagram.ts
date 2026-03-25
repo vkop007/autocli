@@ -2,7 +2,10 @@ import { Command } from "commander";
 
 import { InstagramAdapter } from "../adapters/instagram.js";
 import { Logger } from "../logger.js";
+import { printJson } from "../utils/output.js";
 import { printActionResult, resolveCommandContext, runCommandAction } from "../utils/cli.js";
+
+import type { AdapterActionResult } from "../types.js";
 
 const adapter = new InstagramAdapter();
 
@@ -15,8 +18,13 @@ export function createInstagramCommand(): Command {
       `
 Examples:
   autocli instagram login --cookies ./instagram.cookies.txt
+  autocli instagram search "blackpink"
+  autocli instagram mediaid https://www.instagram.com/p/SHORTCODE/
+  autocli instagram profileid @username
   autocli instagram post ./photo.jpg --caption "Ship it"
   autocli instagram like https://www.instagram.com/p/SHORTCODE/
+  autocli instagram unlike https://www.instagram.com/p/SHORTCODE/
+  autocli instagram follow @username
 `,
     );
 
@@ -72,6 +80,76 @@ Examples:
     });
 
   command
+    .command("search <query>")
+    .description("Search Instagram accounts")
+    .option("--limit <number>", "Maximum number of results to return (1-25, default: 5)", parseLimitOption)
+    .option("--account <name>", "Optional override for a specific saved Instagram session")
+    .action(async (query, options, cmd) => {
+      const ctx = resolveCommandContext(cmd);
+      const logger = new Logger(ctx);
+      const spinner = logger.spinner("Searching Instagram...");
+      await runCommandAction({
+        spinner,
+        successMessage: "Instagram search completed.",
+        action: () =>
+          adapter.search({
+            account: options.account,
+            query,
+            limit: options.limit,
+          }),
+        onSuccess: (result) => {
+          printInstagramSearchResult(result, ctx.json);
+        },
+      });
+    });
+
+  command
+    .command("mediaid <target>")
+    .alias("info")
+    .description("Load exact Instagram media details by URL, shortcode, or numeric media ID")
+    .option("--account <name>", "Optional override for a specific saved Instagram session")
+    .action(async (target, options, cmd) => {
+      const ctx = resolveCommandContext(cmd);
+      const logger = new Logger(ctx);
+      const spinner = logger.spinner("Loading Instagram media details...");
+      await runCommandAction({
+        spinner,
+        successMessage: "Instagram media details loaded.",
+        action: () =>
+          adapter.mediaInfo({
+            account: options.account,
+            target,
+          }),
+        onSuccess: (result) => {
+          printInstagramMediaResult(result, ctx.json);
+        },
+      });
+    });
+
+  command
+    .command("profileid <target>")
+    .alias("profile")
+    .description("Load exact Instagram profile details by URL, @username, username, or numeric user ID")
+    .option("--account <name>", "Optional override for a specific saved Instagram session")
+    .action(async (target, options, cmd) => {
+      const ctx = resolveCommandContext(cmd);
+      const logger = new Logger(ctx);
+      const spinner = logger.spinner("Loading Instagram profile details...");
+      await runCommandAction({
+        spinner,
+        successMessage: "Instagram profile details loaded.",
+        action: () =>
+          adapter.profileInfo({
+            account: options.account,
+            target,
+          }),
+        onSuccess: (result) => {
+          printInstagramProfileResult(result, ctx.json);
+        },
+      });
+    });
+
+  command
     .command("like <target>")
     .description("Like an Instagram post by URL, shortcode, or numeric media ID using the latest saved session by default")
     .option("--account <name>", "Optional override for a specific saved Instagram session")
@@ -84,6 +162,28 @@ Examples:
         successMessage: "Instagram post liked.",
         action: () =>
           adapter.like({
+            account: options.account,
+            target,
+          }),
+        onSuccess: (result) => {
+          printActionResult(result, ctx.json);
+        },
+      });
+    });
+
+  command
+    .command("unlike <target>")
+    .description("Unlike an Instagram post by URL, shortcode, or numeric media ID")
+    .option("--account <name>", "Optional override for a specific saved Instagram session")
+    .action(async (target, options, cmd) => {
+      const ctx = resolveCommandContext(cmd);
+      const logger = new Logger(ctx);
+      const spinner = logger.spinner("Unliking Instagram post...");
+      await runCommandAction({
+        spinner,
+        successMessage: "Instagram post unliked.",
+        action: () =>
+          adapter.unlike({
             account: options.account,
             target,
           }),
@@ -116,5 +216,168 @@ Examples:
       });
     });
 
+  command
+    .command("follow <target>")
+    .description("Follow an Instagram profile by URL, @username, username, or numeric user ID")
+    .option("--account <name>", "Optional override for a specific saved Instagram session")
+    .action(async (target, options, cmd) => {
+      const ctx = resolveCommandContext(cmd);
+      const logger = new Logger(ctx);
+      const spinner = logger.spinner("Following Instagram profile...");
+      await runCommandAction({
+        spinner,
+        successMessage: "Instagram follow request sent.",
+        action: () =>
+          adapter.follow({
+            account: options.account,
+            target,
+          }),
+        onSuccess: (result) => {
+          printActionResult(result, ctx.json);
+        },
+      });
+    });
+
+  command
+    .command("unfollow <target>")
+    .description("Unfollow an Instagram profile by URL, @username, username, or numeric user ID")
+    .option("--account <name>", "Optional override for a specific saved Instagram session")
+    .action(async (target, options, cmd) => {
+      const ctx = resolveCommandContext(cmd);
+      const logger = new Logger(ctx);
+      const spinner = logger.spinner("Unfollowing Instagram profile...");
+      await runCommandAction({
+        spinner,
+        successMessage: "Instagram unfollow request sent.",
+        action: () =>
+          adapter.unfollow({
+            account: options.account,
+            target,
+          }),
+        onSuccess: (result) => {
+          printActionResult(result, ctx.json);
+        },
+      });
+    });
+
   return command;
+}
+
+function parseLimitOption(value: string): number {
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    throw new Error("Expected --limit to be a positive integer.");
+  }
+
+  return parsed;
+}
+
+function printInstagramSearchResult(result: AdapterActionResult, json: boolean): void {
+  if (json) {
+    printJson(result);
+    return;
+  }
+
+  printActionResult(result, false);
+
+  const results = Array.isArray(result.data?.results) ? result.data.results : [];
+  for (const [index, rawItem] of results.entries()) {
+    if (!rawItem || typeof rawItem !== "object") {
+      continue;
+    }
+
+    const item = rawItem as {
+      username?: string;
+      fullName?: string;
+      followerCount?: number;
+      isPrivate?: boolean;
+      isVerified?: boolean;
+      url?: string;
+    };
+
+    const meta = [
+      typeof item.fullName === "string" ? item.fullName : undefined,
+      typeof item.followerCount === "number" ? `${item.followerCount} followers` : undefined,
+      item.isVerified ? "verified" : undefined,
+      item.isPrivate ? "private" : "public",
+    ].filter((value): value is string => typeof value === "string" && value.length > 0);
+
+    console.log(`${index + 1}. @${item.username ?? "unknown"}`);
+    if (meta.length > 0) {
+      console.log(`   ${meta.join(" • ")}`);
+    }
+    if (item.url) {
+      console.log(`   ${item.url}`);
+    }
+  }
+}
+
+function printInstagramMediaResult(result: AdapterActionResult, json: boolean): void {
+  if (json) {
+    printJson(result);
+    return;
+  }
+
+  printActionResult(result, false);
+  const data = result.data;
+  if (!data || typeof data !== "object") {
+    return;
+  }
+
+  const meta = [
+    typeof data.ownerUsername === "string" ? `@${data.ownerUsername}` : undefined,
+    typeof data.mediaType === "string" ? data.mediaType : undefined,
+    typeof data.likeCount === "number" ? `${data.likeCount} likes` : undefined,
+    typeof data.commentCount === "number" ? `${data.commentCount} comments` : undefined,
+    typeof data.playCount === "number" ? `${data.playCount} plays` : undefined,
+    typeof data.takenAt === "string" ? data.takenAt : undefined,
+  ].filter((value): value is string => typeof value === "string" && value.length > 0);
+
+  if (meta.length > 0) {
+    console.log(meta.join(" • "));
+  }
+
+  if (typeof data.ownerUrl === "string") {
+    console.log(`owner: ${data.ownerUrl}`);
+  }
+
+  if (typeof data.caption === "string" && data.caption.length > 0) {
+    const preview = data.caption.length > 300 ? `${data.caption.slice(0, 300)}...` : data.caption;
+    console.log(preview);
+  }
+}
+
+function printInstagramProfileResult(result: AdapterActionResult, json: boolean): void {
+  if (json) {
+    printJson(result);
+    return;
+  }
+
+  printActionResult(result, false);
+  const data = result.data;
+  if (!data || typeof data !== "object") {
+    return;
+  }
+
+  const meta = [
+    typeof data.fullName === "string" ? data.fullName : undefined,
+    typeof data.followerCount === "number" ? `${data.followerCount} followers` : undefined,
+    typeof data.followingCount === "number" ? `${data.followingCount} following` : undefined,
+    typeof data.mediaCount === "number" ? `${data.mediaCount} posts` : undefined,
+    data.isVerified ? "verified" : undefined,
+    data.isPrivate ? "private" : "public",
+  ].filter((value): value is string => typeof value === "string" && value.length > 0);
+
+  if (meta.length > 0) {
+    console.log(meta.join(" • "));
+  }
+
+  if (typeof data.externalUrl === "string" && data.externalUrl.length > 0) {
+    console.log(`external: ${data.externalUrl}`);
+  }
+
+  if (typeof data.biography === "string" && data.biography.length > 0) {
+    const preview = data.biography.length > 300 ? `${data.biography.slice(0, 300)}...` : data.biography;
+    console.log(preview);
+  }
 }
