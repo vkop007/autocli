@@ -13,6 +13,7 @@ export const PLATFORM_NAMES = [
   "notion",
   "qr",
   "slackbot",
+  "spotify",
   "telegrambot",
   "tiktok",
   "time",
@@ -130,6 +131,13 @@ export const PLATFORM_CONFIG: Record<PlatformName, PlatformConfig> = {
     homeUrl: "https://api.slack.com",
     cookieDomain: "slack.com",
     authCookieNames: [],
+  },
+  spotify: {
+    displayName: "Spotify",
+    origin: "https://open.spotify.com",
+    homeUrl: "https://open.spotify.com/",
+    cookieDomain: "spotify.com",
+    authCookieNames: ["sp_dc", "sp_key"],
   },
   telegrambot: {
     displayName: "Telegram Bot",

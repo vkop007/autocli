@@ -68,4 +68,8 @@ Current examples:
 - Bot-token platforms: `src/platforms/bots/discordbot/`, `src/platforms/bots/githubbot/`, `src/platforms/bots/slackbot/`, `src/platforms/bots/telegrambot/`
 - API-token platforms: `src/platforms/api/github/`, `src/platforms/api/gitlab/`, `src/platforms/api/linear/`, `src/platforms/api/notion/`
 - Public utility platforms: `src/platforms/public/cheat/`, `src/platforms/public/ip/`, `src/platforms/public/news/`, `src/platforms/public/qr/`, `src/platforms/public/time/`, `src/platforms/public/weather/`, `src/platforms/public/websearch/`
-- Cookie-backed platforms: `src/platforms/social/facebook/`, `src/platforms/social/instagram/`, `src/platforms/social/linkedin/`, `src/platforms/social/tiktok/`, `src/platforms/social/x/`, `src/platforms/social/youtube/`
+- Cookie-backed platforms: `src/platforms/social/facebook/`, `src/platforms/social/instagram/`, `src/platforms/social/linkedin/`, `src/platforms/social/spotify/`, `src/platforms/social/tiktok/`, `src/platforms/social/x/`, `src/platforms/social/youtube/`
+- Spotify specifically now uses an internal engine split:
+  - `web` for standard Web API endpoints
+  - `connect` for connect-state playback/device/queue control
+  - `auto` to prefer `connect` and fall back to `web`

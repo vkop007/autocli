@@ -343,6 +343,113 @@ export function parseYouTubePlaylistTarget(target: string): {
   });
 }
 
+export type SpotifyEntityType = "track" | "album" | "artist" | "playlist";
+
+const SPOTIFY_ENTITY_TYPES = ["track", "album", "artist", "playlist"] as const;
+const SPOTIFY_ID_PATTERN = /^[A-Za-z0-9]{22}$/;
+
+export function parseSpotifyEntityTarget(
+  target: string,
+  allowedTypes: readonly SpotifyEntityType[] = SPOTIFY_ENTITY_TYPES,
+): {
+  type: SpotifyEntityType;
+  id: string;
+  url?: string;
+  uri?: string;
+} {
+  const trimmed = target.trim();
+
+  const uriMatch = trimmed.match(/^spotify:(track|album|artist|playlist):([A-Za-z0-9]{22})$/i);
+  if (uriMatch?.[1] && uriMatch[2]) {
+    return buildSpotifyTarget(trimmed, uriMatch[1].toLowerCase() as SpotifyEntityType, uriMatch[2], allowedTypes, {
+      uri: trimmed,
+    });
+  }
+
+  const urlMatch = trimmed.match(/open\.spotify\.com\/(track|album|artist|playlist)\/([A-Za-z0-9]{22})/i);
+  if (urlMatch?.[1] && urlMatch[2]) {
+    return buildSpotifyTarget(trimmed, urlMatch[1].toLowerCase() as SpotifyEntityType, urlMatch[2], allowedTypes, {
+      url: trimmed,
+    });
+  }
+
+  if (SPOTIFY_ID_PATTERN.test(trimmed)) {
+    if (allowedTypes.length === 1 && allowedTypes[0]) {
+      return {
+        type: allowedTypes[0],
+        id: trimmed,
+      };
+    }
+
+    throw new AutoCliError(
+      "INVALID_TARGET",
+      "Expected a Spotify URL or spotify: URI so the target type is unambiguous.",
+      {
+        details: {
+          target,
+          allowedTypes,
+        },
+      },
+    );
+  }
+
+  throw new AutoCliError("INVALID_TARGET", formatSpotifyTargetError(allowedTypes), {
+    details: { target, allowedTypes },
+  });
+}
+
+export function parseSpotifyTrackTarget(target: string): {
+  trackId: string;
+  url?: string;
+  uri?: string;
+} {
+  const parsed = parseSpotifyEntityTarget(target, ["track"]);
+  return {
+    trackId: parsed.id,
+    url: parsed.url,
+    uri: parsed.uri,
+  };
+}
+
+export function parseSpotifyAlbumTarget(target: string): {
+  albumId: string;
+  url?: string;
+  uri?: string;
+} {
+  const parsed = parseSpotifyEntityTarget(target, ["album"]);
+  return {
+    albumId: parsed.id,
+    url: parsed.url,
+    uri: parsed.uri,
+  };
+}
+
+export function parseSpotifyArtistTarget(target: string): {
+  artistId: string;
+  url?: string;
+  uri?: string;
+} {
+  const parsed = parseSpotifyEntityTarget(target, ["artist"]);
+  return {
+    artistId: parsed.id,
+    url: parsed.url,
+    uri: parsed.uri,
+  };
+}
+
+export function parseSpotifyPlaylistTarget(target: string): {
+  playlistId: string;
+  url?: string;
+  uri?: string;
+} {
+  const parsed = parseSpotifyEntityTarget(target, ["playlist"]);
+  return {
+    playlistId: parsed.id,
+    url: parsed.url,
+    uri: parsed.uri,
+  };
+}
+
 export function instagramShortcodeToMediaId(shortcode: string): string {
   let value = 0n;
 
@@ -358,4 +465,44 @@ export function instagramShortcodeToMediaId(shortcode: string): string {
   }
 
   return value.toString();
+}
+
+function buildSpotifyTarget(
+  target: string,
+  type: SpotifyEntityType,
+  id: string,
+  allowedTypes: readonly SpotifyEntityType[],
+  extras: {
+    url?: string;
+    uri?: string;
+  },
+): {
+  type: SpotifyEntityType;
+  id: string;
+  url?: string;
+  uri?: string;
+} {
+  if (!allowedTypes.includes(type)) {
+    throw new AutoCliError("INVALID_TARGET", formatSpotifyTargetError(allowedTypes), {
+      details: {
+        target,
+        allowedTypes,
+        detectedType: type,
+      },
+    });
+  }
+
+  return {
+    type,
+    id,
+    ...extras,
+  };
+}
+
+function formatSpotifyTargetError(allowedTypes: readonly SpotifyEntityType[]): string {
+  if (allowedTypes.length === 1 && allowedTypes[0]) {
+    return `Expected a Spotify ${allowedTypes[0]} URL, spotify:${allowedTypes[0]} URI, or raw 22-character ${allowedTypes[0]} ID.`;
+  }
+
+  return `Expected a Spotify ${allowedTypes.join(", ")} URL or spotify: URI.`;
 }

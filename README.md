@@ -107,6 +107,41 @@ Reference points:
   - `send-file`
   - `edit`
   - `delete`
+- Spotify
+  - `login`
+  - `me`
+  - `search`
+  - `trackid` / `info`
+  - `albumid`
+  - `artistid`
+  - `playlistid`
+  - `devices`
+  - `status`
+  - `recent`
+  - `top`
+  - `savedtracks`
+  - `playlists`
+  - `playlistcreate`
+  - `playlisttracks`
+  - `playlistadd`
+  - `playlistremove`
+  - `device` / `transfer`
+  - `play`
+  - `pause`
+  - `next`
+  - `previous`
+  - `seek`
+  - `volume`
+  - `shuffle`
+  - `repeat`
+  - `queue`
+  - `queueadd`
+  - `like`
+  - `unlike`
+  - `followartist`
+  - `unfollowartist`
+  - `followplaylist`
+  - `unfollowplaylist`
 - Telegram Bot
   - `login --token`
   - `me`
