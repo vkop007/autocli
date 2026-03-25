@@ -79,6 +79,9 @@ Reference points:
   - `login`
   - `status`
   - `post`, `like`, and `comment` commands are wired, but TikTok web write signing is not implemented yet
+- Web Search
+  - `engines`
+  - `search`
 - Slack Bot
   - `login --token`
   - `me`
@@ -321,7 +324,18 @@ autocli notion database <data-source-id-or-url>
 autocli notion query <data-source-id-or-url> --limit 10
 autocli notion comment <page-id-or-url> --text "Looks good"
 ```
-autocli github unstar openai/openai-node
+
+## Web Search
+
+Search the web with multiple engines without any account setup:
+
+```bash
+autocli websearch engines
+autocli websearch search "bun cookies fetch"
+autocli websearch search "bun cookies fetch" --summary
+autocli websearch search "typescript cli" --engine bing
+autocli websearch search "llm agent frameworks" --engine brave --limit 5
+autocli websearch search "terminal weather" --all --limit 3
 ```
 
 ## Default flow
