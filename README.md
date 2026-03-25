@@ -170,8 +170,10 @@ Like or comment on Instagram:
 
 ```bash
 autocli instagram search "blackpink"
+autocli instagram posts @username --limit 5
 autocli instagram mediaid https://www.instagram.com/p/SHORTCODE/
 autocli instagram profileid @username
+autocli instagram download https://www.instagram.com/p/SHORTCODE/
 autocli instagram like https://www.instagram.com/p/SHORTCODE/
 autocli instagram unlike https://www.instagram.com/p/SHORTCODE/
 autocli instagram comment https://www.instagram.com/p/SHORTCODE/ "Looks great"

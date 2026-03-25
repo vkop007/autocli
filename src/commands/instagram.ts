@@ -21,6 +21,8 @@ Examples:
   autocli instagram search "blackpink"
   autocli instagram mediaid https://www.instagram.com/p/SHORTCODE/
   autocli instagram profileid @username
+  autocli instagram posts @username
+  autocli instagram download https://www.instagram.com/p/SHORTCODE/
   autocli instagram post ./photo.jpg --caption "Ship it"
   autocli instagram like https://www.instagram.com/p/SHORTCODE/
   autocli instagram unlike https://www.instagram.com/p/SHORTCODE/
@@ -80,6 +82,32 @@ Examples:
     });
 
   command
+    .command("download <target>")
+    .description("Download Instagram media by URL, shortcode, or numeric media ID")
+    .option("--output-dir <path>", "Directory to write downloaded files into")
+    .option("--all", "Download every asset in a carousel instead of only the first one")
+    .option("--account <name>", "Optional override for a specific saved Instagram session")
+    .action(async (target, options, cmd) => {
+      const ctx = resolveCommandContext(cmd);
+      const logger = new Logger(ctx);
+      const spinner = logger.spinner("Downloading Instagram media...");
+      await runCommandAction({
+        spinner,
+        successMessage: "Instagram download completed.",
+        action: () =>
+          adapter.download({
+            account: options.account,
+            target,
+            outputDir: options.outputDir,
+            all: options.all,
+          }),
+        onSuccess: (result) => {
+          printInstagramDownloadResult(result, ctx.json);
+        },
+      });
+    });
+
+  command
     .command("search <query>")
     .description("Search Instagram accounts")
     .option("--limit <number>", "Maximum number of results to return (1-25, default: 5)", parseLimitOption)
@@ -99,6 +127,30 @@ Examples:
           }),
         onSuccess: (result) => {
           printInstagramSearchResult(result, ctx.json);
+        },
+      });
+    });
+
+  command
+    .command("posts <target>")
+    .description("List recent Instagram posts for a profile URL, @username, username, or numeric user ID")
+    .option("--limit <number>", "Maximum number of posts to return (1-25, default: 5)", parseLimitOption)
+    .option("--account <name>", "Optional override for a specific saved Instagram session")
+    .action(async (target, options, cmd) => {
+      const ctx = resolveCommandContext(cmd);
+      const logger = new Logger(ctx);
+      const spinner = logger.spinner("Loading Instagram posts...");
+      await runCommandAction({
+        spinner,
+        successMessage: "Instagram posts loaded.",
+        action: () =>
+          adapter.posts({
+            account: options.account,
+            target,
+            limit: options.limit,
+          }),
+        onSuccess: (result) => {
+          printInstagramPostsResult(result, ctx.json);
         },
       });
     });
@@ -308,6 +360,66 @@ function printInstagramSearchResult(result: AdapterActionResult, json: boolean):
     }
     if (item.url) {
       console.log(`   ${item.url}`);
+    }
+  }
+}
+
+function printInstagramDownloadResult(result: AdapterActionResult, json: boolean): void {
+  if (json) {
+    printJson(result);
+    return;
+  }
+
+  printActionResult(result, false);
+  const files = Array.isArray(result.data?.files) ? result.data.files : [];
+  for (const rawFile of files) {
+    if (typeof rawFile === "string" && rawFile.length > 0) {
+      console.log(`file: ${rawFile}`);
+    }
+  }
+}
+
+function printInstagramPostsResult(result: AdapterActionResult, json: boolean): void {
+  if (json) {
+    printJson(result);
+    return;
+  }
+
+  printActionResult(result, false);
+
+  const posts = Array.isArray(result.data?.posts) ? result.data.posts : [];
+  for (const [index, rawPost] of posts.entries()) {
+    if (!rawPost || typeof rawPost !== "object") {
+      continue;
+    }
+
+    const post = rawPost as {
+      shortcode?: string;
+      mediaType?: string;
+      likeCount?: number;
+      commentCount?: number;
+      playCount?: number;
+      takenAt?: string;
+      url?: string;
+      caption?: string;
+    };
+
+    const meta = [
+      typeof post.shortcode === "string" ? post.shortcode : undefined,
+      typeof post.mediaType === "string" ? post.mediaType : undefined,
+      typeof post.likeCount === "number" ? `${post.likeCount} likes` : undefined,
+      typeof post.commentCount === "number" ? `${post.commentCount} comments` : undefined,
+      typeof post.playCount === "number" ? `${post.playCount} plays` : undefined,
+      typeof post.takenAt === "string" ? post.takenAt : undefined,
+    ].filter((value): value is string => typeof value === "string" && value.length > 0);
+
+    console.log(`${index + 1}. ${post.url ?? "Instagram post"}`);
+    if (meta.length > 0) {
+      console.log(`   ${meta.join(" • ")}`);
+    }
+    if (typeof post.caption === "string" && post.caption.length > 0) {
+      const preview = post.caption.length > 180 ? `${post.caption.slice(0, 180)}...` : post.caption;
+      console.log(`   ${preview.replace(/\s+/g, " ").trim()}`);
     }
   }
 }

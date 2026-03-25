@@ -1,4 +1,6 @@
 import { randomUUID } from "node:crypto";
+import { mkdir, writeFile } from "node:fs/promises";
+import { join, resolve } from "node:path";
 
 import { AutoCliError } from "../errors.js";
 import { maybeAutoRefreshSession } from "../utils/autorefresh.js";
@@ -112,6 +114,7 @@ interface InstagramMediaPayload {
   code?: string;
   media_type?: number;
   product_type?: string;
+  is_video?: boolean;
   like_count?: number;
   comment_count?: number;
   play_count?: number;
@@ -129,6 +132,34 @@ interface InstagramMediaPayload {
   video_versions?: Array<{
     url?: string;
   }>;
+  carousel_media?: InstagramMediaPayload[];
+}
+
+interface InstagramUserFeedResponse {
+  items?: InstagramMediaPayload[];
+  num_results?: number;
+  more_available?: boolean;
+}
+
+interface InstagramPostSummary {
+  id: string;
+  shortcode?: string;
+  url?: string;
+  mediaType?: string;
+  likeCount?: number;
+  commentCount?: number;
+  playCount?: number;
+  caption?: string;
+  takenAt?: string;
+  thumbnailUrl?: string;
+  ownerUsername?: string;
+}
+
+interface InstagramDownloadAsset {
+  url: string;
+  extension: string;
+  mediaType: string;
+  index: number;
 }
 
 interface InstagramSearchResultItem {
@@ -330,6 +361,92 @@ export class InstagramAdapter extends BasePlatformAdapter {
     );
   }
 
+  async download(input: {
+    account?: string;
+    target: string;
+    outputDir?: string;
+    all?: boolean;
+  }): Promise<AdapterActionResult> {
+    const { session } = await this.prepareSession(input.account);
+    const probe = await this.ensureActiveSession(session);
+    const client = await this.createInstagramClient(session);
+    const target = parseInstagramTarget(input.target);
+    const response = await client.request<InstagramMediaInfoResponse>(
+      `${INSTAGRAM_ORIGIN}/api/v1/media/${target.mediaId}/info/`,
+      {
+        expectedStatus: 200,
+        headers: await this.buildInstagramHeaders(client, probe.metadata),
+      },
+    );
+
+    const media = response.items?.[0];
+    if (!media?.id && !media?.pk) {
+      throw new AutoCliError("INSTAGRAM_MEDIA_NOT_FOUND", "Instagram could not find that media item.", {
+        details: {
+          target: input.target,
+          mediaId: target.mediaId,
+        },
+      });
+    }
+
+    const assets = this.extractInstagramDownloadAssets(media, Boolean(input.all));
+    if (assets.length === 0) {
+      throw new AutoCliError("INSTAGRAM_DOWNLOAD_UNAVAILABLE", "Instagram did not expose any downloadable media URLs for that item.", {
+        details: {
+          target: input.target,
+          mediaId: target.mediaId,
+        },
+      });
+    }
+
+    const info = this.toInstagramMediaInfo(media, target.url);
+    const outputDir = resolve(input.outputDir ?? join(process.cwd(), "downloads", "instagram"));
+    await mkdir(outputDir, { recursive: true });
+
+    const savedFiles: string[] = [];
+    for (const asset of assets) {
+      const response = await client.requestWithResponse<ArrayBuffer>(asset.url, {
+        responseType: "arrayBuffer",
+        expectedStatus: 200,
+        headers: {
+          referer: info.url ?? INSTAGRAM_HOME,
+        },
+      });
+
+      const extension = this.normalizeInstagramDownloadExtension(
+        asset.extension,
+        response.response.headers.get("content-type") ?? undefined,
+      );
+      const filename = this.buildInstagramDownloadFilename({
+        info,
+        mediaType: asset.mediaType,
+        index: asset.index,
+        extension,
+        includeIndex: assets.length > 1,
+      });
+      const outputPath = join(outputDir, filename);
+      await writeFile(outputPath, Buffer.from(response.data));
+      savedFiles.push(outputPath);
+    }
+
+    return {
+      ok: true,
+      platform: this.platform,
+      account: session.account,
+      action: "download",
+      message: `Instagram download completed for ${session.account}.`,
+      id: info.id,
+      url: info.url,
+      user: probe.user,
+      data: {
+        outputPath: savedFiles[0],
+        files: savedFiles,
+        outputDir,
+        all: Boolean(input.all),
+      },
+    };
+  }
+
   async like(input: LikeInput): Promise<AdapterActionResult> {
     const { session } = await this.prepareSession(input.account);
     const probe = await this.ensureActiveSession(session);
@@ -362,6 +479,47 @@ export class InstagramAdapter extends BasePlatformAdapter {
       message: `Instagram post liked for ${session.account}.`,
       id: target.mediaId,
       user: probe.user,
+    };
+  }
+
+  async posts(input: {
+    account?: string;
+    target: string;
+    limit?: number;
+  }): Promise<AdapterActionResult> {
+    const { session } = await this.prepareSession(input.account);
+    const probe = await this.ensureActiveSession(session);
+    const client = await this.createInstagramClient(session);
+    const profile = await this.resolveInstagramProfileInfo(client, probe.metadata, input.target);
+    const limit = this.normalizeSearchLimit(input.limit);
+
+    const response = await client.request<InstagramUserFeedResponse>(
+      `${INSTAGRAM_ORIGIN}/api/v1/feed/user/${encodeURIComponent(profile.id)}/?count=${limit}`,
+      {
+        expectedStatus: 200,
+        headers: await this.buildInstagramHeaders(client, probe.metadata),
+      },
+    );
+
+    const posts = (response.items ?? []).slice(0, limit).map((item) => this.toInstagramPostSummary(item));
+
+    return {
+      ok: true,
+      platform: this.platform,
+      account: session.account,
+      action: "posts",
+      message:
+        posts.length > 0
+          ? `Loaded ${posts.length} Instagram post${posts.length === 1 ? "" : "s"} for ${profile.username ?? profile.id}.`
+          : `No Instagram posts found for ${profile.username ?? profile.id}.`,
+      id: profile.id,
+      url: profile.url,
+      user: probe.user,
+      data: {
+        profile: { ...profile },
+        limit,
+        posts: posts.map((post) => ({ ...post })),
+      },
     };
   }
 
@@ -854,6 +1012,23 @@ export class InstagramAdapter extends BasePlatformAdapter {
     };
   }
 
+  private toInstagramPostSummary(media: InstagramMediaPayload): InstagramPostSummary {
+    const info = this.toInstagramMediaInfo(media);
+    return {
+      id: info.id,
+      shortcode: info.shortcode,
+      url: info.url,
+      mediaType: info.mediaType,
+      likeCount: info.likeCount,
+      commentCount: info.commentCount,
+      playCount: info.playCount,
+      caption: info.caption,
+      takenAt: info.takenAt,
+      thumbnailUrl: info.thumbnailUrl,
+      ownerUsername: info.ownerUsername,
+    };
+  }
+
   private describeInstagramMediaType(media: InstagramMediaPayload): string | undefined {
     if (media.product_type === "clips") {
       return "reel";
@@ -877,6 +1052,80 @@ export class InstagramAdapter extends BasePlatformAdapter {
     }
 
     return new Date(value * 1_000).toISOString();
+  }
+
+  private extractInstagramDownloadAssets(media: InstagramMediaPayload, all: boolean): InstagramDownloadAsset[] {
+    const sources = Array.isArray(media.carousel_media) && media.carousel_media.length > 0 ? media.carousel_media : [media];
+    const selected = all ? sources : sources.slice(0, 1);
+
+    return selected
+      .map((item, index) => {
+        const videoUrl = item.video_versions?.[0]?.url;
+        const imageUrl = item.image_versions2?.candidates?.[0]?.url;
+        const url = videoUrl ?? imageUrl;
+        if (!url) {
+          return undefined;
+        }
+
+        return {
+          url,
+          extension: this.extensionFromUrl(url),
+          mediaType: videoUrl ? "video" : "image",
+          index,
+        } satisfies InstagramDownloadAsset;
+      })
+      .filter((asset): asset is InstagramDownloadAsset => Boolean(asset));
+  }
+
+  private extensionFromUrl(url: string): string {
+    try {
+      const pathname = new URL(url).pathname;
+      const match = pathname.match(/\.([a-z0-9]+)$/i);
+      return match?.[1]?.toLowerCase() ?? "bin";
+    } catch {
+      return "bin";
+    }
+  }
+
+  private normalizeInstagramDownloadExtension(extension: string, contentType?: string): string {
+    if (extension && extension !== "bin") {
+      return extension;
+    }
+
+    if (!contentType) {
+      return "bin";
+    }
+
+    if (contentType.includes("video/mp4")) {
+      return "mp4";
+    }
+
+    if (contentType.includes("image/jpeg")) {
+      return "jpg";
+    }
+
+    if (contentType.includes("image/png")) {
+      return "png";
+    }
+
+    return "bin";
+  }
+
+  private buildInstagramDownloadFilename(input: {
+    info: InstagramMediaInfo;
+    mediaType: string;
+    index: number;
+    extension: string;
+    includeIndex: boolean;
+  }): string {
+    const owner = this.sanitizeFilename(input.info.ownerUsername ?? "instagram");
+    const identity = this.sanitizeFilename(input.info.shortcode ?? input.info.id);
+    const suffix = input.includeIndex ? `-${input.index + 1}` : "";
+    return `${owner}-${identity}-${input.mediaType}${suffix}.${input.extension}`;
+  }
+
+  private sanitizeFilename(value: string): string {
+    return value.replace(/[^A-Za-z0-9._-]+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "") || "media";
   }
 
   private async resolveInstagramProfileInfo(
