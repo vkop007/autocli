@@ -11,6 +11,7 @@ export const PLATFORM_NAMES = [
   "slackbot",
   "telegrambot",
   "tiktok",
+  "websearch",
   "x",
   "youtube",
 ] as const;
@@ -109,6 +110,13 @@ export const PLATFORM_CONFIG: Record<PlatformName, PlatformConfig> = {
     homeUrl: "https://www.tiktok.com/",
     cookieDomain: "tiktok.com",
     authCookieNames: ["sid_tt"],
+  },
+  websearch: {
+    displayName: "Web Search",
+    origin: "https://html.duckduckgo.com",
+    homeUrl: "https://duckduckgo.com/",
+    cookieDomain: "duckduckgo.com",
+    authCookieNames: [],
   },
   x: {
     displayName: "X",
