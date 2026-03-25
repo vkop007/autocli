@@ -3,6 +3,8 @@ import { githubbotPlatformDefinition } from "./bots/githubbot/manifest.js";
 import { slackbotPlatformDefinition } from "./bots/slackbot/manifest.js";
 import { telegrambotPlatformDefinition } from "./bots/telegrambot/manifest.js";
 import { githubPlatformDefinition } from "./api/github/manifest.js";
+import { gitlabPlatformDefinition } from "./api/gitlab/manifest.js";
+import { linearPlatformDefinition } from "./api/linear/manifest.js";
 import { notionPlatformDefinition } from "./api/notion/manifest.js";
 import { facebookPlatformDefinition } from "./social/facebook/manifest.js";
 import { instagramPlatformDefinition } from "./social/instagram/manifest.js";
@@ -19,8 +21,10 @@ const definitions: readonly PlatformDefinition[] = [
   facebookPlatformDefinition,
   githubPlatformDefinition,
   githubbotPlatformDefinition,
+  gitlabPlatformDefinition,
   instagramPlatformDefinition,
   linkedinPlatformDefinition,
+  linearPlatformDefinition,
   notionPlatformDefinition,
   slackbotPlatformDefinition,
   telegrambotPlatformDefinition,

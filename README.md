@@ -34,6 +34,17 @@ Reference points:
   - `create-repo`
   - `star`
   - `unstar`
+- GitLab
+  - `login --token`
+  - `me`
+  - `projects`
+  - `project`
+  - `search-projects`
+  - `issues`
+  - `issue`
+  - `create-issue`
+  - `merge-requests`
+  - `merge-request`
 - Discord Bot
   - `login --token`
   - `me`
@@ -53,6 +64,16 @@ Reference points:
   - `login`
   - `post` / `share` with text
   - `like`
+  - `comment`
+- Linear
+  - `login --token`
+  - `me`
+  - `teams`
+  - `projects`
+  - `issues`
+  - `issue`
+  - `create-issue`
+  - `update-issue`
   - `comment`
 - TikTok
   - `login`
@@ -247,6 +268,39 @@ autocli githubbot issues openai/openai-node --state open --limit 10
 autocli githubbot pulls openai/openai-node --state open --limit 10
 autocli githubbot create-issue owner/repo --title "Bug report" --body "Details here"
 autocli githubbot star openai/openai-node
+```
+
+## GitLab
+
+Use a GitLab personal access token to inspect projects, issues, and merge requests:
+
+```bash
+autocli gitlab login --token glpat_xxx
+autocli gitlab me
+autocli gitlab projects "autocli" --limit 10
+autocli gitlab project group/subgroup/project
+autocli gitlab search-projects "typescript cli" --limit 10
+autocli gitlab issues group/project --state opened --limit 10
+autocli gitlab issue group/project 123
+autocli gitlab create-issue group/project --title "Bug report" --body "Details here"
+autocli gitlab merge-requests group/project --state opened --limit 10
+autocli gitlab merge-request group/project 123
+```
+
+## Linear
+
+Use a Linear personal API key to inspect teams, projects, and issues:
+
+```bash
+autocli linear login --token lin_api_xxx
+autocli linear me
+autocli linear teams
+autocli linear projects
+autocli linear issues --team ENG --limit 20
+autocli linear issue ENG-123
+autocli linear create-issue --team ENG --title "Bug report" --description "Details here"
+autocli linear update-issue ENG-123 --title "Updated title"
+autocli linear comment ENG-123 --body "Looks good"
 ```
 
 ## Notion

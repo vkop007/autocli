@@ -3,8 +3,10 @@ export const PLATFORM_NAMES = [
   "facebook",
   "github",
   "githubbot",
+  "gitlab",
   "instagram",
   "linkedin",
+  "linear",
   "notion",
   "slackbot",
   "telegrambot",
@@ -52,6 +54,13 @@ export const PLATFORM_CONFIG: Record<PlatformName, PlatformConfig> = {
     cookieDomain: "github.com",
     authCookieNames: [],
   },
+  gitlab: {
+    displayName: "GitLab",
+    origin: "https://gitlab.com",
+    homeUrl: "https://gitlab.com/",
+    cookieDomain: "gitlab.com",
+    authCookieNames: [],
+  },
   instagram: {
     displayName: "Instagram",
     origin: "https://www.instagram.com",
@@ -65,6 +74,13 @@ export const PLATFORM_CONFIG: Record<PlatformName, PlatformConfig> = {
     homeUrl: "https://www.linkedin.com/",
     cookieDomain: "linkedin.com",
     authCookieNames: ["li_at", "JSESSIONID"],
+  },
+  linear: {
+    displayName: "Linear",
+    origin: "https://api.linear.app",
+    homeUrl: "https://linear.app/",
+    cookieDomain: "linear.app",
+    authCookieNames: [],
   },
   notion: {
     displayName: "Notion",
