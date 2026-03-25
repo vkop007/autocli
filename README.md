@@ -39,7 +39,12 @@ Reference points:
 - X
   - `login`
   - `post` / `tweet` with optional image
+  - `search` for accounts
+  - `tweetid` / `info`
+  - `profileid` / `profile`
+  - `tweets`
   - `like`
+  - `unlike`
   - `comment`
 - Global
   - `status`
@@ -169,8 +174,26 @@ autocli instagram post ./photo.jpg --caption "Shipping from the terminal"
 Like or comment on Instagram:
 
 ```bash
+autocli instagram search "blackpink"
+autocli instagram posts @username --limit 5
+autocli instagram posts @username --type reel --limit 5
+autocli instagram stories @username
+autocli instagram stories @username --videos-only
+autocli instagram storydownload @username
+autocli instagram storydownload @username --photos-only
+autocli instagram downloadposts @username --limit 3
+autocli instagram batch download ./targets.txt
+autocli instagram batch storydownload ./profiles.txt --limit 1
+autocli instagram followers @username --limit 5
+autocli instagram following @username --limit 5
+autocli instagram mediaid https://www.instagram.com/p/SHORTCODE/
+autocli instagram profileid @username
+autocli instagram download https://www.instagram.com/p/SHORTCODE/
 autocli instagram like https://www.instagram.com/p/SHORTCODE/
+autocli instagram unlike https://www.instagram.com/p/SHORTCODE/
 autocli instagram comment https://www.instagram.com/p/SHORTCODE/ "Looks great"
+autocli instagram follow @username
+autocli instagram unfollow @username
 ```
 
 Import Facebook cookies:
@@ -206,10 +229,20 @@ autocli x post "Launching AutoCLI" --image ./launch.png
 autocli x tweet "Plain text post" --json
 ```
 
+Inspect and search X:
+
+```bash
+autocli x search "openai" --limit 5
+autocli x profileid @OpenAI
+autocli x tweets @OpenAI --limit 5
+autocli x tweetid https://x.com/OpenAI/status/2029620619743219811
+```
+
 Like or reply on X:
 
 ```bash
 autocli x like https://x.com/user/status/1234567890
+autocli x unlike 1234567890
 autocli x comment 1234567890 "Nice work"
 ```
 

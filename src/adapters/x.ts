@@ -1,5 +1,5 @@
 import { readMediaFile } from "../utils/media.js";
-import { parseXTarget } from "../utils/targets.js";
+import { parseXProfileTarget, parseXTarget } from "../utils/targets.js";
 import { AutoCliError } from "../errors.js";
 import { maybeAutoRefreshSession } from "../utils/autorefresh.js";
 import { serializeCookieJar } from "../utils/cookie-manager.js";
@@ -31,6 +31,37 @@ const X_MEDIA_UPLOAD_ENDPOINTS = [
 ] as const;
 const X_CREATE_TWEET_OPERATION = "CreateTweet";
 const X_FAVORITE_TWEET_OPERATION = "FavoriteTweet";
+const X_UNFAVORITE_TWEET_OPERATION = "UnfavoriteTweet";
+const X_TWEET_RESULT_OPERATION = "TweetResultByRestId";
+const X_USER_BY_SCREEN_NAME_OPERATION = "UserByScreenName";
+const X_USER_BY_REST_ID_OPERATION = "UserByRestId";
+const X_USER_TWEETS_OPERATION = "UserTweets";
+
+const X_DEFAULT_QUERY_FEATURES = {
+  responsive_web_graphql_exclude_directive_enabled: true,
+  verified_phone_label_enabled: false,
+  creator_subscriptions_tweet_preview_api_enabled: true,
+  responsive_web_graphql_timeline_navigation_enabled: true,
+  responsive_web_graphql_skip_user_profile_image_extensions_enabled: false,
+  premium_content_api_read_enabled: false,
+  communities_web_enable_tweet_community_results_fetch: true,
+  c9s_tweet_anatomy_moderator_badge_enabled: true,
+  articles_preview_enabled: true,
+  responsive_web_edit_tweet_api_enabled: true,
+  graphql_is_translatable_rweb_tweet_is_translatable_enabled: true,
+  view_counts_everywhere_api_enabled: true,
+  longform_notetweets_consumption_enabled: true,
+  responsive_web_twitter_article_tweet_consumption_enabled: true,
+  tweet_awards_web_tipping_enabled: false,
+  creator_subscriptions_quote_tweet_preview_enabled: false,
+  freedom_of_speech_not_reach_fetch_enabled: true,
+  standardized_nudges_misinfo: true,
+  tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled: true,
+  longform_notetweets_rich_text_read_enabled: true,
+  longform_notetweets_inline_media_enabled: true,
+  responsive_web_media_download_video_enabled: false,
+  responsive_web_enhance_cards_enabled: false,
+} as const;
 
 interface XProbe {
   status: SessionStatus;
@@ -73,11 +104,60 @@ interface XFavoriteTweetGraphQlResponse {
   errors?: XGraphQlError[];
 }
 
+interface XBasicMutationResponse {
+  errors?: XGraphQlError[];
+}
+
+interface XTweetSummary {
+  id: string;
+  text?: string;
+  url?: string;
+  authorUsername?: string;
+  authorName?: string;
+  authorUrl?: string;
+  likeCount?: number;
+  retweetCount?: number;
+  replyCount?: number;
+  quoteCount?: number;
+  bookmarkCount?: number;
+  viewCount?: number;
+  createdAt?: string;
+}
+
+interface XUserSummary {
+  id: string;
+  username: string;
+  displayName?: string;
+  description?: string;
+  url?: string;
+  followersCount?: number;
+  followingCount?: number;
+  tweetCount?: number;
+  verified?: boolean;
+  profileImageUrl?: string;
+}
+
 interface XMediaUploadResponse {
   media_id_string?: string;
   processing_info?: {
     state?: string;
   };
+}
+
+interface XUserTypeaheadResponse {
+  num_results?: number;
+  users?: Array<{
+    id?: number | string;
+    id_str?: string;
+    name?: string;
+    screen_name?: string;
+    description?: string;
+    verified?: boolean;
+    profile_image_url_https?: string;
+    followers_count?: number;
+    friends_count?: number;
+    statuses_count?: number;
+  }>;
 }
 
 export class XAdapter extends BasePlatformAdapter {
@@ -220,6 +300,35 @@ export class XAdapter extends BasePlatformAdapter {
     };
   }
 
+  async unlike(input: LikeInput): Promise<AdapterActionResult> {
+    const { session } = await this.prepareSession(input.account);
+    const probe = await this.ensureActiveSession(session);
+    const client = await this.createXClient(session);
+    const bearerToken = await this.resolveBearerToken(session, client, probe.metadata);
+    const target = parseXTarget(input.target);
+
+    await this.executeGraphQlMutation<XBasicMutationResponse>(
+      client,
+      session,
+      bearerToken,
+      X_UNFAVORITE_TWEET_OPERATION,
+      {
+        tweet_id: target.tweetId,
+      },
+      {},
+    );
+
+    return {
+      ok: true,
+      platform: this.platform,
+      account: session.account,
+      action: "unlike",
+      message: `X post unliked for ${session.account}.`,
+      id: target.tweetId,
+      user: probe.user,
+    };
+  }
+
   async comment(input: CommentInput): Promise<AdapterActionResult> {
     const { session } = await this.prepareSession(input.account);
     const probe = await this.ensureActiveSession(session);
@@ -252,6 +361,162 @@ export class XAdapter extends BasePlatformAdapter {
       user: probe.user,
       data: {
         text: input.text,
+      },
+    };
+  }
+
+  async search(input: {
+    account?: string;
+    query: string;
+    limit?: number;
+  }): Promise<AdapterActionResult> {
+    const { session } = await this.prepareSession(input.account);
+    const probe = await this.ensureActiveSession(session);
+    const client = await this.createXClient(session);
+    const bearerToken = await this.resolveBearerToken(session, client, probe.metadata);
+    const query = input.query.trim();
+
+    if (!query) {
+      throw new AutoCliError("INVALID_SEARCH_QUERY", "Expected a non-empty X search query.");
+    }
+
+    const limit = this.normalizeSearchLimit(input.limit);
+    const results = await this.searchXUsers(client, bearerToken, query, limit);
+
+    return {
+      ok: true,
+      platform: this.platform,
+      account: session.account,
+      action: "search",
+      message:
+        results.length > 0
+          ? `Found ${results.length} X account result${results.length === 1 ? "" : "s"} for "${query}".`
+          : `No X account results found for "${query}".`,
+      user: probe.user,
+      data: {
+        query,
+        limit,
+        results: results.map((result) => ({ ...result })),
+      },
+    };
+  }
+
+  async tweetInfo(input: {
+    account?: string;
+    target: string;
+  }): Promise<AdapterActionResult> {
+    const { session } = await this.prepareSession(input.account);
+    const probe = await this.ensureActiveSession(session);
+    const client = await this.createXClient(session);
+    const bearerToken = await this.resolveBearerToken(session, client, probe.metadata);
+    const target = parseXTarget(input.target);
+
+    const response = await this.executeGraphQlQuery<Record<string, unknown>>(
+      client,
+      session,
+      bearerToken,
+      X_TWEET_RESULT_OPERATION,
+      {
+        tweetId: target.tweetId,
+        withCommunity: false,
+        includePromotedContent: false,
+        withVoice: false,
+      },
+      X_DEFAULT_QUERY_FEATURES,
+      target.url ?? `${X_ORIGIN}/i/status/${target.tweetId}`,
+    );
+
+    const tweet = this.extractTweetSummaries(response, 1)[0];
+    if (!tweet) {
+      throw new AutoCliError("X_TWEET_NOT_FOUND", "X could not load that post.", {
+        details: {
+          target: input.target,
+          tweetId: target.tweetId,
+        },
+      });
+    }
+
+    return {
+      ok: true,
+      platform: this.platform,
+      account: session.account,
+      action: "tweetid",
+      message: `Loaded X post details for ${tweet.id}.`,
+      id: tweet.id,
+      url: tweet.url,
+      user: probe.user,
+      data: { ...tweet },
+    };
+  }
+
+  async profileInfo(input: {
+    account?: string;
+    target: string;
+  }): Promise<AdapterActionResult> {
+    const { session } = await this.prepareSession(input.account);
+    const probe = await this.ensureActiveSession(session);
+    const client = await this.createXClient(session);
+    const bearerToken = await this.resolveBearerToken(session, client, probe.metadata);
+    const profile = await this.resolveXProfile(client, session, bearerToken, input.target);
+
+    return {
+      ok: true,
+      platform: this.platform,
+      account: session.account,
+      action: "profileid",
+      message: `Loaded X profile details for ${profile.username}.`,
+      id: profile.id,
+      url: profile.url,
+      user: probe.user,
+      data: { ...profile },
+    };
+  }
+
+  async tweets(input: {
+    account?: string;
+    target: string;
+    limit?: number;
+  }): Promise<AdapterActionResult> {
+    const { session } = await this.prepareSession(input.account);
+    const probe = await this.ensureActiveSession(session);
+    const client = await this.createXClient(session);
+    const bearerToken = await this.resolveBearerToken(session, client, probe.metadata);
+    const profile = await this.resolveXProfile(client, session, bearerToken, input.target);
+    const limit = this.normalizeSearchLimit(input.limit);
+
+    const response = await this.executeGraphQlQuery<Record<string, unknown>>(
+      client,
+      session,
+      bearerToken,
+      X_USER_TWEETS_OPERATION,
+      {
+        userId: profile.id,
+        count: limit,
+        includePromotedContent: false,
+        withVoice: false,
+      },
+      X_DEFAULT_QUERY_FEATURES,
+      profile.url ?? `${X_ORIGIN}/${profile.username}`,
+    );
+
+    const tweets = this.extractTweetSummaries(response, limit);
+
+    return {
+      ok: true,
+      platform: this.platform,
+      account: session.account,
+      action: "tweets",
+      message:
+        tweets.length > 0
+          ? `Loaded ${tweets.length} X post${tweets.length === 1 ? "" : "s"} for ${profile.username}.`
+          : `No X posts found for ${profile.username}.`,
+      id: profile.id,
+      url: profile.url,
+      user: probe.user,
+      data: {
+        profile: { ...profile },
+        limit,
+        tweets: tweets.map((tweet) => ({ ...tweet })),
       },
     };
   }
@@ -623,6 +888,32 @@ export class XAdapter extends BasePlatformAdapter {
     return response;
   }
 
+  private async executeGraphQlQuery<T extends { errors?: XGraphQlError[] }>(
+    client: Awaited<ReturnType<XAdapter["createXClient"]>>,
+    session: PlatformSession,
+    bearerToken: string,
+    operationName: string,
+    variables: Record<string, unknown>,
+    features: Record<string, unknown>,
+    referer: string,
+  ): Promise<T> {
+    const queryId = await this.resolveGraphQlOperationQueryId(session, client, operationName);
+    const url = new URL(`${X_ORIGIN}/i/api/graphql/${queryId}/${operationName}`);
+    url.searchParams.set("variables", JSON.stringify(variables));
+    url.searchParams.set("features", JSON.stringify(features));
+
+    const response = await client.request<T>(url.toString(), {
+      expectedStatus: 200,
+      headers: {
+        ...(await this.buildXHeaders(client, bearerToken, referer)),
+        accept: "*/*",
+      },
+    });
+
+    this.throwOnGraphQlErrors(response, operationName);
+    return response;
+  }
+
   private async resolveGraphQlOperationQueryId(
     session: PlatformSession,
     client: Awaited<ReturnType<XAdapter["createXClient"]>>,
@@ -682,6 +973,16 @@ export class XAdapter extends BasePlatformAdapter {
       return;
     }
 
+    if (firstError.code === 34) {
+      throw new AutoCliError("X_RESOURCE_NOT_FOUND", `X could not find the requested resource for ${operationName} (code 34).`, {
+        details: {
+          operation: operationName,
+          code: firstError.code,
+          upstreamMessage: firstError.message,
+        },
+      });
+    }
+
     if (firstError.code === 144) {
       throw new AutoCliError("X_TWEET_NOT_FOUND", "X could not find the target tweet (code 144).", {
         details: {
@@ -731,6 +1032,322 @@ export class XAdapter extends BasePlatformAdapter {
 
   private extractTweetId(response: XCreateTweetGraphQlResponse): string | undefined {
     return response.data?.create_tweet?.tweet_results?.result?.rest_id ?? response.data?.create_tweet?.tweet_results?.result?.legacy?.id_str;
+  }
+
+  private normalizeSearchLimit(limit?: number): number {
+    if (!limit || !Number.isFinite(limit)) {
+      return 5;
+    }
+
+    return Math.max(1, Math.min(25, Math.floor(limit)));
+  }
+
+  private async resolveXProfile(
+    client: Awaited<ReturnType<XAdapter["createXClient"]>>,
+    session: PlatformSession,
+    bearerToken: string,
+    target: string,
+  ): Promise<XUserSummary> {
+    const parsed = parseXProfileTarget(target);
+    if (parsed.username) {
+      const results = await this.searchXUsers(client, bearerToken, parsed.username, 10);
+      const exactMatch =
+        results.find((user) => user.username.toLowerCase() === parsed.username?.toLowerCase()) ?? results[0];
+      if (exactMatch) {
+        return exactMatch;
+      }
+    }
+
+    const operationName = parsed.userId ? X_USER_BY_REST_ID_OPERATION : X_USER_BY_SCREEN_NAME_OPERATION;
+    const variables = parsed.userId
+      ? {
+          userId: parsed.userId,
+          withSafetyModeUserFields: true,
+        }
+      : {
+          screen_name: parsed.username,
+          withSafetyModeUserFields: true,
+        };
+    const response = await this.executeGraphQlQuery<Record<string, unknown>>(
+      client,
+      session,
+      bearerToken,
+      operationName,
+      variables,
+      X_DEFAULT_QUERY_FEATURES,
+      parsed.url ?? (parsed.username ? `${X_ORIGIN}/${parsed.username}` : X_HOME),
+    );
+
+    const user = this.extractUserSummaries(response, 1)[0];
+    if (!user) {
+      throw new AutoCliError("X_PROFILE_NOT_FOUND", "X could not load that profile.", {
+        details: {
+          target,
+          userId: parsed.userId,
+          username: parsed.username,
+        },
+      });
+    }
+
+    return user;
+  }
+
+  private async searchXUsers(
+    client: Awaited<ReturnType<XAdapter["createXClient"]>>,
+    bearerToken: string,
+    query: string,
+    limit: number,
+  ): Promise<XUserSummary[]> {
+    const response = await client.request<XUserTypeaheadResponse>(
+      `${X_ORIGIN}/i/api/1.1/search/typeahead.json?src=search_box&q=${encodeURIComponent(query)}&result_type=users`,
+      {
+        expectedStatus: 200,
+        headers: await this.buildXHeaders(client, bearerToken, X_HOME),
+      },
+    );
+
+    return (response.users ?? [])
+      .filter((user): user is NonNullable<XUserTypeaheadResponse["users"]>[number] => Boolean(user?.screen_name))
+      .slice(0, limit)
+      .map((user) => ({
+        id: String(user.id_str ?? user.id ?? ""),
+        username: user.screen_name ?? "",
+        displayName: user.name ?? undefined,
+        description: user.description ?? undefined,
+        url: user.screen_name ? `${X_ORIGIN}/${user.screen_name}` : undefined,
+        followersCount: user.followers_count,
+        followingCount: user.friends_count,
+        tweetCount: user.statuses_count,
+        verified: user.verified,
+        profileImageUrl: user.profile_image_url_https ?? undefined,
+      }));
+  }
+
+  private extractTweetSummaries(response: Record<string, unknown>, limit: number): XTweetSummary[] {
+    const results: XTweetSummary[] = [];
+    const seen = new Set<string>();
+
+    this.walkForTweetSummaries(response, results, seen, limit);
+    return results.slice(0, limit);
+  }
+
+  private walkForTweetSummaries(
+    node: unknown,
+    results: XTweetSummary[],
+    seen: Set<string>,
+    limit: number,
+  ): void {
+    if (results.length >= limit || !node) {
+      return;
+    }
+
+    if (Array.isArray(node)) {
+      for (const entry of node) {
+        this.walkForTweetSummaries(entry, results, seen, limit);
+        if (results.length >= limit) {
+          return;
+        }
+      }
+      return;
+    }
+
+    if (typeof node !== "object") {
+      return;
+    }
+
+    const tweet = this.parseTweetSummary(node);
+    if (tweet && !seen.has(tweet.id)) {
+      seen.add(tweet.id);
+      results.push(tweet);
+      if (results.length >= limit) {
+        return;
+      }
+    }
+
+    for (const value of Object.values(node as Record<string, unknown>)) {
+      this.walkForTweetSummaries(value, results, seen, limit);
+      if (results.length >= limit) {
+        return;
+      }
+    }
+  }
+
+  private parseTweetSummary(node: unknown): XTweetSummary | undefined {
+    if (!node || typeof node !== "object") {
+      return undefined;
+    }
+
+    const record = node as Record<string, unknown>;
+    const legacy = this.asRecord(record.legacy);
+    if (!legacy) {
+      return undefined;
+    }
+
+    const id = typeof record.rest_id === "string" ? record.rest_id : typeof legacy.id_str === "string" ? legacy.id_str : undefined;
+    const text = typeof legacy.full_text === "string" ? legacy.full_text : undefined;
+    if (!id || !text) {
+      return undefined;
+    }
+
+    const core = this.asRecord(record.core);
+    const userResults = core ? this.asRecord(core.user_results) : undefined;
+    const userResult = userResults ? this.asRecord(userResults.result) : undefined;
+    const userLegacy = userResult ? this.asRecord(userResult.legacy) : undefined;
+    const userCore = userResult ? this.asRecord(userResult.core) : undefined;
+    const authorUsername =
+      userCore && typeof userCore.screen_name === "string"
+        ? userCore.screen_name
+        : userLegacy && typeof userLegacy.screen_name === "string"
+          ? userLegacy.screen_name
+          : undefined;
+    const authorName =
+      userCore && typeof userCore.name === "string"
+        ? userCore.name
+        : userLegacy && typeof userLegacy.name === "string"
+          ? userLegacy.name
+          : undefined;
+
+    return {
+      id,
+      text,
+      url: authorUsername ? `${X_ORIGIN}/${authorUsername}/status/${id}` : `${X_ORIGIN}/i/status/${id}`,
+      authorUsername,
+      authorName,
+      authorUrl: authorUsername ? `${X_ORIGIN}/${authorUsername}` : undefined,
+      likeCount: typeof legacy.favorite_count === "number" ? legacy.favorite_count : undefined,
+      retweetCount: typeof legacy.retweet_count === "number" ? legacy.retweet_count : undefined,
+      replyCount: typeof legacy.reply_count === "number" ? legacy.reply_count : undefined,
+      quoteCount: typeof legacy.quote_count === "number" ? legacy.quote_count : undefined,
+      bookmarkCount: typeof legacy.bookmark_count === "number" ? legacy.bookmark_count : undefined,
+      viewCount: this.readNumericString(this.asRecord(record.views)?.count),
+      createdAt: typeof legacy.created_at === "string" ? new Date(legacy.created_at).toISOString() : undefined,
+    };
+  }
+
+  private extractUserSummaries(response: Record<string, unknown>, limit: number): XUserSummary[] {
+    const results: XUserSummary[] = [];
+    const seen = new Set<string>();
+    this.walkForUserSummaries(response, results, seen, limit);
+    return results.slice(0, limit);
+  }
+
+  private walkForUserSummaries(
+    node: unknown,
+    results: XUserSummary[],
+    seen: Set<string>,
+    limit: number,
+  ): void {
+    if (results.length >= limit || !node) {
+      return;
+    }
+
+    if (Array.isArray(node)) {
+      for (const entry of node) {
+        this.walkForUserSummaries(entry, results, seen, limit);
+        if (results.length >= limit) {
+          return;
+        }
+      }
+      return;
+    }
+
+    if (typeof node !== "object") {
+      return;
+    }
+
+    const user = this.parseUserSummary(node);
+    if (user && !seen.has(user.id)) {
+      seen.add(user.id);
+      results.push(user);
+      if (results.length >= limit) {
+        return;
+      }
+    }
+
+    for (const value of Object.values(node as Record<string, unknown>)) {
+      this.walkForUserSummaries(value, results, seen, limit);
+      if (results.length >= limit) {
+        return;
+      }
+    }
+  }
+
+  private parseUserSummary(node: unknown): XUserSummary | undefined {
+    if (!node || typeof node !== "object") {
+      return undefined;
+    }
+
+    const record = node as Record<string, unknown>;
+    const legacy = this.asRecord(record.legacy);
+    const core = this.asRecord(record.core);
+    const restId =
+      typeof record.rest_id === "string"
+        ? record.rest_id
+        : typeof record.id === "string"
+          ? this.decodeXEntityRestId(record.id, "User")
+          : undefined;
+    const username =
+      core && typeof core.screen_name === "string"
+        ? core.screen_name
+        : legacy && typeof legacy.screen_name === "string"
+          ? legacy.screen_name
+          : undefined;
+    if (!restId || !username) {
+      return undefined;
+    }
+
+    const avatar = this.asRecord(record.avatar);
+    return {
+      id: restId,
+      username,
+      displayName:
+        core && typeof core.name === "string"
+          ? core.name
+          : typeof legacy?.name === "string"
+            ? legacy.name
+            : undefined,
+      description: typeof legacy?.description === "string" ? legacy.description : undefined,
+      url: `${X_ORIGIN}/${username}`,
+      followersCount: typeof legacy?.followers_count === "number" ? legacy.followers_count : undefined,
+      followingCount: typeof legacy?.friends_count === "number" ? legacy.friends_count : undefined,
+      tweetCount: typeof legacy?.statuses_count === "number" ? legacy.statuses_count : undefined,
+      verified: record.is_blue_verified === true || legacy?.verified === true,
+      profileImageUrl:
+        avatar && typeof avatar.image_url === "string"
+          ? avatar.image_url
+          : typeof legacy?.profile_image_url_https === "string"
+            ? legacy.profile_image_url_https
+            : undefined,
+    };
+  }
+
+  private decodeXEntityRestId(encodedId: string, expectedType: string): string | undefined {
+    try {
+      const decoded = Buffer.from(encodedId, "base64").toString("utf8");
+      const match = decoded.match(new RegExp(`^${expectedType}:(\\d+)$`, "u"));
+      return match?.[1];
+    } catch {
+      return undefined;
+    }
+  }
+
+  private asRecord(value: unknown): Record<string, unknown> | undefined {
+    return value && typeof value === "object" ? (value as Record<string, unknown>) : undefined;
+  }
+
+  private readNumericString(value: unknown): number | undefined {
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return value;
+    }
+
+    if (typeof value === "string") {
+      const parsed = Number.parseInt(value, 10);
+      if (Number.isFinite(parsed)) {
+        return parsed;
+      }
+    }
+
+    return undefined;
   }
 
   private async tryRequestChain<T>(

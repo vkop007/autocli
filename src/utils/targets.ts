@@ -77,6 +77,39 @@ export function parseInstagramTarget(target: string): {
   };
 }
 
+export function parseInstagramProfileTarget(target: string): {
+  userId?: string;
+  username?: string;
+  url?: string;
+} {
+  const trimmed = target.trim();
+
+  if (/^\d+$/.test(trimmed)) {
+    return {
+      userId: trimmed,
+    };
+  }
+
+  const urlMatch = trimmed.match(/instagram\.com\/(?!p\/|reel\/|tv\/|explore\/|stories\/)([A-Za-z0-9._]+)/i);
+  if (urlMatch?.[1]) {
+    return {
+      username: urlMatch[1],
+      url: trimmed,
+    };
+  }
+
+  const normalized = trimmed.startsWith("@") ? trimmed.slice(1) : trimmed;
+  if (/^[A-Za-z0-9._]+$/.test(normalized)) {
+    return {
+      username: normalized,
+    };
+  }
+
+  throw new AutoCliError("INVALID_TARGET", "Expected an Instagram profile URL, @username, username, or numeric user ID.", {
+    details: { target },
+  });
+}
+
 export function parseXTarget(target: string): {
   tweetId: string;
   url?: string;
@@ -98,6 +131,39 @@ export function parseXTarget(target: string): {
     tweetId: match[1],
     url: trimmed,
   };
+}
+
+export function parseXProfileTarget(target: string): {
+  userId?: string;
+  username?: string;
+  url?: string;
+} {
+  const trimmed = target.trim();
+
+  if (/^\d+$/.test(trimmed)) {
+    return {
+      userId: trimmed,
+    };
+  }
+
+  const urlMatch = trimmed.match(/(?:x|twitter)\.com\/(?!i\/|home\/|search\/|explore\/|notifications\/|messages\/|settings\/)([A-Za-z0-9_]+)/i);
+  if (urlMatch?.[1]) {
+    return {
+      username: urlMatch[1],
+      url: trimmed,
+    };
+  }
+
+  const normalized = trimmed.startsWith("@") ? trimmed.slice(1) : trimmed;
+  if (/^[A-Za-z0-9_]{1,15}$/.test(normalized)) {
+    return {
+      username: normalized,
+    };
+  }
+
+  throw new AutoCliError("INVALID_TARGET", "Expected an X profile URL, @handle, handle, or numeric user ID.", {
+    details: { target },
+  });
 }
 
 export function parseLinkedInTarget(target: string): {
