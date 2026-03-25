@@ -1,14 +1,18 @@
 import { createAdapterActionCapability } from "../../../../core/runtime/capability-helpers.js";
-import { githubAdapter } from "../adapter.js";
+import { githubAdapter, type GitHubAdapter } from "../adapter.js";
 import { printGitHubIdentityResult } from "../output.js";
 
-export const githubMeCapability = createAdapterActionCapability({
-  id: "me",
-  command: "me",
-  aliases: ["whoami"],
-  description: "Load the authenticated GitHub account",
-  spinnerText: "Loading GitHub account...",
-  successMessage: "GitHub account loaded.",
-  action: () => githubAdapter.me(),
-  onSuccess: printGitHubIdentityResult,
-});
+export function createGitHubMeCapability(adapter: GitHubAdapter) {
+  return createAdapterActionCapability({
+    id: "me",
+    command: "me",
+    aliases: ["whoami"],
+    description: `Load the authenticated ${adapter.displayName} account`,
+    spinnerText: `Loading ${adapter.displayName} account...`,
+    successMessage: `${adapter.displayName} account loaded.`,
+    action: () => adapter.me(),
+    onSuccess: printGitHubIdentityResult,
+  });
+}
+
+export const githubMeCapability = createGitHubMeCapability(githubAdapter);

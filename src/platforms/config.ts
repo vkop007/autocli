@@ -2,6 +2,7 @@ export const PLATFORM_NAMES = [
   "discordbot",
   "facebook",
   "github",
+  "githubbot",
   "instagram",
   "linkedin",
   "slackbot",
@@ -38,6 +39,13 @@ export const PLATFORM_CONFIG: Record<PlatformName, PlatformConfig> = {
   },
   github: {
     displayName: "GitHub",
+    origin: "https://api.github.com",
+    homeUrl: "https://github.com/",
+    cookieDomain: "github.com",
+    authCookieNames: [],
+  },
+  githubbot: {
+    displayName: "GitHub Bot",
     origin: "https://api.github.com",
     homeUrl: "https://github.com/",
     cookieDomain: "github.com",
