@@ -232,6 +232,8 @@ interface InstagramMediaInfo {
   thumbnailUrl?: string;
 }
 
+type InstagramPostFilter = "all" | "photo" | "video" | "reel" | "carousel";
+
 export class InstagramAdapter extends BasePlatformAdapter {
   readonly platform = "instagram" as const;
 
@@ -515,22 +517,27 @@ export class InstagramAdapter extends BasePlatformAdapter {
     account?: string;
     target: string;
     limit?: number;
+    type?: InstagramPostFilter;
   }): Promise<AdapterActionResult> {
     const { session } = await this.prepareSession(input.account);
     const probe = await this.ensureActiveSession(session);
     const client = await this.createInstagramClient(session);
     const profile = await this.resolveInstagramProfileInfo(client, probe.metadata, input.target);
     const limit = this.normalizeSearchLimit(input.limit);
+    const type = this.normalizeInstagramPostFilter(input.type);
 
     const response = await client.request<InstagramUserFeedResponse>(
-      `${INSTAGRAM_ORIGIN}/api/v1/feed/user/${encodeURIComponent(profile.id)}/?count=${limit}`,
+      `${INSTAGRAM_ORIGIN}/api/v1/feed/user/${encodeURIComponent(profile.id)}/?count=${type === "all" ? limit : 25}`,
       {
         expectedStatus: 200,
         headers: await this.buildInstagramHeaders(client, probe.metadata),
       },
     );
 
-    const posts = (response.items ?? []).slice(0, limit).map((item) => this.toInstagramPostSummary(item));
+    const posts = (response.items ?? [])
+      .filter((item) => this.matchesInstagramPostFilter(item, type))
+      .slice(0, limit)
+      .map((item) => this.toInstagramPostSummary(item));
 
     return {
       ok: true,
@@ -547,6 +554,7 @@ export class InstagramAdapter extends BasePlatformAdapter {
       data: {
         profile: { ...profile },
         limit,
+        type,
         posts: posts.map((post) => ({ ...post })),
       },
     };
@@ -580,6 +588,8 @@ export class InstagramAdapter extends BasePlatformAdapter {
     account?: string;
     target: string;
     limit?: number;
+    photosOnly?: boolean;
+    videosOnly?: boolean;
   }): Promise<AdapterActionResult> {
     const { session } = await this.prepareSession(input.account);
     const probe = await this.ensureActiveSession(session);
@@ -587,7 +597,11 @@ export class InstagramAdapter extends BasePlatformAdapter {
     const profile = await this.resolveInstagramProfileInfo(client, probe.metadata, input.target);
     const limit = this.normalizeSearchLimit(input.limit);
     const storyItems = await this.fetchInstagramStoryItems(client, probe.metadata, profile.id);
-    const items = storyItems.slice(0, limit).map((item) => this.toInstagramStoryItem(item));
+    const mediaFilter = this.normalizeInstagramStoryMediaFilter(input);
+    const items = storyItems
+      .filter((item) => this.matchesInstagramStoryMediaFilter(item, mediaFilter))
+      .slice(0, limit)
+      .map((item) => this.toInstagramStoryItem(item));
 
     return {
       ok: true,
@@ -604,6 +618,7 @@ export class InstagramAdapter extends BasePlatformAdapter {
       data: {
         profile: { ...profile },
         limit,
+        mediaFilter,
         stories: items.map((item) => ({ ...item })),
       },
     };
@@ -614,6 +629,8 @@ export class InstagramAdapter extends BasePlatformAdapter {
     target: string;
     limit?: number;
     outputDir?: string;
+    photosOnly?: boolean;
+    videosOnly?: boolean;
   }): Promise<AdapterActionResult> {
     const { session } = await this.prepareSession(input.account);
     const probe = await this.ensureActiveSession(session);
@@ -621,7 +638,8 @@ export class InstagramAdapter extends BasePlatformAdapter {
     const profile = await this.resolveInstagramProfileInfo(client, probe.metadata, input.target);
     const limit = this.normalizeSearchLimit(input.limit);
     const storyItems = await this.fetchInstagramStoryItems(client, probe.metadata, profile.id);
-    const selectedItems = storyItems.slice(0, limit);
+    const mediaFilter = this.normalizeInstagramStoryMediaFilter(input);
+    const selectedItems = storyItems.filter((item) => this.matchesInstagramStoryMediaFilter(item, mediaFilter)).slice(0, limit);
 
     if (selectedItems.length === 0) {
       throw new AutoCliError("INSTAGRAM_STORIES_UNAVAILABLE", `No active Instagram stories found for ${profile.username ?? profile.id}.`, {
@@ -694,6 +712,98 @@ export class InstagramAdapter extends BasePlatformAdapter {
         files: savedFiles,
         outputDir,
         limit,
+        mediaFilter,
+      },
+    };
+  }
+
+  async downloadPosts(input: {
+    account?: string;
+    target: string;
+    limit?: number;
+    outputDir?: string;
+    all?: boolean;
+    type?: InstagramPostFilter;
+  }): Promise<AdapterActionResult> {
+    const { session } = await this.prepareSession(input.account);
+    const probe = await this.ensureActiveSession(session);
+    const client = await this.createInstagramClient(session);
+    const profile = await this.resolveInstagramProfileInfo(client, probe.metadata, input.target);
+    const limit = this.normalizeSearchLimit(input.limit);
+    const type = this.normalizeInstagramPostFilter(input.type);
+
+    const response = await client.request<InstagramUserFeedResponse>(
+      `${INSTAGRAM_ORIGIN}/api/v1/feed/user/${encodeURIComponent(profile.id)}/?count=${type === "all" ? limit : 25}`,
+      {
+        expectedStatus: 200,
+        headers: await this.buildInstagramHeaders(client, probe.metadata),
+      },
+    );
+
+    const posts = (response.items ?? []).filter((item) => this.matchesInstagramPostFilter(item, type)).slice(0, limit);
+    if (posts.length === 0) {
+      throw new AutoCliError("INSTAGRAM_POSTS_UNAVAILABLE", `No Instagram posts found for ${profile.username ?? profile.id}.`, {
+        details: {
+          target: input.target,
+          profileId: profile.id,
+          type,
+        },
+      });
+    }
+
+    const outputDir = resolve(
+      input.outputDir ?? join(process.cwd(), "downloads", "instagram", "posts", this.sanitizeFilename(profile.username ?? profile.id)),
+    );
+    await mkdir(outputDir, { recursive: true });
+
+    const savedFiles: string[] = [];
+    for (const post of posts) {
+      const info = this.toInstagramMediaInfo(post);
+      const assets = this.extractInstagramDownloadAssets(post, Boolean(input.all));
+      for (const asset of assets) {
+        const response = await client.requestWithResponse<ArrayBuffer>(asset.url, {
+          responseType: "arrayBuffer",
+          expectedStatus: 200,
+          headers: {
+            referer: info.url ?? profile.url ?? INSTAGRAM_HOME,
+          },
+        });
+
+        const extension = this.normalizeInstagramDownloadExtension(
+          asset.extension,
+          response.response.headers.get("content-type") ?? undefined,
+        );
+        const filename = this.buildInstagramDownloadFilename({
+          info,
+          mediaType: asset.mediaType,
+          index: asset.index,
+          extension,
+          includeIndex: assets.length > 1,
+        });
+        const outputPath = join(outputDir, filename);
+        await writeFile(outputPath, Buffer.from(response.data));
+        savedFiles.push(outputPath);
+      }
+    }
+
+    return {
+      ok: true,
+      platform: this.platform,
+      account: session.account,
+      action: "downloadposts",
+      message: `Instagram post download completed for ${profile.username ?? profile.id}.`,
+      id: profile.id,
+      url: profile.url,
+      user: probe.user,
+      data: {
+        profile: { ...profile },
+        outputPath: savedFiles[0],
+        files: savedFiles,
+        outputDir,
+        limit,
+        type,
+        all: Boolean(input.all),
+        postsDownloaded: posts.length,
       },
     };
   }
@@ -1134,6 +1244,29 @@ export class InstagramAdapter extends BasePlatformAdapter {
     return Math.max(1, Math.min(25, Math.floor(limit)));
   }
 
+  private normalizeInstagramPostFilter(type?: InstagramPostFilter): InstagramPostFilter {
+    return type ?? "all";
+  }
+
+  private normalizeInstagramStoryMediaFilter(input: {
+    photosOnly?: boolean;
+    videosOnly?: boolean;
+  }): "all" | "photo" | "video" {
+    if (input.photosOnly && input.videosOnly) {
+      throw new AutoCliError("INVALID_MEDIA_FILTER", "Use either --photos-only or --videos-only, not both.");
+    }
+
+    if (input.photosOnly) {
+      return "photo";
+    }
+
+    if (input.videosOnly) {
+      return "video";
+    }
+
+    return "all";
+  }
+
   private toInstagramSearchResult(user: InstagramUserPayload): InstagramSearchResultItem {
     const id = String(user.pk ?? user.id ?? "");
     const username = user.username ?? id;
@@ -1217,6 +1350,26 @@ export class InstagramAdapter extends BasePlatformAdapter {
       thumbnailUrl: info.thumbnailUrl,
       assetUrl: media.video_versions?.[0]?.url ?? media.image_versions2?.candidates?.[0]?.url,
     };
+  }
+
+  private matchesInstagramPostFilter(media: InstagramMediaPayload, type: InstagramPostFilter): boolean {
+    if (type === "all") {
+      return true;
+    }
+
+    return this.describeInstagramMediaType(media) === type;
+  }
+
+  private matchesInstagramStoryMediaFilter(
+    media: InstagramMediaPayload,
+    filter: "all" | "photo" | "video",
+  ): boolean {
+    if (filter === "all") {
+      return true;
+    }
+
+    const hasVideo = Array.isArray(media.video_versions) && media.video_versions.length > 0;
+    return filter === "video" ? hasVideo : !hasVideo;
   }
 
   private describeInstagramMediaType(media: InstagramMediaPayload): string | undefined {

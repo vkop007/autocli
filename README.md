@@ -171,8 +171,14 @@ Like or comment on Instagram:
 ```bash
 autocli instagram search "blackpink"
 autocli instagram posts @username --limit 5
+autocli instagram posts @username --type reel --limit 5
 autocli instagram stories @username
+autocli instagram stories @username --videos-only
 autocli instagram storydownload @username
+autocli instagram storydownload @username --photos-only
+autocli instagram downloadposts @username --limit 3
+autocli instagram batch download ./targets.txt
+autocli instagram batch storydownload ./profiles.txt --limit 1
 autocli instagram followers @username --limit 5
 autocli instagram following @username --limit 5
 autocli instagram mediaid https://www.instagram.com/p/SHORTCODE/
