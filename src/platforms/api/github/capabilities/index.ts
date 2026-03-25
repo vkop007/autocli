@@ -1,35 +1,40 @@
-import { githubBranchCapability, githubBranchesCapability } from "./branches.js";
-import { githubCommentCapability, githubForkCapability, githubReadmeCapability, githubReleasesCapability, githubStarredCapability } from "./extra.js";
-import { githubIssueCapability, githubIssuesCapability, githubCreateIssueCapability, githubCreateRepoCapability } from "./issues.js";
-import { githubLoginCapability } from "./login.js";
-import { githubMeCapability } from "./me.js";
-import { githubPullCapability, githubPullsCapability } from "./pulls.js";
-import { githubRepoCapability, githubReposCapability, githubSearchReposCapability } from "./repos.js";
-import { githubStarCapability, githubUnstarCapability } from "./stars.js";
-import { githubUserCapability } from "./users.js";
+import { githubAdapter, type GitHubAdapter } from "../adapter.js";
+import { createGitHubBranchCapability, createGitHubBranchesCapability } from "./branches.js";
+import { createGitHubCommentCapability, createGitHubForkCapability, createGitHubReadmeCapability, createGitHubReleasesCapability, createGitHubStarredCapability } from "./extra.js";
+import { createGitHubIssueCapability, createGitHubIssuesCapability, createGitHubCreateIssueCapability, createGitHubCreateRepoCapability } from "./issues.js";
+import { createGitHubLoginCapability } from "./login.js";
+import { createGitHubMeCapability } from "./me.js";
+import { createGitHubPullCapability, createGitHubPullsCapability } from "./pulls.js";
+import { createGitHubRepoCapability, createGitHubReposCapability, createGitHubSearchReposCapability } from "./repos.js";
+import { createGitHubStarCapability, createGitHubUnstarCapability } from "./stars.js";
+import { createGitHubUserCapability } from "./users.js";
 
 import type { PlatformCapability } from "../../../../core/runtime/platform-definition.js";
 
-export const githubCapabilities: readonly PlatformCapability[] = [
-  githubLoginCapability,
-  githubMeCapability,
-  githubUserCapability,
-  githubReposCapability,
-  githubRepoCapability,
-  githubSearchReposCapability,
-  githubStarredCapability,
-  githubBranchesCapability,
-  githubBranchCapability,
-  githubIssuesCapability,
-  githubIssueCapability,
-  githubPullsCapability,
-  githubPullCapability,
-  githubReleasesCapability,
-  githubReadmeCapability,
-  githubCreateIssueCapability,
-  githubCommentCapability,
-  githubCreateRepoCapability,
-  githubForkCapability,
-  githubStarCapability,
-  githubUnstarCapability,
-];
+export function createGitHubCapabilities(adapter: GitHubAdapter): readonly PlatformCapability[] {
+  return [
+    createGitHubLoginCapability(adapter),
+    createGitHubMeCapability(adapter),
+    createGitHubUserCapability(adapter),
+    createGitHubReposCapability(adapter),
+    createGitHubRepoCapability(adapter),
+    createGitHubSearchReposCapability(adapter),
+    createGitHubStarredCapability(adapter),
+    createGitHubBranchesCapability(adapter),
+    createGitHubBranchCapability(adapter),
+    createGitHubIssuesCapability(adapter),
+    createGitHubIssueCapability(adapter),
+    createGitHubPullsCapability(adapter),
+    createGitHubPullCapability(adapter),
+    createGitHubReleasesCapability(adapter),
+    createGitHubReadmeCapability(adapter),
+    createGitHubCreateIssueCapability(adapter),
+    createGitHubCommentCapability(adapter),
+    createGitHubCreateRepoCapability(adapter),
+    createGitHubForkCapability(adapter),
+    createGitHubStarCapability(adapter),
+    createGitHubUnstarCapability(adapter),
+  ];
+}
+
+export const githubCapabilities: readonly PlatformCapability[] = createGitHubCapabilities(githubAdapter);

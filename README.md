@@ -233,6 +233,21 @@ autocli github comment owner/repo 123 --body "Looks good to me"
 autocli github create-repo autocli-playground --private --auto-init
 autocli github fork openai/openai-node
 autocli github star openai/openai-node
+
+## GitHub Bot
+
+Use a GitHub App installation token or bot-style token with the same GitHub command surface:
+
+```bash
+autocli githubbot login --token <github-app-or-bot-token>
+autocli githubbot me
+autocli githubbot repos
+autocli githubbot repo openai/openai-node
+autocli githubbot issues openai/openai-node --state open --limit 10
+autocli githubbot pulls openai/openai-node --state open --limit 10
+autocli githubbot create-issue owner/repo --title "Bug report" --body "Details here"
+autocli githubbot star openai/openai-node
+```
 autocli github unstar openai/openai-node
 ```
 

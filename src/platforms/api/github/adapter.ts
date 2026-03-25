@@ -1,6 +1,6 @@
 import { ConnectionStore } from "../../../core/auth/connection-store.js";
 import { AutoCliError } from "../../../errors.js";
-import type { AdapterActionResult, AdapterStatusResult, SessionStatus, SessionUser } from "../../../types.js";
+import type { AdapterActionResult, AdapterStatusResult, Platform, SessionStatus, SessionUser } from "../../../types.js";
 import { buildGitHubIssueUrl, buildGitHubRepoUrl, normalizeGitHubToken, parseGitHubRepoTarget } from "./helpers.js";
 import {
   GitHubApiClient,
@@ -17,11 +17,24 @@ import {
 
 type GitHubLoadedConnection = Awaited<ReturnType<ConnectionStore["loadApiKeyConnection"]>>;
 
+type GitHubAdapterOptions = {
+  platform?: Platform;
+  displayName?: string;
+  provider?: string;
+};
+
 export class GitHubAdapter {
-  readonly platform = "github" as const;
-  readonly displayName = "GitHub";
+  readonly platform: Platform;
+  readonly displayName: string;
 
   private readonly connectionStore = new ConnectionStore();
+  private readonly provider: string;
+
+  constructor(options: GitHubAdapterOptions = {}) {
+    this.platform = options.platform ?? "github";
+    this.displayName = options.displayName ?? "GitHub";
+    this.provider = options.provider ?? this.platform;
+  }
 
   async loginWithToken(input: { token: string; account?: string }): Promise<AdapterActionResult> {
     const token = normalizeGitHubToken(input.token);
@@ -29,11 +42,11 @@ export class GitHubAdapter {
     const viewer = await client.getViewer();
     const account = input.account?.trim() || viewer.login;
     const user = this.toSessionUser(viewer);
-    const status = this.activeStatus("GitHub personal access token validated.");
+    const status = this.activeStatus(`${this.displayName} personal access token validated.`);
     const sessionPath = await this.connectionStore.saveApiKeyConnection({
       platform: this.platform,
       account,
-      provider: "github",
+      provider: this.provider,
       token,
       user,
       status,
@@ -48,7 +61,7 @@ export class GitHubAdapter {
       platform: this.platform,
       account,
       action: "login",
-      message: `Saved GitHub token for ${viewer.login}.`,
+      message: `Saved ${this.displayName} token for ${viewer.login}.`,
       sessionPath,
       user,
       data: {
@@ -62,11 +75,11 @@ export class GitHubAdapter {
     const client = this.createClient(loaded.auth.token);
     const viewer = await client.getViewer();
     const user = this.toSessionUser(viewer);
-    const status = this.activeStatus("GitHub token validated.");
+    const status = this.activeStatus(`${this.displayName} token validated.`);
     await this.connectionStore.saveApiKeyConnection({
       platform: this.platform,
       account: loaded.connection.account,
-      provider: loaded.auth.provider ?? "github",
+      provider: loaded.auth.provider ?? this.provider,
       token: loaded.auth.token,
       user,
       status,
@@ -94,12 +107,12 @@ export class GitHubAdapter {
     const client = this.createClient(loaded.auth.token);
     const viewer = await client.getViewer();
     const user = this.toSessionUser(viewer);
-    await this.touchConnection(loaded, user, "GitHub token validated.");
+    await this.touchConnection(loaded, user, `${this.displayName} token validated.`);
 
     return this.buildResult({
       account: loaded.connection.account,
       action: "me",
-      message: "Loaded GitHub account identity.",
+      message: `Loaded ${this.displayName} account identity.`,
       sessionPath: loaded.path,
       user,
       data: {
@@ -118,12 +131,12 @@ export class GitHubAdapter {
     const loaded = await this.loadConnection();
     const client = this.createClient(loaded.auth.token);
     const user = await client.getUser(login.trim());
-    await this.touchConnection(loaded, loaded.connection.user, "GitHub user loaded.");
+    await this.touchConnection(loaded, loaded.connection.user, `${this.displayName} user loaded.`);
 
     return this.buildResult({
       account: loaded.connection.account,
       action: "user",
-      message: `Loaded GitHub user ${user.login}.`,
+      message: `Loaded ${this.displayName} user ${user.login}.`,
       sessionPath: loaded.path,
       user: loaded.connection.user,
       id: String(user.id),
@@ -140,12 +153,12 @@ export class GitHubAdapter {
     const repos = input.owner
       ? await client.listUserRepos({ owner: input.owner, limit: input.limit, sort: input.sort })
       : await client.listViewerRepos({ limit: input.limit, sort: input.sort, type: input.type });
-    await this.touchConnection(loaded, loaded.connection.user, "GitHub repositories loaded.");
+    await this.touchConnection(loaded, loaded.connection.user, `${this.displayName} repositories loaded.`);
 
     return this.buildResult({
       account: loaded.connection.account,
       action: "repos",
-      message: `Loaded ${repos.length} GitHub repositor${repos.length === 1 ? "y" : "ies"}.`,
+      message: `Loaded ${repos.length} ${this.displayName} repositor${repos.length === 1 ? "y" : "ies"}.`,
       sessionPath: loaded.path,
       user: loaded.connection.user,
       data: {
@@ -160,12 +173,12 @@ export class GitHubAdapter {
     const client = this.createClient(loaded.auth.token);
     const { fullName } = parseGitHubRepoTarget(input.target);
     const repo = await client.getRepo(fullName);
-    await this.touchConnection(loaded, loaded.connection.user, "GitHub repository loaded.");
+    await this.touchConnection(loaded, loaded.connection.user, `${this.displayName} repository loaded.`);
 
     return this.buildResult({
       account: loaded.connection.account,
       action: "repo",
-      message: `Loaded GitHub repository ${repo.full_name}.`,
+      message: `Loaded ${this.displayName} repository ${repo.full_name}.`,
       sessionPath: loaded.path,
       user: loaded.connection.user,
       id: String(repo.id),
@@ -185,12 +198,12 @@ export class GitHubAdapter {
       sort: input.sort,
       direction: input.direction,
     });
-    await this.touchConnection(loaded, loaded.connection.user, "GitHub starred repositories loaded.");
+    await this.touchConnection(loaded, loaded.connection.user, `${this.displayName} starred repositories loaded.`);
 
     return this.buildResult({
       account: loaded.connection.account,
       action: "starred",
-      message: `Loaded ${repos.length} starred GitHub repositor${repos.length === 1 ? "y" : "ies"}.`,
+      message: `Loaded ${repos.length} starred ${this.displayName} repositor${repos.length === 1 ? "y" : "ies"}.`,
       sessionPath: loaded.path,
       user: loaded.connection.user,
       data: {
@@ -205,7 +218,7 @@ export class GitHubAdapter {
     const client = this.createClient(loaded.auth.token);
     const { fullName } = parseGitHubRepoTarget(input.repo);
     const branches = await client.listBranches({ fullName, limit: input.limit });
-    await this.touchConnection(loaded, loaded.connection.user, "GitHub branches loaded.");
+    await this.touchConnection(loaded, loaded.connection.user, `${this.displayName} branches loaded.`);
 
     return this.buildResult({
       account: loaded.connection.account,
@@ -225,7 +238,7 @@ export class GitHubAdapter {
     const client = this.createClient(loaded.auth.token);
     const { fullName } = parseGitHubRepoTarget(input.repo);
     const branch = await client.getBranch({ fullName, branch: input.branch });
-    await this.touchConnection(loaded, loaded.connection.user, "GitHub branch loaded.");
+    await this.touchConnection(loaded, loaded.connection.user, `${this.displayName} branch loaded.`);
 
     return this.buildResult({
       account: loaded.connection.account,
@@ -249,12 +262,12 @@ export class GitHubAdapter {
       sort: input.sort,
       order: input.order,
     });
-    await this.touchConnection(loaded, loaded.connection.user, "GitHub repository search completed.");
+    await this.touchConnection(loaded, loaded.connection.user, `${this.displayName} repository search completed.`);
 
     return this.buildResult({
       account: loaded.connection.account,
       action: "search-repos",
-      message: `Found ${search.items.length} GitHub repositories for "${input.query}".`,
+      message: `Found ${search.items.length} ${this.displayName} repositories for "${input.query}".`,
       sessionPath: loaded.path,
       user: loaded.connection.user,
       data: {
@@ -270,7 +283,7 @@ export class GitHubAdapter {
     const client = this.createClient(loaded.auth.token);
     const { fullName } = parseGitHubRepoTarget(input.repo);
     const issues = (await client.listIssues({ fullName, state: input.state, limit: input.limit })).filter((issue) => !issue.pull_request);
-    await this.touchConnection(loaded, loaded.connection.user, "GitHub issues loaded.");
+    await this.touchConnection(loaded, loaded.connection.user, `${this.displayName} issues loaded.`);
 
     return this.buildResult({
       account: loaded.connection.account,
@@ -296,7 +309,7 @@ export class GitHubAdapter {
       sort: input.sort,
       direction: input.direction,
     });
-    await this.touchConnection(loaded, loaded.connection.user, "GitHub pull requests loaded.");
+    await this.touchConnection(loaded, loaded.connection.user, `${this.displayName} pull requests loaded.`);
 
     return this.buildResult({
       account: loaded.connection.account,
@@ -316,7 +329,7 @@ export class GitHubAdapter {
     const client = this.createClient(loaded.auth.token);
     const { fullName } = parseGitHubRepoTarget(input.repo);
     const pull = await client.getPull({ fullName, pullNumber: input.number });
-    await this.touchConnection(loaded, loaded.connection.user, "GitHub pull request loaded.");
+    await this.touchConnection(loaded, loaded.connection.user, `${this.displayName} pull request loaded.`);
 
     return this.buildResult({
       account: loaded.connection.account,
@@ -338,7 +351,7 @@ export class GitHubAdapter {
     const client = this.createClient(loaded.auth.token);
     const { fullName } = parseGitHubRepoTarget(input.repo);
     const issue = await client.getIssue({ fullName, issueNumber: input.number });
-    await this.touchConnection(loaded, loaded.connection.user, "GitHub issue loaded.");
+    await this.touchConnection(loaded, loaded.connection.user, `${this.displayName} issue loaded.`);
 
     return this.buildResult({
       account: loaded.connection.account,
@@ -364,7 +377,7 @@ export class GitHubAdapter {
       issueNumber: input.number,
       body: input.body.trim(),
     });
-    await this.touchConnection(loaded, loaded.connection.user, "GitHub issue comment created.");
+    await this.touchConnection(loaded, loaded.connection.user, `${this.displayName} issue comment created.`);
 
     return this.buildResult({
       account: loaded.connection.account,
@@ -386,12 +399,12 @@ export class GitHubAdapter {
     const client = this.createClient(loaded.auth.token);
     const { fullName } = parseGitHubRepoTarget(input.repo);
     const issue = await client.createIssue({ fullName, title: input.title.trim(), body: input.body?.trim() });
-    await this.touchConnection(loaded, loaded.connection.user, "GitHub issue created.");
+    await this.touchConnection(loaded, loaded.connection.user, `${this.displayName} issue created.`);
 
     return this.buildResult({
       account: loaded.connection.account,
       action: "create-issue",
-      message: `Created issue #${issue.number} in ${fullName}.`,
+      message: `Created ${this.displayName} issue #${issue.number} in ${fullName}.`,
       sessionPath: loaded.path,
       user: loaded.connection.user,
       id: String(issue.number),
@@ -413,12 +426,12 @@ export class GitHubAdapter {
       homepage: input.homepage?.trim(),
       autoInit: input.autoInit,
     });
-    await this.touchConnection(loaded, loaded.connection.user, "GitHub repository created.");
+    await this.touchConnection(loaded, loaded.connection.user, `${this.displayName} repository created.`);
 
     return this.buildResult({
       account: loaded.connection.account,
       action: "create-repo",
-      message: `Created GitHub repository ${repo.full_name}.`,
+      message: `Created ${this.displayName} repository ${repo.full_name}.`,
       sessionPath: loaded.path,
       user: loaded.connection.user,
       id: String(repo.id),
@@ -434,7 +447,7 @@ export class GitHubAdapter {
     const client = this.createClient(loaded.auth.token);
     const { fullName } = parseGitHubRepoTarget(input.repo);
     const repo = await client.forkRepo(fullName);
-    await this.touchConnection(loaded, loaded.connection.user, "GitHub repository fork created.");
+    await this.touchConnection(loaded, loaded.connection.user, `${this.displayName} repository fork created.`);
 
     return this.buildResult({
       account: loaded.connection.account,
@@ -455,7 +468,7 @@ export class GitHubAdapter {
     const client = this.createClient(loaded.auth.token);
     const { fullName } = parseGitHubRepoTarget(input.repo);
     const releases = await client.listReleases({ fullName, limit: input.limit });
-    await this.touchConnection(loaded, loaded.connection.user, "GitHub releases loaded.");
+    await this.touchConnection(loaded, loaded.connection.user, `${this.displayName} releases loaded.`);
 
     return this.buildResult({
       account: loaded.connection.account,
@@ -476,7 +489,7 @@ export class GitHubAdapter {
     const { fullName } = parseGitHubRepoTarget(input.repo);
     const readme = await client.getReadme(fullName);
     const content = decodeGitHubReadme(readme);
-    await this.touchConnection(loaded, loaded.connection.user, "GitHub README loaded.");
+    await this.touchConnection(loaded, loaded.connection.user, `${this.displayName} README loaded.`);
 
     return this.buildResult({
       account: loaded.connection.account,
@@ -497,7 +510,7 @@ export class GitHubAdapter {
     const client = this.createClient(loaded.auth.token);
     const { fullName } = parseGitHubRepoTarget(input.repo);
     await client.starRepo(fullName);
-    await this.touchConnection(loaded, loaded.connection.user, "GitHub repository starred.");
+    await this.touchConnection(loaded, loaded.connection.user, `${this.displayName} repository starred.`);
 
     return this.buildResult({
       account: loaded.connection.account,
@@ -517,7 +530,7 @@ export class GitHubAdapter {
     const client = this.createClient(loaded.auth.token);
     const { fullName } = parseGitHubRepoTarget(input.repo);
     await client.unstarRepo(fullName);
-    await this.touchConnection(loaded, loaded.connection.user, "GitHub repository unstarred.");
+    await this.touchConnection(loaded, loaded.connection.user, `${this.displayName} repository unstarred.`);
 
     return this.buildResult({
       account: loaded.connection.account,
@@ -553,7 +566,7 @@ export class GitHubAdapter {
     await this.connectionStore.saveApiKeyConnection({
       platform: this.platform,
       account: loaded.connection.account,
-      provider: loaded.auth.provider ?? "github",
+      provider: loaded.auth.provider ?? this.provider,
       token: loaded.auth.token,
       user,
       status: this.activeStatus(message),
@@ -725,6 +738,11 @@ export class GitHubAdapter {
 }
 
 export const githubAdapter = new GitHubAdapter();
+export const githubBotAdapter = new GitHubAdapter({
+  platform: "githubbot",
+  displayName: "GitHub Bot",
+  provider: "githubbot",
+});
 
 function decodeGitHubReadme(readme: GitHubReadme): string | undefined {
   if (!readme.content || readme.encoding !== "base64") {
