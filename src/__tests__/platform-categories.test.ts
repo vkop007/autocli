@@ -11,6 +11,7 @@ describe("platform category routing", () => {
       "claude",
       "deepseek",
       "gemini",
+      "qwen",
       "zai",
     ]);
   });

@@ -577,6 +577,7 @@ autocli api discordbot me
 autocli llm chatgpt text "Hello my name is Justine"
 autocli llm claude text "Summarize this changelog"
 autocli llm deepseek text "Draft release notes for AutoCLI"
+autocli llm qwen text "Design a clean onboarding flow for AutoCLI"
 autocli llm zai text "Hello my name is Justine"
 autocli llm gemini text "Draft a polite follow-up email"
 autocli social youtube search "rick astley"
@@ -597,10 +598,13 @@ autocli llm deepseek login --cookies ./deepseek.cookies.json --token <userToken>
 autocli llm deepseek text "Explain retrieval-augmented generation"
 autocli llm gemini login --cookies ./gemini.cookies.json
 autocli llm gemini text "Draft a polite follow-up email"
+autocli llm qwen login --cookies ./qwen.cookies.json
+autocli llm qwen login --cookies ./qwen.cookies.json --token <bearerToken>
+autocli llm qwen text "Explain retrieval-augmented generation"
 autocli llm zai text "Outline a landing page for AutoCLI"
 ```
 
-These providers now share a proper command surface with `login`, `status`, `text`, `image`, and `video`. Gemini, Claude, and Z.ai use saved browser sessions for active generation. ChatGPT currently uses the browserless anonymous web flow for `text` and image prompts, while `login` and `status` only validate imported ChatGPT sessions. DeepSeek uses the browser cookies plus the `userToken` stored in localStorage on DeepSeek’s site, so import the cookies and pass `--token` once if your export does not already include that token.
+These providers now share a proper command surface. Gemini, Claude, and Z.ai use saved browser sessions for active generation. ChatGPT currently uses the browserless anonymous web flow for `text` and image prompts, while `login` and `status` only validate imported ChatGPT sessions. DeepSeek uses the browser cookies plus the `userToken` stored in localStorage on DeepSeek’s site. Qwen usually works directly from imported browser cookies because the export often includes the `token` cookie, and `--token` is only needed when that cookie is missing from the export.
 
 Use YouTube Music search and browse actions:
 

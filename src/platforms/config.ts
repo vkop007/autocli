@@ -17,6 +17,7 @@ export const PLATFORM_NAMES = [
   "linear",
   "notion",
   "qr",
+  "qwen",
   "slackbot",
   "spotify",
   "zai",
@@ -166,6 +167,13 @@ export const PLATFORM_CONFIG: Record<PlatformName, PlatformConfig> = {
     homeUrl: "https://qrenco.de/",
     cookieDomain: "qrenco.de",
     authCookieNames: [],
+  },
+  qwen: {
+    displayName: "Qwen",
+    origin: "https://chat.qwen.ai",
+    homeUrl: "https://chat.qwen.ai/",
+    cookieDomain: "qwen.ai",
+    authCookieNames: ["token"],
   },
   slackbot: {
     displayName: "Slack Bot",
