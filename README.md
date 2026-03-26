@@ -574,6 +574,7 @@ Category routes are supported too, so you can group commands by provider type:
 ```bash
 autocli api github me
 autocli api discordbot me
+autocli llm chatgpt text "Hello my name is Justine"
 autocli llm zai text "Hello my name is Justine"
 autocli llm gemini text "Draft a polite follow-up email"
 autocli social youtube search "rick astley"
@@ -587,12 +588,13 @@ Cookie-backed LLM providers are scaffolded too:
 
 ```bash
 autocli llm zai login --cookies ./zai.cookies.json
+autocli llm chatgpt text "Hello my name is Justine"
 autocli llm gemini login --cookies ./gemini.cookies.json
 autocli llm gemini text "Draft a polite follow-up email"
 autocli llm zai text "Outline a landing page for AutoCLI"
 ```
 
-These providers now share a proper cookie-session command surface with `login`, `status`, `text`, `image`, and `video`. The web session plumbing is in place, but the private generation request flows are still provider-specific and remain experimental.
+These providers now share a proper command surface with `login`, `status`, `text`, `image`, and `video`. Gemini and Z.ai use saved browser cookies for active generation. ChatGPT currently uses the browserless anonymous web flow for `text`, while `login` and `status` only validate imported ChatGPT sessions.
 
 Use YouTube Music search and browse actions:
 

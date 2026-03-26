@@ -20,6 +20,7 @@ describe("gemini service helpers", () => {
       buildLabel: "boq_assistant-bard-web-server_20260324.01_p0",
       sessionId: "-758263268706518357",
       language: "en-GB",
+      pushId: "feeds/mcudyrk2a4khkz",
     });
   });
 
@@ -47,6 +48,9 @@ describe("gemini service helpers", () => {
       chatId: "c_test",
       responseId: "r_test",
       candidateId: "rc_test",
+      generatedImageUrls: [],
+      generatedVideoUrls: [],
+      generatedVideoThumbnailUrls: [],
     });
   });
 
@@ -67,6 +71,33 @@ describe("gemini service helpers", () => {
       chatId: "c_live",
       responseId: "r_live",
       candidateId: "rc_live",
+      generatedImageUrls: [],
+      generatedVideoUrls: [],
+      generatedVideoThumbnailUrls: [],
     });
+  });
+
+  test("extracts generated image and video URLs from candidate payloads", () => {
+    const candidate = Array(13).fill(null);
+    candidate[0] = "rc_media";
+    candidate[1] = ["generated"];
+    candidate[12] = Array(60).fill(null);
+    candidate[12][7] = [[[[null, ["img-id"], null, [null, null, "generated image", "https://cdn.example/image.png"]]]]];
+    candidate[12][59] = [[[[[null, null, null, null, null, null, null, ["https://thumb.example/video.jpg", "https://cdn.example/video.mp4"]]]]]];
+
+    const body = JSON.stringify([
+      null,
+      ["c_media", "r_media"],
+      null,
+      null,
+      [candidate],
+    ]);
+    const chunk = JSON.stringify([["wrb.fr", null, body]]);
+    const framed = `)]}'\n\n${Buffer.byteLength(chunk, "utf8")}\n${chunk}`;
+
+    const parsed = parseGeminiGenerateResponse(framed);
+    expect(parsed.generatedImageUrls).toEqual(["https://cdn.example/image.png"]);
+    expect(parsed.generatedVideoUrls).toEqual(["https://cdn.example/video.mp4"]);
+    expect(parsed.generatedVideoThumbnailUrls).toEqual(["https://thumb.example/video.jpg"]);
   });
 });

@@ -7,13 +7,13 @@ export const chatgptPlatformDefinition: PlatformDefinition = {
   id: "chatgpt",
   category: "llm",
   displayName: "ChatGPT",
-  description: "Interact with ChatGPT using imported browser cookies",
+  description: "Interact with ChatGPT using the browserless web flow, with optional cookie session inspection",
   authStrategies: ["cookies"],
   adapter: chatgptAdapter,
   capabilities: createCookieLlmCapabilities(chatgptAdapter),
   examples: [
-    "autocli chatgpt login --cookies ./chatgpt.cookies.json",
     'autocli chatgpt text "Hello my name is Justine"',
+    "autocli chatgpt login --cookies ./chatgpt.cookies.json",
     'autocli chatgpt image ./photo.png --caption "Gamer portrait"',
   ],
 };

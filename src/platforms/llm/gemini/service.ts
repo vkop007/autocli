@@ -1,6 +1,7 @@
 import { randomInt, randomUUID } from "node:crypto";
 
 import { AutoCliError, isAutoCliError } from "../../../errors.js";
+import { readMediaFile } from "../../../utils/media.js";
 
 import type { SessionHttpClient } from "../../../utils/http-client.js";
 import type { SessionStatus } from "../../../types.js";
@@ -10,6 +11,8 @@ const GEMINI_APP_URL = "https://gemini.google.com/app";
 const GEMINI_GENERATE_URL =
   "https://gemini.google.com/_/BardChatUi/data/assistant.lamda.BardFrontendService/StreamGenerate";
 const GEMINI_ROTATE_COOKIES_URL = "https://accounts.google.com/RotateCookies";
+const GEMINI_UPLOAD_URL = "https://content-push.googleapis.com/upload";
+const GEMINI_DEFAULT_PUSH_ID = "feeds/mcudyrk2a4khkz";
 
 const GEMINI_DEFAULT_METADATA: readonly unknown[] = ["", "", "", null, null, null, null, null, null, ""];
 const GEMINI_DEFAULT_MODEL = "gemini-3-flash";
@@ -52,6 +55,7 @@ interface GeminiBootstrap {
   buildLabel: string;
   sessionId: string;
   language: string;
+  pushId: string;
 }
 
 interface GeminiParsedOutput {
@@ -59,6 +63,9 @@ interface GeminiParsedOutput {
   chatId?: string;
   responseId?: string;
   candidateId?: string;
+  generatedImageUrls: string[];
+  generatedVideoUrls: string[];
+  generatedVideoThumbnailUrls: string[];
 }
 
 export interface GeminiInspectionResult {
@@ -73,6 +80,11 @@ export interface GeminiTextExecutionResult {
   candidateId?: string;
   model: string;
   url?: string;
+}
+
+export interface GeminiMediaExecutionResult extends GeminiTextExecutionResult {
+  outputUrls?: string[];
+  thumbnailUrls?: string[];
 }
 
 export class GeminiService {
@@ -126,55 +138,169 @@ export class GeminiService {
     },
   ): Promise<GeminiTextExecutionResult> {
     try {
-      const bootstrap = await this.bootstrap(client);
-      const model = resolveGeminiModel(input.model);
-      const requestId = randomUUID().toUpperCase();
-      const payload = buildGeminiTextPayload({
+      const result = await this.executePrompt(client, {
         prompt: input.prompt,
-        language: bootstrap.language,
-        requestId,
+        model: input.model,
       });
 
-      const response = await client.request<string>(`${GEMINI_GENERATE_URL}?${buildGeminiGenerateParams(bootstrap)}`, {
-        method: "POST",
-        headers: {
-          ...GEMINI_HEADERS,
-          "content-type": "application/x-www-form-urlencoded;charset=UTF-8",
-          "x-same-domain": "1",
-          "x-goog-ext-525001261-jspb": model.header,
-          "x-goog-ext-73010989-jspb": "[0]",
-          "x-goog-ext-73010990-jspb": "[0]",
-          "x-goog-ext-525005358-jspb": `["${requestId}",1]`,
-          "user-agent": GEMINI_USER_AGENT,
-        },
-        body: new URLSearchParams({
-          at: bootstrap.accessToken,
-          "f.req": JSON.stringify([null, JSON.stringify(payload)]),
-        }).toString(),
-        responseType: "text",
-        expectedStatus: 200,
-      });
-
-      const parsed = parseGeminiGenerateResponse(response);
-      if (!parsed.outputText) {
+      if (!result.outputText) {
         throw new AutoCliError("GEMINI_EMPTY_RESPONSE", "Gemini returned an empty response.", {
           details: {
-            model: model.name,
+            model: result.model,
           },
         });
       }
 
       return {
-        outputText: parsed.outputText,
-        chatId: parsed.chatId,
-        responseId: parsed.responseId,
-        candidateId: parsed.candidateId,
-        model: model.name,
-        url: parsed.chatId ? `https://gemini.google.com/app/${parsed.chatId}` : undefined,
+        ...result,
       };
     } catch (error) {
       throw mapGeminiError(error, "Failed to complete the Gemini prompt.");
     }
+  }
+
+  async executeImage(
+    client: SessionHttpClient,
+    input: {
+      mediaPath: string;
+      caption?: string;
+      model?: string;
+    },
+  ): Promise<GeminiMediaExecutionResult> {
+    try {
+      const bootstrap = await this.bootstrap(client);
+      const media = await readMediaFile(input.mediaPath);
+      const uploadedFile = await this.uploadFile(client, bootstrap.pushId, media);
+      const result = await this.executePrompt(client, {
+        prompt: input.caption?.trim() || "Describe this image.",
+        model: input.model,
+        files: [[[uploadedFile], media.filename]],
+        bootstrap,
+      });
+
+      if (!result.outputText && (!result.outputUrls || result.outputUrls.length === 0)) {
+        throw new AutoCliError("GEMINI_EMPTY_RESPONSE", "Gemini returned an empty response for the uploaded image.", {
+          details: {
+            model: result.model,
+          },
+        });
+      }
+
+      return result;
+    } catch (error) {
+      throw mapGeminiError(error, "Failed to complete the Gemini image prompt.");
+    }
+  }
+
+  async executeVideo(
+    client: SessionHttpClient,
+    input: {
+      prompt: string;
+      model?: string;
+    },
+  ): Promise<GeminiMediaExecutionResult> {
+    try {
+      const result = await this.executePrompt(client, {
+        prompt: input.prompt,
+        model: input.model,
+      });
+
+      if (!result.outputUrls || result.outputUrls.length === 0) {
+        throw new AutoCliError("GEMINI_VIDEO_NOT_RETURNED", "Gemini did not return a video for this prompt.", {
+          details: {
+            model: result.model,
+            outputText: result.outputText || undefined,
+          },
+        });
+      }
+
+      return result;
+    } catch (error) {
+      throw mapGeminiError(error, "Failed to complete the Gemini video prompt.");
+    }
+  }
+
+  private async executePrompt(
+    client: SessionHttpClient,
+    input: {
+      prompt: string;
+      model?: string;
+      files?: unknown[];
+      bootstrap?: GeminiBootstrap;
+    },
+  ): Promise<GeminiMediaExecutionResult> {
+    const bootstrap = input.bootstrap ?? (await this.bootstrap(client));
+    const model = resolveGeminiModel(input.model);
+    const requestId = randomUUID().toUpperCase();
+    const payload = buildGeminiPromptPayload({
+      prompt: input.prompt,
+      language: bootstrap.language,
+      requestId,
+      files: input.files,
+    });
+
+    const response = await client.request<string>(`${GEMINI_GENERATE_URL}?${buildGeminiGenerateParams(bootstrap)}`, {
+      method: "POST",
+      headers: {
+        ...GEMINI_HEADERS,
+        "content-type": "application/x-www-form-urlencoded;charset=UTF-8",
+        "x-same-domain": "1",
+        "x-goog-ext-525001261-jspb": model.header,
+        "x-goog-ext-73010989-jspb": "[0]",
+        "x-goog-ext-73010990-jspb": "[0]",
+        "x-goog-ext-525005358-jspb": `["${requestId}",1]`,
+        "user-agent": GEMINI_USER_AGENT,
+      },
+      body: new URLSearchParams({
+        at: bootstrap.accessToken,
+        "f.req": JSON.stringify([null, JSON.stringify(payload)]),
+      }).toString(),
+      responseType: "text",
+      expectedStatus: 200,
+    });
+
+    const parsed = parseGeminiGenerateResponse(response);
+    return {
+      outputText: parsed.outputText,
+      chatId: parsed.chatId,
+      responseId: parsed.responseId,
+      candidateId: parsed.candidateId,
+      model: model.name,
+      url: parsed.chatId ? `https://gemini.google.com/app/${parsed.chatId}` : undefined,
+      outputUrls:
+        parsed.generatedVideoUrls.length > 0 ? parsed.generatedVideoUrls : parsed.generatedImageUrls,
+      thumbnailUrls: parsed.generatedVideoThumbnailUrls,
+    };
+  }
+
+  private async uploadFile(
+    client: SessionHttpClient,
+    pushId: string,
+    file: Awaited<ReturnType<typeof readMediaFile>>,
+  ): Promise<string> {
+    const form = new FormData();
+    form.append("file", new Blob([new Uint8Array(file.bytes)], { type: file.mimeType }), file.filename);
+
+    const response = await client.request<string>(GEMINI_UPLOAD_URL, {
+      method: "POST",
+      headers: {
+        origin: "https://gemini.google.com",
+        referer: "https://gemini.google.com/",
+        "x-tenant-id": "bard-storage",
+        "push-id": pushId,
+        "user-agent": GEMINI_USER_AGENT,
+      },
+      body: form,
+      responseType: "text",
+      expectedStatus: 200,
+    });
+
+    const uploadedFile = response.trim();
+    if (!uploadedFile) {
+      throw new AutoCliError("GEMINI_FILE_UPLOAD_FAILED", "Gemini did not return an uploaded file reference.");
+    }
+
+    return uploadedFile;
   }
 
   private async bootstrap(client: SessionHttpClient): Promise<GeminiBootstrap> {
@@ -239,13 +365,14 @@ function buildGeminiGenerateParams(bootstrap: GeminiBootstrap): string {
   }).toString();
 }
 
-function buildGeminiTextPayload(input: {
+function buildGeminiPromptPayload(input: {
   prompt: string;
   language: string;
   requestId: string;
+  files?: unknown[];
 }): unknown[] {
   const inner = Array(69).fill(null);
-  inner[0] = [input.prompt, 0, null, null, null, null, 0];
+  inner[0] = [input.prompt, 0, null, input.files ?? null, null, null, 0];
   inner[1] = [input.language];
   inner[2] = [...GEMINI_DEFAULT_METADATA];
   inner[6] = [1];
@@ -292,6 +419,7 @@ export function extractGeminiBootstrap(html: string): GeminiBootstrap {
     buildLabel: extractGeminiString(html, "cfb2h") ?? "",
     sessionId: extractGeminiString(html, "FdrFJe") ?? "",
     language: extractGeminiString(html, "TuX5cc") ?? "en-US",
+    pushId: extractGeminiString(html, "qKIAYe") ?? GEMINI_DEFAULT_PUSH_ID,
   };
 }
 
@@ -315,6 +443,9 @@ export function parseGeminiGenerateResponse(text: string): GeminiParsedOutput {
   let chatId: string | undefined;
   let responseId: string | undefined;
   let candidateId: string | undefined;
+  let generatedImageUrls: string[] = [];
+  let generatedVideoUrls: string[] = [];
+  let generatedVideoThumbnailUrls: string[] = [];
 
   for (const frame of frames) {
     const bodyString = getNestedValue(frame, [2]);
@@ -353,6 +484,11 @@ export function parseGeminiGenerateResponse(text: string): GeminiParsedOutput {
           outputText = nextText;
         }
       }
+
+      generatedImageUrls = parseGeminiGeneratedImageUrls(candidate);
+      const generatedVideos = parseGeminiGeneratedVideoUrls(candidate);
+      generatedVideoUrls = generatedVideos.videoUrls;
+      generatedVideoThumbnailUrls = generatedVideos.thumbnailUrls;
     }
   }
 
@@ -361,6 +497,9 @@ export function parseGeminiGenerateResponse(text: string): GeminiParsedOutput {
     chatId,
     responseId,
     candidateId,
+    generatedImageUrls,
+    generatedVideoUrls,
+    generatedVideoThumbnailUrls,
   };
 }
 
@@ -406,6 +545,44 @@ function getNestedValue(value: unknown, path: number[]): unknown {
     current = current[segment];
   }
   return current;
+}
+
+function parseGeminiGeneratedImageUrls(candidate: unknown[]): string[] {
+  const imageBlocks = getNestedValue(candidate, [12, 7, 0]);
+  if (!Array.isArray(imageBlocks)) {
+    return [];
+  }
+
+  const urls: string[] = [];
+  for (const block of imageBlocks) {
+    const url = getNestedValue(block, [0, 3, 3]);
+    if (typeof url === "string" && url.length > 0) {
+      urls.push(url);
+    }
+  }
+
+  return urls;
+}
+
+function parseGeminiGeneratedVideoUrls(candidate: unknown[]): {
+  videoUrls: string[];
+  thumbnailUrls: string[];
+} {
+  const urls = getNestedValue(candidate, [12, 59, 0, 0, 0, 0, 7]);
+  if (!Array.isArray(urls)) {
+    return {
+      videoUrls: [],
+      thumbnailUrls: [],
+    };
+  }
+
+  const thumbnailUrls = urls.filter((value, index): value is string => index % 2 === 0 && typeof value === "string" && value.length > 0);
+  const videoUrls = urls.filter((value, index): value is string => index % 2 === 1 && typeof value === "string" && value.length > 0);
+
+  return {
+    videoUrls,
+    thumbnailUrls,
+  };
 }
 
 function isGeminiExpiredError(error: unknown): boolean {

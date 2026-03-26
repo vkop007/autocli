@@ -19,7 +19,7 @@ const PLATFORM_CATEGORY_DEFINITIONS: Record<PlatformCategory, PlatformCategoryDe
     description: "Forum-style communities and discussion platforms",
   },
   llm: {
-    description: "Browserless LLM web apps with proven cookie-backed session flows",
+    description: "Browserless LLM web apps with proven runtime flows",
   },
   music: {
     description: "Music platforms like Spotify and YouTube Music",

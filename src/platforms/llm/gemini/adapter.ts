@@ -2,6 +2,7 @@ import { CookieLlmAdapter } from "../shared/base-cookie-llm-adapter.js";
 import { GeminiService } from "./service.js";
 
 import type { AdapterActionResult, AdapterStatusResult, LoginInput, PlatformSession } from "../../../types.js";
+import type { CookieJar } from "tough-cookie";
 
 export class GeminiAdapter extends CookieLlmAdapter {
   private readonly service = new GeminiService();
@@ -13,9 +14,9 @@ export class GeminiAdapter extends CookieLlmAdapter {
       textUnsupportedMessage:
         "Gemini text prompting is temporarily unavailable.",
       imageUnsupportedMessage:
-        "Gemini image prompting is scaffolded, but the private multimodal upload flow still needs live validation.",
+        "Gemini image prompting is temporarily unavailable.",
       videoUnsupportedMessage:
-        "Gemini video prompting is scaffolded, but the private media-generation flow is not mapped yet in this CLI.",
+        "Gemini video prompting is temporarily unavailable.",
     });
   }
 
@@ -57,18 +58,7 @@ export class GeminiAdapter extends CookieLlmAdapter {
       model: input.model,
     });
 
-    await this.persistExistingSession(session, {
-      jar: client.jar,
-      status: {
-        state: "active",
-        message: "Gemini session is active.",
-        lastValidatedAt: new Date().toISOString(),
-      },
-      metadata: {
-        ...(session.metadata ?? {}),
-        defaultModel: result.model,
-      },
-    });
+    await this.persistActiveSession(session, client.jar, result.model);
 
     return {
       ok: true,
@@ -85,6 +75,82 @@ export class GeminiAdapter extends CookieLlmAdapter {
         responseId: result.responseId,
         candidateId: result.candidateId,
         outputText: result.outputText,
+      },
+    };
+  }
+
+  protected async executeImage(
+    session: PlatformSession,
+    input: {
+      account?: string;
+      mediaPath: string;
+      caption?: string;
+      model?: string;
+    },
+  ): Promise<AdapterActionResult> {
+    const client = await this.createClient(session);
+    const result = await this.service.executeImage(client, {
+      mediaPath: input.mediaPath,
+      caption: input.caption,
+      model: input.model,
+    });
+
+    await this.persistActiveSession(session, client.jar, result.model);
+
+    return {
+      ok: true,
+      platform: this.platform,
+      account: session.account,
+      action: "image",
+      message: `Gemini processed the uploaded image using ${result.model}.`,
+      id: result.candidateId,
+      url: result.url,
+      user: session.user,
+      data: {
+        model: result.model,
+        chatId: result.chatId,
+        responseId: result.responseId,
+        candidateId: result.candidateId,
+        outputText: result.outputText,
+        outputUrls: result.outputUrls,
+        thumbnailUrls: result.thumbnailUrls,
+      },
+    };
+  }
+
+  protected async executeVideo(
+    session: PlatformSession,
+    input: {
+      account?: string;
+      prompt: string;
+      model?: string;
+    },
+  ): Promise<AdapterActionResult> {
+    const client = await this.createClient(session);
+    const result = await this.service.executeVideo(client, {
+      prompt: input.prompt,
+      model: input.model,
+    });
+
+    await this.persistActiveSession(session, client.jar, result.model);
+
+    return {
+      ok: true,
+      platform: this.platform,
+      account: session.account,
+      action: "video",
+      message: `Gemini generated video output using ${result.model}.`,
+      id: result.candidateId,
+      url: result.url,
+      user: session.user,
+      data: {
+        model: result.model,
+        chatId: result.chatId,
+        responseId: result.responseId,
+        candidateId: result.candidateId,
+        outputText: result.outputText,
+        outputUrls: result.outputUrls,
+        thumbnailUrls: result.thumbnailUrls,
       },
     };
   }
@@ -123,6 +189,21 @@ export class GeminiAdapter extends CookieLlmAdapter {
   private async inspectSavedSession(session: PlatformSession) {
     const client = await this.createClient(session);
     return this.service.inspectSession(client);
+  }
+
+  private async persistActiveSession(session: PlatformSession, jar: CookieJar, model: string): Promise<void> {
+    await this.persistExistingSession(session, {
+      jar,
+      status: {
+        state: "active",
+        message: "Gemini session is active.",
+        lastValidatedAt: new Date().toISOString(),
+      },
+      metadata: {
+        ...(session.metadata ?? {}),
+        defaultModel: model,
+      },
+    });
   }
 }
 

@@ -1,17 +1,154 @@
 import { CookieLlmAdapter } from "../shared/base-cookie-llm-adapter.js";
+import { AutoCliError } from "../../../errors.js";
+import { ChatGptService } from "./service.js";
+
+import type {
+  AdapterActionResult,
+  AdapterStatusResult,
+  LoginInput,
+  PlatformSession,
+} from "../../../types.js";
 
 export class ChatGptAdapter extends CookieLlmAdapter {
+  private readonly service = new ChatGptService();
+
   constructor() {
     super({
       platform: "chatgpt",
       defaultModel: "auto",
       textUnsupportedMessage:
-        "ChatGPT text prompting is scaffolded, but the private web request flow still needs a live session capture because ChatGPT is protected by dynamic challenge and sentinel tokens.",
+        "ChatGPT text prompting is temporarily unavailable.",
       imageUnsupportedMessage:
-        "ChatGPT image prompting is scaffolded, but the private upload and attachment flow still needs live session capture before this command can run reliably.",
+        "ChatGPT image prompting is temporarily unavailable.",
       videoUnsupportedMessage:
         "ChatGPT video prompting is not wired yet in this CLI because the private media-generation flow is still being mapped.",
     });
+  }
+
+  async login(input: LoginInput): Promise<AdapterActionResult> {
+    const result = await super.login(input);
+    return this.refreshSavedSession(result.account, result.sessionPath);
+  }
+
+  async getStatus(account?: string): Promise<AdapterStatusResult> {
+    const { session, path } = await this.loadSession(account);
+    const inspection = await this.inspectSavedSession(session);
+    const persisted = await this.persistExistingSession(session, {
+      user: inspection.user,
+      status: inspection.status,
+    });
+
+    return this.buildStatusResult({
+      account: persisted.account,
+      sessionPath: path,
+      status: inspection.status,
+      user: inspection.user,
+    });
+  }
+
+  async text(input: {
+    account?: string;
+    prompt: string;
+    model?: string;
+  }): Promise<AdapterActionResult> {
+    const prompt = input.prompt.trim();
+    if (!prompt) {
+      throw new AutoCliError("INVALID_PROMPT", "Expected a non-empty ChatGPT text prompt.");
+    }
+
+    const result = await this.service.executeText({
+      prompt,
+      model: input.model,
+    });
+
+    return {
+      ok: true,
+      platform: this.platform,
+      account: input.account ?? "anonymous",
+      action: "text",
+      message: `ChatGPT replied using ${result.model} (${result.mode}).`,
+      id: result.messageId,
+      url: result.conversationId ? `https://chatgpt.com/c/${result.conversationId}` : undefined,
+      data: {
+        mode: result.mode,
+        model: result.model,
+        conversationId: result.conversationId,
+        messageId: result.messageId,
+        outputText: result.outputText,
+      },
+    };
+  }
+
+  async image(input: {
+    account?: string;
+    mediaPath: string;
+    caption?: string;
+    model?: string;
+  }): Promise<AdapterActionResult> {
+    const result = await this.service.executeImage({
+      mediaPath: input.mediaPath,
+      caption: input.caption,
+      model: input.model,
+    });
+
+    return {
+      ok: true,
+      platform: this.platform,
+      account: input.account ?? "anonymous",
+      action: "image",
+      message: `ChatGPT replied to the uploaded image using ${result.model} (${result.mode}).`,
+      id: result.messageId,
+      url: result.conversationId ? `https://chatgpt.com/c/${result.conversationId}` : undefined,
+      data: {
+        mode: result.mode,
+        model: result.model,
+        conversationId: result.conversationId,
+        messageId: result.messageId,
+        fileId: result.fileId,
+        outputText: result.outputText,
+      },
+    };
+  }
+
+  async video(): Promise<AdapterActionResult> {
+    throw new AutoCliError(
+      "CHATGPT_VIDEO_UNIMPLEMENTED",
+      "ChatGPT video prompting is scaffolded, but the private generation endpoint is not mapped yet in this CLI.",
+    );
+  }
+
+  protected async executeText(_session: PlatformSession): Promise<AdapterActionResult> {
+    throw new AutoCliError("CHATGPT_TEXT_INTERNAL_MISMATCH", "ChatGPT text dispatch should not use the cookie-only adapter path.");
+  }
+
+  private async refreshSavedSession(account: string, sessionPath?: string): Promise<AdapterActionResult> {
+    const { session, path } = await this.loadSession(account);
+    const inspection = await this.inspectSavedSession(session);
+    const persisted = await this.persistExistingSession(session, {
+      user: inspection.user,
+      status: inspection.status,
+    });
+
+    return {
+      ok: true,
+      platform: this.platform,
+      account: persisted.account,
+      action: "login",
+      message:
+        inspection.status.state === "active"
+          ? `Saved ChatGPT session for ${persisted.account}.`
+          : `Saved ChatGPT session for ${persisted.account}, but ${inspection.status.message?.toLowerCase() ?? "live validation could not complete."}`,
+      sessionPath: sessionPath ?? path,
+      user: inspection.user,
+      data: {
+        status: inspection.status.state,
+      },
+    };
+  }
+
+  private async inspectSavedSession(session: PlatformSession) {
+    const client = await this.createClient(session);
+    return this.service.inspectSession(client);
   }
 }
 
