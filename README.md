@@ -575,6 +575,7 @@ Category routes are supported too, so you can group commands by provider type:
 autocli api github me
 autocli api discordbot me
 autocli llm zai text "Hello my name is Justine"
+autocli llm gemini text "Draft a polite follow-up email"
 autocli social youtube search "rick astley"
 autocli music spotify search "dandelions"
 autocli music youtube-music play "dandelions"
@@ -586,6 +587,8 @@ Cookie-backed LLM providers are scaffolded too:
 
 ```bash
 autocli llm zai login --cookies ./zai.cookies.json
+autocli llm gemini login --cookies ./gemini.cookies.json
+autocli llm gemini text "Draft a polite follow-up email"
 autocli llm zai text "Outline a landing page for AutoCLI"
 ```
 

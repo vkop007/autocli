@@ -72,7 +72,7 @@ export const PLATFORM_CONFIG: Record<PlatformName, PlatformConfig> = {
     origin: "https://gemini.google.com",
     homeUrl: "https://gemini.google.com/",
     cookieDomain: "google.com",
-    authCookieNames: ["SAPISID", "__Secure-1PSID", "__Secure-3PSID", "SSID"],
+    authCookieNames: ["__Secure-1PSID", "__Secure-1PSIDTS"],
   },
   github: {
     displayName: "GitHub",

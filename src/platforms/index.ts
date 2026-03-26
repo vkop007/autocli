@@ -5,6 +5,7 @@ import { telegrambotPlatformDefinition } from "./api/bots/telegrambot/manifest.j
 import { githubPlatformDefinition } from "./api/github/manifest.js";
 import { gitlabPlatformDefinition } from "./api/gitlab/manifest.js";
 import { linearPlatformDefinition } from "./api/linear/manifest.js";
+import { geminiPlatformDefinition } from "./llm/gemini/manifest.js";
 import { spotifyPlatformDefinition } from "./music/spotify/manifest.js";
 import { youtubeMusicPlatformDefinition } from "./music/youtube-music/manifest.js";
 import { notionPlatformDefinition } from "./api/notion/manifest.js";
@@ -30,6 +31,7 @@ const definitions: readonly PlatformDefinition[] = [
   cheatPlatformDefinition,
   discordBotPlatformDefinition,
   facebookPlatformDefinition,
+  geminiPlatformDefinition,
   githubPlatformDefinition,
   githubbotPlatformDefinition,
   gitlabPlatformDefinition,
