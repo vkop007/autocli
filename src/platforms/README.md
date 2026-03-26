@@ -76,7 +76,7 @@ Current examples:
 - All current platforms are capability-based.
 - API-token platforms: `src/platforms/api/github/`, `src/platforms/api/gitlab/`, `src/platforms/api/linear/`, `src/platforms/api/notion/`
 - Bot-token API platforms: `src/platforms/api/bots/discordbot/`, `src/platforms/api/bots/githubbot/`, `src/platforms/api/bots/slackbot/`, `src/platforms/api/bots/telegrambot/`
-- Active browserless LLM platforms: `src/platforms/llm/chatgpt/`, `src/platforms/llm/gemini/`, `src/platforms/llm/zai/`
+- Active browserless LLM platforms: `src/platforms/llm/chatgpt/`, `src/platforms/llm/claude/`, `src/platforms/llm/gemini/`, `src/platforms/llm/zai/`
 - Experimental LLM scaffolds kept out of the CLI until they have proven browserless flows: `src/platforms/llm/grok/`
 - Music platforms: `src/platforms/music/spotify/`, `src/platforms/music/youtube-music/`
 - Public utility platforms: `src/platforms/public/cheat/`, `src/platforms/public/ip/`, `src/platforms/public/news/`, `src/platforms/public/qr/`, `src/platforms/public/time/`, `src/platforms/public/weather/`, `src/platforms/public/websearch/`

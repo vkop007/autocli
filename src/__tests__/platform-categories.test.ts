@@ -8,6 +8,7 @@ describe("platform category routing", () => {
     expect(getPlatformCategories()).toContain("llm");
     expect(getPlatformDefinitionsByCategory("llm").map((definition) => definition.id)).toEqual([
       "chatgpt",
+      "claude",
       "gemini",
       "zai",
     ]);
