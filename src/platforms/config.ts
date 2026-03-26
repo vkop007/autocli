@@ -1,6 +1,7 @@
 export const PLATFORM_NAMES = [
   "cheat",
   "chatgpt",
+  "claude",
   "discordbot",
   "facebook",
   "gemini",
@@ -53,6 +54,13 @@ export const PLATFORM_CONFIG: Record<PlatformName, PlatformConfig> = {
     cookieDomain: "chatgpt.com",
     authCookieNames: ["__Secure-next-auth.session-token", "__Secure-authjs.session-token", "_puid"],
   },
+  claude: {
+    displayName: "Claude",
+    origin: "https://claude.ai",
+    homeUrl: "https://claude.ai/chats",
+    cookieDomain: "claude.ai",
+    authCookieNames: ["sessionKey"],
+  },
   discordbot: {
     displayName: "Discord Bot",
     origin: "https://discord.com",
@@ -72,7 +80,7 @@ export const PLATFORM_CONFIG: Record<PlatformName, PlatformConfig> = {
     origin: "https://gemini.google.com",
     homeUrl: "https://gemini.google.com/",
     cookieDomain: "google.com",
-    authCookieNames: ["SAPISID", "__Secure-1PSID", "__Secure-3PSID", "SSID"],
+    authCookieNames: ["__Secure-1PSID", "__Secure-1PSIDTS"],
   },
   github: {
     displayName: "GitHub",

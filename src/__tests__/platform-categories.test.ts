@@ -6,7 +6,12 @@ import { getPlatformCategories, getPlatformDefinitionsByCategory } from "../plat
 describe("platform category routing", () => {
   test("includes the llm category and providers", () => {
     expect(getPlatformCategories()).toContain("llm");
-    expect(getPlatformDefinitionsByCategory("llm").map((definition) => definition.id)).toEqual(["zai"]);
+    expect(getPlatformDefinitionsByCategory("llm").map((definition) => definition.id)).toEqual([
+      "chatgpt",
+      "claude",
+      "gemini",
+      "zai",
+    ]);
   });
 
   test("includes the new music category", () => {
