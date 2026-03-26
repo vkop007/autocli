@@ -9,6 +9,7 @@ import { chatgptPlatformDefinition } from "./llm/chatgpt/manifest.js";
 import { claudePlatformDefinition } from "./llm/claude/manifest.js";
 import { deepSeekPlatformDefinition } from "./llm/deepseek/manifest.js";
 import { geminiPlatformDefinition } from "./llm/gemini/manifest.js";
+import { qwenPlatformDefinition } from "./llm/qwen/manifest.js";
 import { spotifyPlatformDefinition } from "./music/spotify/manifest.js";
 import { youtubeMusicPlatformDefinition } from "./music/youtube-music/manifest.js";
 import { notionPlatformDefinition } from "./api/notion/manifest.js";
@@ -38,6 +39,7 @@ const definitions: readonly PlatformDefinition[] = [
   discordBotPlatformDefinition,
   facebookPlatformDefinition,
   geminiPlatformDefinition,
+  qwenPlatformDefinition,
   githubPlatformDefinition,
   githubbotPlatformDefinition,
   gitlabPlatformDefinition,
