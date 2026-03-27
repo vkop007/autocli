@@ -71,6 +71,14 @@ type ImageThumbnailInput = {
   output?: string;
 };
 
+type ImageBackgroundRemoveInput = {
+  inputPath: string;
+  color?: string;
+  similarity?: number | string;
+  blend?: number | string;
+  output?: string;
+};
+
 type ImageWatermarkInput = {
   inputPath: string;
   watermarkPath: string;
@@ -396,6 +404,42 @@ export class ImageEditorAdapter {
     });
   }
 
+  async backgroundRemove(input: ImageBackgroundRemoveInput): Promise<AdapterActionResult> {
+    const color = normalizeBackgroundColor(input.color);
+    const similarity = clampNumber(toNumber(input.similarity) ?? 0.18, 0.01, 1);
+    const blend = clampNumber(toNumber(input.blend) ?? 0.08, 0, 1);
+    const outputPath = resolveEditorOutputPath({
+      inputPath: input.inputPath,
+      output: input.output,
+      suffix: "background-removed",
+      extension: "png",
+    });
+
+    const resolvedOutput = await runFfmpegEdit({
+      inputPath: input.inputPath,
+      outputPath,
+      args: [
+        "-i",
+        "{input}",
+        "-vf",
+        `colorkey=${color}:${similarity}:${blend},format=rgba`,
+        "{output}",
+      ],
+    });
+
+    return this.buildResult({
+      action: "background-remove",
+      message: `Removed the near-solid background color and saved the result to ${resolvedOutput}.`,
+      data: {
+        inputPath: input.inputPath,
+        outputPath: resolvedOutput,
+        color,
+        similarity,
+        blend,
+      },
+    });
+  }
+
   async watermark(input: ImageWatermarkInput): Promise<AdapterActionResult> {
     const watermarkPath = await assertLocalInputFile(input.watermarkPath);
     const margin = input.margin !== undefined ? requireNonNegativeInteger(input.margin, "margin") : 16;
@@ -495,6 +539,26 @@ function convertQualityToQscale(quality: number): number {
 function buildSharpenFilter(amount: number): string {
   const intensity = Math.max(3, Math.round(amount * 5));
   return `unsharp=5:5:${intensity / 10}:5:5:0.0`;
+}
+
+function normalizeBackgroundColor(value: string | undefined): string {
+  const normalized = value?.trim() || "#ffffff";
+  if (normalized.startsWith("#")) {
+    const hex = normalized.slice(1);
+    if (/^[0-9a-f]{6}$/i.test(hex)) {
+      return `0x${hex}`;
+    }
+  }
+
+  if (/^0x[0-9a-f]{6}$/i.test(normalized) || /^[a-z]+$/i.test(normalized)) {
+    return normalized;
+  }
+
+  throw new AutoCliError("EDITOR_INVALID_ARGUMENT", `Unsupported background color "${value}".`, {
+    details: {
+      supportedFormats: ["#RRGGBB", "0xRRGGBB", "white", "black", "green"],
+    },
+  });
 }
 
 function normalizeOverlayPosition(value: string | undefined): "top-left" | "top-right" | "bottom-left" | "bottom-right" | "center" {

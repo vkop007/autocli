@@ -133,6 +133,7 @@ Reference points:
   - `trim-silence`
   - `normalize`
   - `volume`
+  - `denoise`
   - `waveform`
   - `spectrogram`
 - Cheat
@@ -150,6 +151,7 @@ Reference points:
   - `sharpen`
   - `thumbnail`
   - `strip-metadata`
+  - `background-remove`
   - `watermark`
 - PDF Editor
   - `info`
@@ -157,6 +159,8 @@ Reference points:
   - `split`
   - `extract-pages`
   - `rotate`
+  - `reorder-pages`
+  - `watermark`
   - `optimize` / `compress`
   - `encrypt`
   - `decrypt`
@@ -198,11 +202,13 @@ Reference points:
 - Video Editor
   - `info`
   - `trim`
+  - `split`
   - `convert`
   - `compress`
   - `speed`
   - `reverse`
   - `overlay-image`
+  - `overlay-text`
   - `audio-replace`
   - `frame-extract`
   - `thumbnail`

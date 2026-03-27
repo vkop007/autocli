@@ -16,6 +16,7 @@ const EXAMPLES = [
   "autocli image rotate ./photo.png --degrees 90",
   "autocli image compress ./photo.png --quality 82",
   "autocli image grayscale ./photo.png",
+  "autocli image background-remove ./portrait.png --color '#00ff00'",
   "autocli image watermark ./photo.png --watermark ./logo.png --position bottom-right",
 ] as const;
 
@@ -272,6 +273,39 @@ function buildImageEditorCommand(options: PlatformCommandBuildOptions = {}): Com
         onSuccess: (result) => printImageEditorResult(result, ctx.json),
       });
     });
+
+  command
+    .command("background-remove")
+    .description("Remove a near-solid background color and save a transparent PNG")
+    .argument("<inputPath>", "Input image path")
+    .option("--color <value>", "Background color to key out, e.g. #ffffff or green", "#ffffff")
+    .option("--similarity <value>", "Color match strength from 0.01 to 1", "0.18")
+    .option("--blend <value>", "Soft edge blend from 0 to 1", "0.08")
+    .option("--output <path>", "Exact output file path")
+    .action(
+      async (
+        inputPath: string,
+        input: { color?: string; similarity?: string; blend?: string; output?: string },
+        cmd: Command,
+      ) => {
+        const ctx = resolveCommandContext(cmd);
+        const logger = new Logger(ctx);
+        const spinner = logger.spinner("Removing image background...");
+        await runCommandAction({
+          spinner,
+          successMessage: "Background removed.",
+          action: () =>
+            imageEditorAdapter.backgroundRemove({
+              inputPath,
+              color: input.color,
+              similarity: input.similarity,
+              blend: input.blend,
+              output: input.output,
+            }),
+          onSuccess: (result) => printImageEditorResult(result, ctx.json),
+        });
+      },
+    );
 
   command
     .command("watermark")

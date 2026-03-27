@@ -14,6 +14,8 @@ const EXAMPLES = [
   "autocli pdf split ./book.pdf --output-dir ./pages",
   'autocli pdf extract-pages ./book.pdf --pages "1,3-5" --output ./excerpt.pdf',
   "autocli pdf rotate ./book.pdf --angle 90 --pages 1-3 --output ./book-rotated.pdf",
+  'autocli pdf reorder-pages ./book.pdf --pages "3,1-2" --output ./book-reordered.pdf',
+  'autocli pdf watermark ./book.pdf --text "CONFIDENTIAL" --pages "1-3"',
   "autocli pdf encrypt ./book.pdf --output ./book-encrypted.pdf",
   "autocli pdf decrypt ./book-encrypted.pdf --output ./book-decrypted.pdf --password secret",
   "autocli pdf compress ./book.pdf --output ./book-optimized.pdf",
@@ -21,7 +23,7 @@ const EXAMPLES = [
 ] as const;
 
 function buildPdfCommand(options: PlatformCommandBuildOptions = {}): Command {
-  const command = new Command("pdf").description("Edit local PDF files using qpdf");
+  const command = new Command("pdf").description("Edit local PDF files using qpdf and pdf-lib");
   command.addHelpText("afterAll", buildExamplesHelpText(EXAMPLES, options));
 
   command
@@ -139,6 +141,68 @@ function buildPdfCommand(options: PlatformCommandBuildOptions = {}): Command {
     });
 
   command
+    .command("reorder-pages")
+    .description("Create a new PDF with pages reordered into a custom sequence")
+    .argument("<inputPath>", "Input PDF path")
+    .requiredOption("--pages <spec>", "Page order like 3,1-2,5")
+    .option("--output <path>", "Output PDF path")
+    .action(async (inputPath: string, input: { pages: string; output?: string }, cmd: Command) => {
+      const ctx = resolveCommandContext(cmd);
+      const logger = new Logger(ctx);
+      const spinner = logger.spinner("Reordering PDF pages...");
+      await runCommandAction({
+        spinner,
+        successMessage: "PDF pages reordered.",
+        action: () =>
+          pdfEditorAdapter.reorderPages({
+            inputPath,
+            pages: input.pages,
+            outputPath: input.output,
+          }),
+        onSuccess: (result) => printPdfResult(result, ctx.json),
+      });
+    });
+
+  command
+    .command("watermark")
+    .description("Apply a diagonal text watermark to a PDF")
+    .argument("<inputPath>", "Input PDF path")
+    .requiredOption("--text <value>", "Watermark text")
+    .option("--pages <spec>", "Optional page spec like 1,3-5")
+    .option("--opacity <value>", "Watermark opacity from 0.05 to 1", "0.08")
+    .option("--size <value>", "Watermark font size", "42")
+    .option("--color <value>", "Watermark color as #RRGGBB", "#808080")
+    .option("--rotation <degrees>", "Watermark rotation in degrees", "315")
+    .option("--output <path>", "Output PDF path")
+    .action(
+      async (
+        inputPath: string,
+        input: { text: string; pages?: string; opacity?: string; size?: string; color?: string; rotation?: string; output?: string },
+        cmd: Command,
+      ) => {
+        const ctx = resolveCommandContext(cmd);
+        const logger = new Logger(ctx);
+        const spinner = logger.spinner("Applying PDF watermark...");
+        await runCommandAction({
+          spinner,
+          successMessage: "PDF watermarked.",
+          action: () =>
+            pdfEditorAdapter.watermark({
+              inputPath,
+              text: input.text,
+              pages: input.pages,
+              opacity: input.opacity,
+              size: input.size,
+              color: input.color,
+              rotation: input.rotation,
+              outputPath: input.output,
+            }),
+          onSuccess: (result) => printPdfResult(result, ctx.json),
+        });
+      },
+    );
+
+  command
     .command("encrypt")
     .description("Encrypt a local PDF using qpdf")
     .argument("<inputPath>", "Input PDF path")
@@ -223,7 +287,7 @@ export const pdfPlatformDefinition: PlatformDefinition = {
   id: "pdf" as PlatformDefinition["id"],
   category: "editor",
   displayName: "PDF Editor",
-  description: "Edit local PDF files using qpdf",
+  description: "Edit local PDF files using qpdf and pdf-lib",
   authStrategies: ["none"],
   buildCommand: buildPdfCommand,
   adapter: pdfEditorAdapter,

@@ -20,6 +20,7 @@ const EXAMPLES = [
   "autocli audio spectrogram ./song.mp3 --width 1600",
   "autocli audio normalize ./song.mp3 --loudness 16",
   "autocli audio volume ./song.mp3 --db -3",
+  "autocli audio denoise ./voice.wav --reduction 20 --noise-floor -55",
 ] as const;
 
 function buildAudioCommand(options: PlatformCommandBuildOptions = {}): Command {
@@ -256,6 +257,37 @@ function buildAudioCommand(options: PlatformCommandBuildOptions = {}): Command {
         onSuccess: (result) => printAudioResult(result, ctx.json),
       });
     });
+
+  command
+    .command("denoise")
+    .description("Reduce steady background noise in an audio file")
+    .argument("<inputPath>", "Input audio path")
+    .option("--reduction <value>", "Noise reduction strength from 0.1 to 97", "18")
+    .option("--noise-floor <value>", "Estimated noise floor in dB, e.g. -50", "-50")
+    .option("--output <path>", "Exact output file path")
+    .action(
+      async (
+        inputPath: string,
+        input: { reduction?: string; noiseFloor?: string; output?: string },
+        cmd: Command,
+      ) => {
+        const ctx = resolveCommandContext(cmd);
+        const logger = new Logger(ctx);
+        const spinner = logger.spinner("Reducing background noise...");
+        await runCommandAction({
+          spinner,
+          successMessage: "Audio denoised.",
+          action: () =>
+            audioEditorAdapter.denoise({
+              inputPath,
+              reduction: input.reduction,
+              noiseFloor: input.noiseFloor,
+              output: input.output,
+            }),
+          onSuccess: (result) => printAudioResult(result, ctx.json),
+        });
+      },
+    );
 
   command
     .command("waveform")

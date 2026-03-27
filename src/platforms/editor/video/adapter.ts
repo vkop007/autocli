@@ -116,6 +116,19 @@ type VideoOverlayImageInput = {
   output?: string;
 };
 
+type VideoOverlayTextInput = {
+  inputPath: string;
+  text: string;
+  position?: string;
+  margin?: number | string;
+  fontSize?: number | string;
+  color?: string;
+  box?: boolean;
+  boxColor?: string;
+  boxOpacity?: number | string;
+  output?: string;
+};
+
 type VideoAudioReplaceInput = {
   inputPath: string;
   audioPath: string;
@@ -130,6 +143,14 @@ type VideoFrameExtractInput = {
   outputDir?: string;
   prefix?: string;
   format?: string;
+};
+
+type VideoSplitInput = {
+  inputPath: string;
+  duration: string;
+  outputDir?: string;
+  prefix?: string;
+  to?: string;
 };
 
 export class VideoEditorAdapter {
@@ -207,6 +228,61 @@ export class VideoEditorAdapter {
         start: input.start ?? null,
         end: input.end ?? null,
         duration: input.duration ?? null,
+      },
+    });
+  }
+
+  async split(input: VideoSplitInput): Promise<AdapterActionResult> {
+    const resolvedInput = await assertLocalInputFile(input.inputPath);
+    const segmentDurationSeconds = parseFlexibleDuration(input.duration, "duration");
+    const probe = await runFfprobe(resolvedInput);
+    const totalDuration = toNumber(probe.format?.duration)
+      ?? toNumber((probe.streams ?? []).find((entry) => entry.codec_type === "video")?.duration);
+
+    if (totalDuration === undefined || !Number.isFinite(totalDuration) || totalDuration <= 0) {
+      throw new AutoCliError("VIDEO_INFO_UNAVAILABLE", "Could not determine the total video duration for splitting.", {
+        details: {
+          inputPath: resolvedInput,
+        },
+      });
+    }
+
+    const format = normalizeVideoExtension(input.to || extname(resolvedInput).replace(/^\./, "") || "mp4");
+    const outputDir = resolve(input.outputDir ?? parse(resolvedInput).dir);
+    const prefix = normalizePrefix(input.prefix ?? parse(resolvedInput).name);
+    const outputPaths: string[] = [];
+
+    for (let index = 0, start = 0; start < totalDuration - 0.001; index += 1, start += segmentDurationSeconds) {
+      const outputPath = join(outputDir, `${prefix}.part-${String(index + 1).padStart(3, "0")}.${format}`);
+      const remaining = Math.max(0.05, Math.min(segmentDurationSeconds, totalDuration - start));
+      const resolvedOutput = await runFfmpegEdit({
+        inputPath: resolvedInput,
+        outputPath,
+        args: [
+          "-ss",
+          formatSecondsForFfmpeg(start),
+          "-i",
+          "{input}",
+          "-t",
+          formatSecondsForFfmpeg(remaining),
+          ...buildVideoCodecArgs(format, 21, "medium"),
+          "{output}",
+        ],
+      });
+      outputPaths.push(resolvedOutput);
+    }
+
+    return this.buildResult({
+      action: "split",
+      message: `Split ${basename(resolvedInput)} into ${outputPaths.length} video parts.`,
+      data: {
+        inputPath: resolvedInput,
+        outputDir,
+        prefix,
+        format,
+        segmentDurationSeconds,
+        totalDurationSeconds: totalDuration,
+        outputPaths,
       },
     });
   }
@@ -422,6 +498,57 @@ export class VideoEditorAdapter {
         position,
         margin,
         width: overlayWidth ?? null,
+      },
+    });
+  }
+
+  async overlayText(input: VideoOverlayTextInput): Promise<AdapterActionResult> {
+    const margin = input.margin !== undefined ? requireNonNegativeInteger(input.margin, "margin") : 24;
+    const fontSize = input.fontSize !== undefined ? requirePositiveInteger(input.fontSize, "fontSize") : 48;
+    const position = normalizeTextOverlayPosition(input.position);
+    const color = normalizeFfmpegColor(input.color, "white");
+    const box = input.box ?? true;
+    const boxColor = normalizeFfmpegColor(input.boxColor, "black");
+    const boxOpacity = clampNumber(toNumber(input.boxOpacity) ?? 0.45, 0, 1);
+    const format = normalizeVideoExtension(extname(input.inputPath).replace(/^\./, "") || "mp4");
+    const outputPath = resolveEditorOutputPath({
+      inputPath: input.inputPath,
+      output: input.output,
+      suffix: "text-overlay",
+      extension: format,
+    });
+
+    const drawtextFilter = [
+      `drawtext=text='${escapeDrawtextText(input.text)}'`,
+      `fontsize=${fontSize}`,
+      `fontcolor=${color}`,
+      `x=${buildDrawtextX(position, margin)}`,
+      `y=${buildDrawtextY(position, margin)}`,
+      `box=${box ? 1 : 0}`,
+      `boxcolor=${boxColor}@${boxOpacity}`,
+      "boxborderw=12",
+    ].join(":");
+
+    const resolvedOutput = await runFfmpegEdit({
+      inputPath: input.inputPath,
+      outputPath,
+      args: ["-i", "{input}", "-vf", drawtextFilter, ...buildVideoCodecArgs(format, 21, "medium"), "{output}"],
+    });
+
+    return this.buildResult({
+      action: "overlay-text",
+      message: `Saved text-overlay video to ${resolvedOutput}.`,
+      data: {
+        inputPath: input.inputPath,
+        outputPath: resolvedOutput,
+        text: input.text,
+        position,
+        margin,
+        fontSize,
+        color,
+        box,
+        boxColor,
+        boxOpacity,
       },
     });
   }
@@ -867,6 +994,43 @@ function clampCrf(value: number): number {
   return Math.max(0, Math.min(51, Math.round(value)));
 }
 
+function parseFlexibleDuration(value: string, label: string): number {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    throw new AutoCliError("EDITOR_INVALID_ARGUMENT", `${label} is required.`);
+  }
+
+  const numeric = Number(trimmed);
+  if (Number.isFinite(numeric) && numeric > 0) {
+    return numeric;
+  }
+
+  const match = /^(?:(\d+):)?(\d{1,2}):(\d{1,2}(?:\.\d+)?)$/.exec(trimmed);
+  if (!match) {
+    throw new AutoCliError("EDITOR_INVALID_ARGUMENT", `${label} must be seconds or HH:MM:SS(.ms).`, {
+      details: {
+        label,
+        value,
+      },
+    });
+  }
+
+  const hours = Number(match[1] ?? "0");
+  const minutes = Number(match[2] ?? "0");
+  const seconds = Number(match[3] ?? "0");
+  const total = (hours * 3600) + (minutes * 60) + seconds;
+  if (!Number.isFinite(total) || total <= 0) {
+    throw new AutoCliError("EDITOR_INVALID_ARGUMENT", `${label} must be greater than zero.`, {
+      details: {
+        label,
+        value,
+      },
+    });
+  }
+
+  return total;
+}
+
 function requirePositiveNumber(value: number | string, label: string): number {
   const parsed = toNumber(value);
   if (parsed === undefined || !Number.isFinite(parsed) || parsed <= 0) {
@@ -967,6 +1131,37 @@ function normalizeOverlayPosition(value: string | undefined): "top-left" | "top-
   });
 }
 
+function normalizeTextOverlayPosition(
+  value: string | undefined,
+): "top-left" | "top-right" | "bottom-left" | "bottom-right" | "center" | "top-center" | "bottom-center" {
+  const normalized = value?.trim().toLowerCase() || "bottom-center";
+  if (
+    normalized === "top-left" ||
+    normalized === "top-right" ||
+    normalized === "bottom-left" ||
+    normalized === "bottom-right" ||
+    normalized === "center" ||
+    normalized === "top-center" ||
+    normalized === "bottom-center"
+  ) {
+    return normalized;
+  }
+
+  throw new AutoCliError("EDITOR_INVALID_ARGUMENT", `Unsupported text position "${value}".`, {
+    details: {
+      supportedPositions: [
+        "top-left",
+        "top-right",
+        "bottom-left",
+        "bottom-right",
+        "center",
+        "top-center",
+        "bottom-center",
+      ],
+    },
+  });
+}
+
 export function buildOverlayPosition(position: "top-left" | "top-right" | "bottom-left" | "bottom-right" | "center", margin: number): string {
   switch (position) {
     case "top-left":
@@ -981,6 +1176,67 @@ export function buildOverlayPosition(position: "top-left" | "top-right" | "botto
     default:
       return `main_w-overlay_w-${margin}:main_h-overlay_h-${margin}`;
   }
+}
+
+function buildDrawtextX(
+  position: "top-left" | "top-right" | "bottom-left" | "bottom-right" | "center" | "top-center" | "bottom-center",
+  margin: number,
+): string {
+  switch (position) {
+    case "top-left":
+    case "bottom-left":
+      return String(margin);
+    case "top-right":
+    case "bottom-right":
+      return `w-text_w-${margin}`;
+    case "top-center":
+    case "bottom-center":
+    case "center":
+      return "(w-text_w)/2";
+  }
+}
+
+function buildDrawtextY(
+  position: "top-left" | "top-right" | "bottom-left" | "bottom-right" | "center" | "top-center" | "bottom-center",
+  margin: number,
+): string {
+  switch (position) {
+    case "top-left":
+    case "top-right":
+    case "top-center":
+      return String(margin);
+    case "bottom-left":
+    case "bottom-right":
+    case "bottom-center":
+      return `h-text_h-${margin}`;
+    case "center":
+      return "(h-text_h)/2";
+  }
+}
+
+function escapeDrawtextText(value: string): string {
+  return value
+    .replace(/\\/g, "\\\\")
+    .replace(/:/g, "\\:")
+    .replace(/'/g, "\\'")
+    .replace(/%/g, "\\%")
+    .replace(/\n/g, "\\n");
+}
+
+function normalizeFfmpegColor(value: string | undefined, fallback: string): string {
+  const normalized = value?.trim() || fallback;
+  if (/^#[0-9a-f]{6}$/i.test(normalized)) {
+    return `0x${normalized.slice(1)}`;
+  }
+  if (/^0x[0-9a-f]{6}$/i.test(normalized) || /^[a-z]+$/i.test(normalized)) {
+    return normalized;
+  }
+
+  throw new AutoCliError("EDITOR_INVALID_ARGUMENT", `Unsupported color value "${value}".`, {
+    details: {
+      supportedFormats: ["#RRGGBB", "0xRRGGBB", "white", "black", "yellow"],
+    },
+  });
 }
 
 export function normalizeFrameFormat(value: string): "png" | "jpg" | "jpeg" | "webp" {
@@ -998,6 +1254,10 @@ export function normalizeFrameFormat(value: string): "png" | "jpg" | "jpeg" | "w
 
 function formatFilterNumber(value: number): string {
   return Number(value.toFixed(6)).toString();
+}
+
+function formatSecondsForFfmpeg(value: number): string {
+  return Number(value.toFixed(3)).toString();
 }
 
 function normalizePrefix(value: string): string {
