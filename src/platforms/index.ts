@@ -13,6 +13,8 @@ import { imageEditorPlatformDefinition } from "./editor/image/manifest.js";
 import { pdfPlatformDefinition } from "./editor/pdf/manifest.js";
 import { subtitleEditorPlatformDefinition } from "./editor/subtitle/manifest.js";
 import { videoEditorPlatformDefinition } from "./editor/video/manifest.js";
+import { amazonPlatformDefinition } from "./shopping/amazon/manifest.js";
+import { flipkartPlatformDefinition } from "./shopping/flipkart/manifest.js";
 import { chatgptPlatformDefinition } from "./llm/chatgpt/manifest.js";
 import { claudePlatformDefinition } from "./llm/claude/manifest.js";
 import { deepSeekPlatformDefinition } from "./llm/deepseek/manifest.js";
@@ -55,6 +57,7 @@ import type { PlatformCategory, PlatformDefinition } from "../core/runtime/platf
 import type { PlatformName } from "./config.js";
 
 const definitions: readonly PlatformDefinition[] = [
+  amazonPlatformDefinition,
   cheatPlatformDefinition,
   chatgptPlatformDefinition,
   claudePlatformDefinition,
@@ -69,6 +72,7 @@ const definitions: readonly PlatformDefinition[] = [
   gifEditorPlatformDefinition,
   imageEditorPlatformDefinition,
   facebookPlatformDefinition,
+  flipkartPlatformDefinition,
   geminiPlatformDefinition,
   grokPlatformDefinition,
   mistralPlatformDefinition,
@@ -125,7 +129,7 @@ export function getPlatformDefinitionsByCategory(category: PlatformCategory): re
 }
 
 export function getPlatformCategories(): readonly PlatformCategory[] {
-  const order: readonly PlatformCategory[] = ["llm", "editor", "music", "social", "bots", "api", "public", "forum"];
+  const order: readonly PlatformCategory[] = ["llm", "editor", "music", "social", "shopping", "bots", "api", "public", "forum"];
   return order.filter((category) =>
     definitions.some((definition) => {
       const categories = definition.commandCategories ?? [definition.category];

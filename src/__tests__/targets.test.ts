@@ -1,7 +1,9 @@
 import { describe, expect, test } from "bun:test";
 
 import {
+  parseAmazonProductTarget,
   parseFacebookTarget,
+  parseFlipkartProductTarget,
   parseInstagramProfileTarget,
   parseInstagramTarget,
   parseSpotifyAlbumTarget,
@@ -16,6 +18,36 @@ import {
   parseYouTubePlaylistTarget,
   parseYouTubeTarget,
 } from "../utils/targets.js";
+
+describe("parseAmazonProductTarget", () => {
+  test("accepts a raw ASIN", () => {
+    expect(parseAmazonProductTarget("B0B296NTFV")).toEqual({
+      asin: "B0B296NTFV",
+    });
+  });
+
+  test("parses an Amazon product URL", () => {
+    expect(parseAmazonProductTarget("https://www.amazon.in/Portronics-Wireless-Optical-Orientation-Adjustable/dp/B0B296NTFV")).toEqual({
+      asin: "B0B296NTFV",
+      url: "https://www.amazon.in/Portronics-Wireless-Optical-Orientation-Adjustable/dp/B0B296NTFV",
+    });
+  });
+});
+
+describe("parseFlipkartProductTarget", () => {
+  test("accepts a raw Flipkart pid", () => {
+    expect(parseFlipkartProductTarget("ACCH9SPTRHTWG8QH")).toEqual({
+      pid: "ACCH9SPTRHTWG8QH",
+    });
+  });
+
+  test("parses a Flipkart product URL", () => {
+    expect(parseFlipkartProductTarget("https://www.flipkart.com/example/p/itm81863fec34057?pid=ACCH9SPTRHTWG8QH")).toEqual({
+      pid: "ACCH9SPTRHTWG8QH",
+      url: "https://www.flipkart.com/example/p/itm81863fec34057?pid=ACCH9SPTRHTWG8QH",
+    });
+  });
+});
 
 describe("parseFacebookTarget", () => {
   test("accepts a raw numeric object id", () => {
