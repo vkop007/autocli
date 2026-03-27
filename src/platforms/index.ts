@@ -23,8 +23,10 @@ import { grokPlatformDefinition } from "./llm/grok/manifest.js";
 import { mistralPlatformDefinition } from "./llm/mistral/manifest.js";
 import { perplexityPlatformDefinition } from "./llm/perplexity/manifest.js";
 import { qwenPlatformDefinition } from "./llm/qwen/manifest.js";
+import { aniListPlatformDefinition } from "./movie/anilist/manifest.js";
 import { imdbPlatformDefinition } from "./movie/imdb/manifest.js";
 import { myAnimeListPlatformDefinition } from "./movie/myanimelist/manifest.js";
+import { tvMazePlatformDefinition } from "./movie/tvmaze/manifest.js";
 import { spotifyPlatformDefinition } from "./music/spotify/manifest.js";
 import { youtubeMusicPlatformDefinition } from "./music/youtube-music/manifest.js";
 import { notionPlatformDefinition } from "./api/notion/manifest.js";
@@ -77,6 +79,7 @@ const definitions: readonly PlatformDefinition[] = [
   flipkartPlatformDefinition,
   geminiPlatformDefinition,
   grokPlatformDefinition,
+  aniListPlatformDefinition,
   imdbPlatformDefinition,
   mistralPlatformDefinition,
   myAnimeListPlatformDefinition,
@@ -106,6 +109,7 @@ const definitions: readonly PlatformDefinition[] = [
   tiktokPlatformDefinition,
   timePlatformDefinition,
   translatePlatformDefinition,
+  tvMazePlatformDefinition,
   uptimePlatformDefinition,
   subtitleEditorPlatformDefinition,
   videoEditorPlatformDefinition,

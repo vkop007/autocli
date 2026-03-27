@@ -33,13 +33,13 @@ Reference points:
 | --- | --- | ---: | --- |
 | LLM | ChatGPT, Claude, DeepSeek, Gemini, Grok, Mistral, Perplexity, Qwen, Z.ai | 9 | `autocli llm <provider> ...` |
 | Editor | Archive Editor, Audio Editor, Document Editor, GIF Editor, Image Editor, PDF Editor, Subtitle Editor, Video Editor | 8 | `autocli editor <provider> ...` |
-| Movie | IMDb, MyAnimeList | 2 | `autocli movie <provider> ...` |
+| Movie | AniList, IMDb, MyAnimeList, TVMaze | 4 | `autocli movie <provider> ...` |
 | Music | Spotify, YouTube Music | 2 | `autocli music <provider> ...` |
 | Social | Facebook, Instagram, LinkedIn, TikTok, X, YouTube | 6 | `autocli social <provider> ...` |
 | Shopping | Amazon, Flipkart | 2 | `autocli shopping <provider> ...` |
 | API | Discord Bot, GitHub, GitHub Bot, GitLab, Linear, Notion, Slack Bot, Telegram Bot | 8 | `autocli api <provider> ...` |
 | Public | Cheat, Crypto, Currency, DNS, IP, Markdown Fetch, News, QR, Robots, RSS, Screenshot, Sitemap, Stocks, Time, Translate, Uptime, Weather, Web Search, Whois | 19 | `autocli public <provider> ...` |
-| Total | 56 providers across 8 command groups | 56 | category-only |
+| Total | 58 providers across 8 command groups | 58 | category-only |
 
 ### Capability highlights
 
@@ -50,6 +50,10 @@ Reference points:
   - `extract`
   - `gzip`
   - `gunzip`
+- AniList
+  - `search`
+  - `title` / `info`
+  - public, no cookies required
 - Facebook
   - `login`
   - `status`
@@ -119,6 +123,10 @@ Reference points:
   - `title` / `info`
   - `list`
   - optional `login` / `status` when you want saved-session defaults for your own list
+- TVMaze
+  - `search`
+  - `title` / `info`
+  - public, no cookies required
 - Linear
   - `login --token`
   - `me`

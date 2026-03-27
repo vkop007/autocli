@@ -138,7 +138,10 @@ export function createMovieCapabilities(adapter: BaseMovieAdapter): readonly Pla
         description: `Load ${adapter.displayName} recommendations for a title`,
         spinnerText: `Loading ${adapter.displayName} recommendations...`,
         successMessage: `${adapter.displayName} recommendations loaded.`,
-        options: [{ flags: "--limit <number>", description: "Maximum recommendations to return (default: 5)", parser: parseMovieLimitOption }],
+        options: [
+          { flags: "--account <name>", description: "Optional saved session name to use" },
+          { flags: "--limit <number>", description: "Maximum recommendations to return (default: 5)", parser: parseMovieLimitOption },
+        ],
         action: ({ args, options }) =>
           richAdapter.recommendations!({
             target: String(args[0] ?? ""),
