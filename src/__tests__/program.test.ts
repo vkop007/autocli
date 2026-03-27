@@ -12,6 +12,7 @@ describe("root program routing", () => {
       "editor",
       "music",
       "social",
+      "shopping",
       "api",
       "public",
     ]);

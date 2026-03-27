@@ -7,6 +7,7 @@ Commands are organized by category only:
 - `autocli llm ...`
 - `autocli editor ...`
 - `autocli social ...`
+- `autocli shopping ...`
 - `autocli api ...`
 - `autocli music ...`
 - `autocli public ...`
@@ -33,9 +34,10 @@ Reference points:
 | Editor | Archive Editor, Audio Editor, Document Editor, GIF Editor, Image Editor, PDF Editor, Subtitle Editor, Video Editor | 8 | `autocli editor <provider> ...` |
 | Music | Spotify, YouTube Music | 2 | `autocli music <provider> ...` |
 | Social | Facebook, Instagram, LinkedIn, TikTok, X, YouTube | 6 | `autocli social <provider> ...` |
+| Shopping | Amazon, Flipkart | 2 | `autocli shopping <provider> ...` |
 | API | Discord Bot, GitHub, GitHub Bot, GitLab, Linear, Notion, Slack Bot, Telegram Bot | 8 | `autocli api <provider> ...` |
 | Public | Cheat, Crypto, Currency, DNS, IP, Markdown Fetch, News, QR, Robots, RSS, Screenshot, Sitemap, Stocks, Time, Translate, Uptime, Weather, Web Search, Whois | 19 | `autocli public <provider> ...` |
-| Total | 52 providers across 6 command groups | 52 | category-only |
+| Total | 54 providers across 7 command groups | 54 | category-only |
 
 ### Capability highlights
 
@@ -166,6 +168,18 @@ Reference points:
   - `screenshot <url>`
   - `screenshot <url> --output-dir ./shots`
   - `screenshot <url> --output ./page.png`
+- Amazon
+  - `login`
+  - `status`
+  - `search`
+  - `product`
+  - `orders`
+- Flipkart
+  - `login`
+  - `status`
+  - `search`
+  - `product`
+  - `orders`
 - TikTok
   - `login`
   - `status`

@@ -47,6 +47,11 @@ src/platforms/
       adapter.ts
       manifest.ts
       capabilities/
+  shopping/
+    <name>/
+      adapter.ts
+      manifest.ts
+      capabilities/
   public/
     <name>/
       adapter.ts
@@ -88,6 +93,7 @@ Current examples:
 - Qwen usually works directly from imported browser cookies because the export often includes the `token` cookie. Use `--token` only when that cookie is missing.
 - Grok now uses the official `grok.com` web flow and returns a Grok-specific anti-bot error when xAI blocks browserless prompt writes.
 - Music platforms: `src/platforms/music/spotify/`, `src/platforms/music/youtube-music/`
+- Shopping platforms: `src/platforms/shopping/amazon/`, `src/platforms/shopping/flipkart/`
 - Public utility platforms: `src/platforms/public/cheat/`, `src/platforms/public/ip/`, `src/platforms/public/news/`, `src/platforms/public/qr/`, `src/platforms/public/screenshot/`, `src/platforms/public/time/`, `src/platforms/public/uptime/`, `src/platforms/public/weather/`, `src/platforms/public/websearch/`
 - Cookie-backed social platforms: `src/platforms/social/facebook/`, `src/platforms/social/instagram/`, `src/platforms/social/linkedin/`, `src/platforms/social/tiktok/`, `src/platforms/social/x/`, `src/platforms/social/youtube/`
 - Spotify specifically now uses an internal engine split:

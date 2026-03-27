@@ -50,6 +50,56 @@ export function parseFacebookTarget(target: string): {
   });
 }
 
+export function parseAmazonProductTarget(target: string): {
+  asin: string;
+  url?: string;
+} {
+  const trimmed = target.trim();
+
+  if (/^[A-Z0-9]{10}$/i.test(trimmed)) {
+    return {
+      asin: trimmed.toUpperCase(),
+    };
+  }
+
+  const match = trimmed.match(/amazon\.[^/]+\/(?:[^?#]+\/)?(?:dp|gp\/product)\/([A-Z0-9]{10})/i);
+  if (match?.[1]) {
+    return {
+      asin: match[1].toUpperCase(),
+      url: trimmed,
+    };
+  }
+
+  throw new AutoCliError("INVALID_TARGET", "Expected an Amazon product URL or 10-character ASIN.", {
+    details: { target },
+  });
+}
+
+export function parseFlipkartProductTarget(target: string): {
+  pid: string;
+  url?: string;
+} {
+  const trimmed = target.trim();
+
+  if (/^[A-Z0-9]{12,18}$/i.test(trimmed)) {
+    return {
+      pid: trimmed.toUpperCase(),
+    };
+  }
+
+  const match = trimmed.match(/[?&]pid=([A-Z0-9]{12,18})/i);
+  if (match?.[1]) {
+    return {
+      pid: match[1].toUpperCase(),
+      url: trimmed,
+    };
+  }
+
+  throw new AutoCliError("INVALID_TARGET", "Expected a Flipkart product URL or raw PID.", {
+    details: { target },
+  });
+}
+
 export function parseInstagramTarget(target: string): {
   mediaId: string;
   shortcode?: string;

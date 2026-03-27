@@ -30,6 +30,9 @@ const PLATFORM_CATEGORY_DEFINITIONS: Record<PlatformCategory, PlatformCategoryDe
   public: {
     description: "No-auth public utilities and lookup tools",
   },
+  shopping: {
+    description: "Shopping platforms like Amazon and Flipkart",
+  },
   social: {
     description: "Social platforms like Instagram, X, Facebook, and YouTube",
   },

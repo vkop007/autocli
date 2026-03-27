@@ -41,6 +41,11 @@ describe("platform category routing", () => {
     ]);
   });
 
+  test("includes the shopping category and providers", () => {
+    expect(getPlatformCategories()).toContain("shopping");
+    expect(getPlatformDefinitionsByCategory("shopping").map((definition) => definition.id)).toEqual(["amazon", "flipkart"]);
+  });
+
   test("exposes bot providers under api too", () => {
     const apiIds = getPlatformDefinitionsByCategory("api").map((definition) => definition.id);
     expect(apiIds).toContain("telegrambot");

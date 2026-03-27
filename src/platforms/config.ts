@@ -1,4 +1,5 @@
 export const PLATFORM_NAMES = [
+  "amazon",
   "cheat",
   "chatgpt",
   "claude",
@@ -13,6 +14,7 @@ export const PLATFORM_NAMES = [
   "gif",
   "image",
   "facebook",
+  "flipkart",
   "gemini",
   "github",
   "githubbot",
@@ -64,6 +66,13 @@ export interface PlatformConfig {
 }
 
 export const PLATFORM_CONFIG: Record<PlatformName, PlatformConfig> = {
+  amazon: {
+    displayName: "Amazon",
+    origin: "https://www.amazon.in",
+    homeUrl: "https://www.amazon.in/",
+    cookieDomain: "amazon.in",
+    authCookieNames: ["at-main", "sess-at-main", "x-main"],
+  },
   cheat: {
     displayName: "Cheat",
     origin: "https://cht.sh",
@@ -161,6 +170,13 @@ export const PLATFORM_CONFIG: Record<PlatformName, PlatformConfig> = {
     homeUrl: "https://www.facebook.com/",
     cookieDomain: "facebook.com",
     authCookieNames: ["c_user", "xs"],
+  },
+  flipkart: {
+    displayName: "Flipkart",
+    origin: "https://www.flipkart.com",
+    homeUrl: "https://www.flipkart.com/",
+    cookieDomain: "flipkart.com",
+    authCookieNames: ["T", "AT"],
   },
   gemini: {
     displayName: "Gemini",
