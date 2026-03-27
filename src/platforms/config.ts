@@ -1,4 +1,5 @@
 export const PLATFORM_NAMES = [
+  "anilist",
   "amazon",
   "cheat",
   "chatgpt",
@@ -48,6 +49,7 @@ export const PLATFORM_NAMES = [
   "translate",
   "uptime",
   "subtitle",
+  "tvmaze",
   "video",
   "weather",
   "websearch",
@@ -68,6 +70,13 @@ export interface PlatformConfig {
 }
 
 export const PLATFORM_CONFIG: Record<PlatformName, PlatformConfig> = {
+  anilist: {
+    displayName: "AniList",
+    origin: "https://graphql.anilist.co",
+    homeUrl: "https://anilist.co/",
+    cookieDomain: "anilist.co",
+    authCookieNames: [],
+  },
   amazon: {
     displayName: "Amazon",
     origin: "https://www.amazon.in",
@@ -409,6 +418,13 @@ export const PLATFORM_CONFIG: Record<PlatformName, PlatformConfig> = {
     origin: "https://ffmpeg.org",
     homeUrl: "https://ffmpeg.org/",
     cookieDomain: "ffmpeg.org",
+    authCookieNames: [],
+  },
+  tvmaze: {
+    displayName: "TVMaze",
+    origin: "https://api.tvmaze.com",
+    homeUrl: "https://www.tvmaze.com/",
+    cookieDomain: "tvmaze.com",
     authCookieNames: [],
   },
   video: {

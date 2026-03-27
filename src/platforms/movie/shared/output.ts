@@ -74,7 +74,25 @@ export function printMovieTitleResult(result: AdapterActionResult, json: boolean
 
   printActionResult(result, false);
   const title = (result.data?.title ?? {}) as Record<string, unknown>;
-  for (const key of ["title", "year", "type", "score", "ranked", "popularity", "members", "episodes", "studio", "cast", "summary"]) {
+  for (const key of [
+    "title",
+    "year",
+    "type",
+    "status",
+    "score",
+    "rating",
+    "ranked",
+    "popularity",
+    "members",
+    "episodes",
+    "runtime",
+    "studio",
+    "network",
+    "language",
+    "genres",
+    "cast",
+    "summary",
+  ]) {
     const value = title[key];
     if (value !== undefined && value !== null && `${value}`.length > 0) {
       console.log(`${key}: ${Array.isArray(value) ? value.join(", ") : value}`);
