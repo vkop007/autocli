@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test";
 
 import {
+  buildChatGptAuthenticatedConversationPrepareBody,
+  buildChatGptAuthenticatedTextConversationBody,
   buildChatGptCloudflareOneShotUrl,
   extractChatGptCloudflareChallengePath,
   extractChatGptCloudflareRequestId,
@@ -44,6 +46,70 @@ data: {"message":{"id":"assistant-123","author":{"role":"assistant"},"content":{
       conversationId: "conv-123",
       assistantMessageId: "assistant-123",
       model: "i-mini",
+    });
+  });
+
+  test("builds the authenticated conversation prepare payload", () => {
+    const payload = buildChatGptAuthenticatedConversationPrepareBody({
+      parentMessageId: "client-created-root",
+      model: "auto",
+    });
+
+    expect(payload.action).toBe("next");
+    expect(payload.parent_message_id).toBe("client-created-root");
+    expect(payload.model).toBe("auto");
+    expect(payload.history_and_training_disabled).toBe(true);
+    expect(payload.paragen_cot_summary_display_override).toBe("allow");
+    expect(payload.messages).toBeUndefined();
+    expect(payload.client_contextual_info).toEqual({
+      is_dark_mode: true,
+      time_since_loaded: 7,
+      page_height: 911,
+      page_width: 1080,
+      pixel_ratio: 1,
+      screen_height: 1080,
+      screen_width: 1920,
+      app_name: "chatgpt.com",
+    });
+  });
+
+  test("builds the authenticated conversation body with snake_case fields", () => {
+    const payload = buildChatGptAuthenticatedTextConversationBody({
+      prompt: "Hello from AutoCLI",
+      model: "auto",
+      parentMessageId: "client-created-root",
+    });
+
+    expect(payload.action).toBe("next");
+    expect(payload.parent_message_id).toBe("client-created-root");
+    expect(payload.history_and_training_disabled).toBe(true);
+    expect(payload.paragen_cot_summary_display_override).toBe("allow");
+    expect(payload.client_contextual_info).toEqual({
+      is_dark_mode: true,
+      time_since_loaded: 7,
+      page_height: 911,
+      page_width: 1080,
+      pixel_ratio: 1,
+      screen_height: 1080,
+      screen_width: 1920,
+      app_name: "chatgpt.com",
+    });
+
+    const message = Array.isArray(payload.messages) ? payload.messages[0] : undefined;
+    expect(message).toBeDefined();
+    expect(message).toMatchObject({
+      author: {
+        role: "user",
+      },
+      content: {
+        content_type: "text",
+        parts: ["Hello from AutoCLI"],
+      },
+      metadata: {
+        serialization_metadata: {
+          custom_symbol_offsets: [],
+        },
+      },
     });
   });
 
