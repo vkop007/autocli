@@ -26,6 +26,17 @@ Reference points:
 
 ## Current platform coverage
 
+| Category | Providers | Count | Route pattern |
+| --- | --- | ---: | --- |
+| LLM | ChatGPT, Claude, DeepSeek, Gemini, Grok, Qwen, Z.ai | 7 | `autocli llm <provider> ...` |
+| Music | Spotify, YouTube Music | 2 | `autocli music <provider> ...` |
+| Social | Facebook, Instagram, LinkedIn, TikTok, X, YouTube | 6 | `autocli social <provider> ...` |
+| API | Discord Bot, GitHub, GitHub Bot, GitLab, Linear, Notion, Slack Bot, Telegram Bot | 8 | `autocli api <provider> ...` |
+| Public | Cheat, Crypto, Currency, DNS, IP, Markdown Fetch, News, QR, Robots, RSS, Sitemap, Stocks, Time, Translate, Weather, Web Search, Whois | 17 | `autocli public <provider> ...` |
+| Total | 40 providers across 5 command groups | 40 | category-only |
+
+### Capability highlights
+
 - Facebook
   - `login`
   - `status`
