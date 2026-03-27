@@ -11,11 +11,13 @@ import type { PlatformCommandBuildOptions, PlatformDefinition } from "../../../c
 const EXAMPLES = [
   "autocli video info ./clip.mp4",
   "autocli video trim ./clip.mp4 --start 00:00:05 --duration 10",
+  "autocli video split ./clip.mp4 --duration 00:00:15 --output-dir ./parts",
   "autocli video convert ./clip.mov --to mp4",
   "autocli video compress ./clip.mp4 --crf 28",
   "autocli video speed ./clip.mp4 --factor 1.5",
   "autocli video reverse ./clip.mp4",
   "autocli video overlay-image ./clip.mp4 --overlay ./logo.png --position bottom-right",
+  'autocli video overlay-text ./clip.mp4 "Ship it" --position bottom-center',
   "autocli video audio-replace ./clip.mp4 --audio ./music.mp3",
   "autocli video frame-extract ./clip.mp4 --fps 2 --output-dir ./frames",
   "autocli video thumbnail ./clip.mp4 --at 00:00:03",
@@ -70,6 +72,39 @@ function buildVideoEditorCommand(options: PlatformCommandBuildOptions = {}): Com
               end: input.end,
               duration: input.duration,
               output: input.output,
+            }),
+          onSuccess: (result) => printVideoEditorResult(result, ctx.json),
+        });
+      },
+    );
+
+  command
+    .command("split")
+    .description("Split a local video into equal-duration parts")
+    .argument("<inputPath>", "Input video path")
+    .requiredOption("--duration <time>", "Segment duration, e.g. 15 or 00:00:15")
+    .option("--output-dir <path>", "Directory to write video parts into")
+    .option("--prefix <name>", "Filename prefix for generated parts")
+    .option("--to <format>", "Optional target format: mp4, mov, webm")
+    .action(
+      async (
+        inputPath: string,
+        input: { duration: string; outputDir?: string; prefix?: string; to?: string },
+        cmd: Command,
+      ) => {
+        const ctx = resolveCommandContext(cmd);
+        const logger = new Logger(ctx);
+        const spinner = logger.spinner("Splitting video...");
+        await runCommandAction({
+          spinner,
+          successMessage: "Video split complete.",
+          action: () =>
+            videoEditorAdapter.split({
+              inputPath,
+              duration: input.duration,
+              outputDir: input.outputDir,
+              prefix: input.prefix,
+              to: input.to,
             }),
           onSuccess: (result) => printVideoEditorResult(result, ctx.json),
         });
@@ -200,6 +235,59 @@ function buildVideoEditorCommand(options: PlatformCommandBuildOptions = {}): Com
               position: input.position,
               margin: input.margin,
               width: input.width,
+              output: input.output,
+            }),
+          onSuccess: (result) => printVideoEditorResult(result, ctx.json),
+        });
+      },
+    );
+
+  command
+    .command("overlay-text")
+    .description("Draw text on top of a video")
+    .argument("<inputPath>", "Input video path")
+    .argument("<text...>", "Text to draw on the video")
+    .option("--position <value>", "Text position: top-left, top-right, bottom-left, bottom-right, center, top-center, bottom-center")
+    .option("--margin <px>", "Text margin in pixels", "24")
+    .option("--font-size <px>", "Font size in pixels", "48")
+    .option("--color <value>", "Text color, e.g. white or #ffffff", "white")
+    .option("--box-color <value>", "Background box color", "black")
+    .option("--box-opacity <value>", "Background box opacity from 0 to 1", "0.45")
+    .option("--no-box", "Disable the background box behind the text")
+    .option("--output <path>", "Exact output file path")
+    .action(
+      async (
+        inputPath: string,
+        text: string[],
+        input: {
+          position?: string;
+          margin?: string;
+          fontSize?: string;
+          color?: string;
+          box?: boolean;
+          boxColor?: string;
+          boxOpacity?: string;
+          output?: string;
+        },
+        cmd: Command,
+      ) => {
+        const ctx = resolveCommandContext(cmd);
+        const logger = new Logger(ctx);
+        const spinner = logger.spinner("Overlaying text...");
+        await runCommandAction({
+          spinner,
+          successMessage: "Text overlaid.",
+          action: () =>
+            videoEditorAdapter.overlayText({
+              inputPath,
+              text: text.join(" "),
+              position: input.position,
+              margin: input.margin,
+              fontSize: input.fontSize,
+              color: input.color,
+              box: input.box,
+              boxColor: input.boxColor,
+              boxOpacity: input.boxOpacity,
               output: input.output,
             }),
           onSuccess: (result) => printVideoEditorResult(result, ctx.json),

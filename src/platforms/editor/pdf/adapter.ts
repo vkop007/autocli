@@ -1,10 +1,11 @@
-import { stat } from "node:fs/promises";
+import { readFile, stat, writeFile } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { join, parse, resolve } from "node:path";
 
 import { ensureParentDirectory } from "../../../config.js";
 import { AutoCliError } from "../../../errors.js";
+import { degrees, PDFDocument, rgb, StandardFonts } from "pdf-lib";
 
 import type { AdapterActionResult, Platform } from "../../../types.js";
 
@@ -54,6 +55,23 @@ type PdfDecryptInput = {
 
 type PdfOptimizeInput = {
   inputPath: string;
+  outputPath?: string;
+};
+
+type PdfWatermarkInput = {
+  inputPath: string;
+  text: string;
+  outputPath?: string;
+  pages?: string;
+  opacity?: number | string;
+  size?: number | string;
+  color?: string;
+  rotation?: number | string;
+};
+
+type PdfReorderPagesInput = {
+  inputPath: string;
+  pages: string;
   outputPath?: string;
 };
 
@@ -273,6 +291,92 @@ export class PdfEditorAdapter {
     return this.optimize(input);
   }
 
+  async watermark(input: PdfWatermarkInput): Promise<AdapterActionResult> {
+    const resolvedInput = await assertReadableFile(input.inputPath);
+    const outputPath = resolve(input.outputPath ?? buildSiblingOutputPath(resolvedInput, ".watermarked.pdf"));
+    await ensureParentDirectory(outputPath);
+
+    const pdf = await PDFDocument.load(await readFile(resolvedInput));
+    const pages = pdf.getPages();
+    const targets = expandPageTargets(input.pages, pages.length);
+    const font = await pdf.embedFont(StandardFonts.HelveticaBold);
+    const size = clampPositiveNumber(input.size, 42, "size");
+    const opacity = clampBetween(input.opacity, 0.08, 0.05, 1, "opacity");
+    const rotation = toFiniteNumber(input.rotation, 315);
+    const color = parsePdfColor(input.color);
+
+    for (const pageNumber of targets) {
+      const page = pages[pageNumber - 1];
+      if (!page) {
+        continue;
+      }
+
+      const pageWidth = page.getWidth();
+      const pageHeight = page.getHeight();
+      const textWidth = font.widthOfTextAtSize(input.text, size);
+
+      page.drawText(input.text, {
+        x: Math.max(24, (pageWidth - textWidth) / 2),
+        y: Math.max(24, pageHeight / 2),
+        size,
+        font,
+        rotate: degrees(rotation),
+        opacity,
+        color,
+      });
+    }
+
+    await writeFile(outputPath, await pdf.save());
+
+    return this.buildResult({
+      action: "watermark",
+      message: `Applied a text watermark to ${parse(resolvedInput).base}.`,
+      data: {
+        inputPath: resolvedInput,
+        outputPath,
+        text: input.text,
+        pages: targets,
+        opacity,
+        size,
+        rotation,
+        color: input.color?.trim() || "#808080",
+      },
+    });
+  }
+
+  async reorderPages(input: PdfReorderPagesInput): Promise<AdapterActionResult> {
+    const resolvedInput = await assertReadableFile(input.inputPath);
+    const outputPath = resolve(input.outputPath ?? buildSiblingOutputPath(resolvedInput, ".reordered.pdf"));
+    await ensureParentDirectory(outputPath);
+
+    const source = await PDFDocument.load(await readFile(resolvedInput));
+    const pageOrder = expandOrderedPageSpec(input.pages, source.getPageCount());
+    if (pageOrder.length === 0) {
+      throw new AutoCliError("PDF_PAGES_REQUIRED", "At least one target page is required for reorder-pages.");
+    }
+
+    const destination = await PDFDocument.create();
+    const copiedPages = await destination.copyPages(
+      source,
+      pageOrder.map((pageNumber) => pageNumber - 1),
+    );
+    for (const copiedPage of copiedPages) {
+      destination.addPage(copiedPage);
+    }
+
+    await writeFile(outputPath, await destination.save());
+
+    return this.buildResult({
+      action: "reorder-pages",
+      message: `Reordered ${pageOrder.length} pages into ${outputPath}.`,
+      data: {
+        inputPath: resolvedInput,
+        outputPath,
+        pages: pageOrder,
+      },
+    });
+  }
+
   private buildResult(input: {
     action: string;
     message: string;
@@ -429,6 +533,65 @@ function buildSiblingOutputPath(inputPath: string, suffix: string): string {
   return join(parsed.dir, `${parsed.name}${suffix}`);
 }
 
+function clampPositiveNumber(value: number | string | undefined, fallback: number, label: string): number {
+  if (value === undefined) {
+    return fallback;
+  }
+
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    throw new AutoCliError("EDITOR_INVALID_ARGUMENT", `${label} must be a positive number.`, {
+      details: {
+        label,
+        value,
+      },
+    });
+  }
+
+  return parsed;
+}
+
+function clampBetween(
+  value: number | string | undefined,
+  fallback: number,
+  min: number,
+  max: number,
+  label: string,
+): number {
+  if (value === undefined) {
+    return fallback;
+  }
+
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < min || parsed > max) {
+    throw new AutoCliError("EDITOR_INVALID_ARGUMENT", `${label} must be between ${min} and ${max}.`, {
+      details: {
+        label,
+        value,
+      },
+    });
+  }
+
+  return parsed;
+}
+
+function toFiniteNumber(value: number | string | undefined, fallback: number): number {
+  if (value === undefined) {
+    return fallback;
+  }
+
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    throw new AutoCliError("EDITOR_INVALID_ARGUMENT", "Value must be a finite number.", {
+      details: {
+        value,
+      },
+    });
+  }
+
+  return parsed;
+}
+
 function describeRanges(ranges: Array<{ start: number; end: number }>): string {
   return ranges.map((range) => (range.start === range.end ? `page ${range.start}` : `pages ${range.start}-${range.end}`)).join(", ");
 }
@@ -484,6 +647,48 @@ function buildQpdfPageRange(ranges: Array<{ start: number; end: number }>): stri
   return ranges
     .map((range) => (range.start === range.end ? `${range.start}` : `${range.start}-${range.end}`))
     .join(",");
+}
+
+function expandOrderedPageSpec(value: string, totalPages: number): number[] {
+  const pages: number[] = [];
+  for (const range of parsePageSpec(value)) {
+    for (let page = range.start; page <= range.end; page += 1) {
+      if (page > totalPages) {
+        throw new AutoCliError("PDF_PAGE_SPEC_INVALID", `Page ${page} is outside the PDF page count (${totalPages}).`, {
+          details: {
+            value,
+            totalPages,
+          },
+        });
+      }
+      pages.push(page);
+    }
+  }
+  return pages;
+}
+
+function expandPageTargets(value: string | undefined, totalPages: number): number[] {
+  if (!value) {
+    return Array.from({ length: totalPages }, (_value, index) => index + 1);
+  }
+  return expandOrderedPageSpec(value, totalPages);
+}
+
+function parsePdfColor(value: string | undefined): ReturnType<typeof rgb> {
+  const normalized = value?.trim() || "#808080";
+  const hex = normalized.startsWith("#") ? normalized.slice(1) : normalized;
+  if (!/^[0-9a-f]{6}$/i.test(hex)) {
+    throw new AutoCliError("EDITOR_INVALID_ARGUMENT", `Unsupported PDF color "${value}".`, {
+      details: {
+        supportedFormats: ["#RRGGBB"],
+      },
+    });
+  }
+
+  const red = Number.parseInt(hex.slice(0, 2), 16) / 255;
+  const green = Number.parseInt(hex.slice(2, 4), 16) / 255;
+  const blue = Number.parseInt(hex.slice(4, 6), 16) / 255;
+  return rgb(red, green, blue);
 }
 
 async function assertReadableFile(inputPath: string): Promise<string> {

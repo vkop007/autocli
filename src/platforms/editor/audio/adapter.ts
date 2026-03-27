@@ -77,6 +77,13 @@ type AudioVolumeInput = {
   output?: string;
 };
 
+type AudioDenoiseInput = {
+  inputPath: string;
+  reduction?: number | string;
+  noiseFloor?: number | string;
+  output?: string;
+};
+
 type AudioFormat = "mp3" | "m4a" | "aac" | "wav" | "flac" | "ogg" | "opus";
 
 export class AudioEditorAdapter {
@@ -480,6 +487,46 @@ export class AudioEditorAdapter {
         outputPath: resolvedOutput,
         format,
         db,
+      },
+    });
+  }
+
+  async denoise(input: AudioDenoiseInput): Promise<AdapterActionResult> {
+    const reduction = clampNumber(toNumber(input.reduction) ?? 18, 0.1, 97);
+    const noiseFloor = clampNumber(toNumber(input.noiseFloor) ?? -50, -80, -20);
+    const format = resolvePreferredAudioFormat(input.inputPath);
+    const outputPath = resolveEditorOutputPath({
+      inputPath: input.inputPath,
+      output: input.output,
+      suffix: "denoised",
+      extension: format,
+    });
+
+    const resolvedOutput = await runFfmpegEdit({
+      inputPath: input.inputPath,
+      outputPath,
+      args: [
+        "-i",
+        "{input}",
+        "-vn",
+        "-af",
+        `afftdn=nr=${reduction}:nf=${noiseFloor}`,
+        "-c:a",
+        chooseAudioCodec(format),
+        ...buildAudioBitrateArgs(format, 192),
+        "{output}",
+      ],
+    });
+
+    return this.buildResult({
+      action: "denoise",
+      message: `Reduced background noise and saved audio to ${resolvedOutput}.`,
+      data: {
+        inputPath: input.inputPath,
+        outputPath: resolvedOutput,
+        format,
+        reduction,
+        noiseFloor,
       },
     });
   }
