@@ -133,6 +133,7 @@ If your shell still says `command not found`, open a new shell or run `hash -r`.
 - [LICENSE](./LICENSE)
 - [Contributing Guide](./CONTRIBUTING.md)
 - [Security Policy](./SECURITY.md)
+- [AI Agent Skill](./skills/autocli/SKILL.md)
 
 If you plan to contribute, please do not commit live cookies, tokens, QR session state, or personal exports. AutoCLI should only store those locally on the contributor machine, never in the repository.
 
