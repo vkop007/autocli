@@ -8,6 +8,9 @@ import { linearPlatformDefinition } from "./api/linear/manifest.js";
 import { archiveEditorPlatformDefinition } from "./editor/archive/manifest.js";
 import { audioEditorPlatformDefinition } from "./editor/audio/manifest.js";
 import { documentEditorPlatformDefinition } from "./editor/document/manifest.js";
+import { cryptoPlatformDefinition } from "./finance/crypto/manifest.js";
+import { currencyPlatformDefinition } from "./finance/currency/manifest.js";
+import { stocksPlatformDefinition } from "./finance/stocks/manifest.js";
 import { geoPlatformDefinition } from "./maps/geo/manifest.js";
 import { gifEditorPlatformDefinition } from "./editor/gif/manifest.js";
 import { imageEditorPlatformDefinition } from "./editor/image/manifest.js";
@@ -36,8 +39,6 @@ import { spotifyPlatformDefinition } from "./music/spotify/manifest.js";
 import { youtubeMusicPlatformDefinition } from "./music/youtube-music/manifest.js";
 import { notionPlatformDefinition } from "./api/notion/manifest.js";
 import { cheatPlatformDefinition } from "./public/cheat/manifest.js";
-import { cryptoPlatformDefinition } from "./public/crypto/manifest.js";
-import { currencyPlatformDefinition } from "./public/currency/manifest.js";
 import { dnsPlatformDefinition } from "./public/dns/manifest.js";
 import { ipPlatformDefinition } from "./public/ip/manifest.js";
 import { markdownFetchPlatformDefinition } from "./public/markdown-fetch/manifest.js";
@@ -46,7 +47,6 @@ import { screenshotPlatformDefinition } from "./public/screenshot/manifest.js";
 import { robotsPlatformDefinition } from "./public/robots/manifest.js";
 import { rssPlatformDefinition } from "./public/rss/manifest.js";
 import { sitemapPlatformDefinition } from "./public/sitemap/manifest.js";
-import { stocksPlatformDefinition } from "./public/stocks/manifest.js";
 import { timePlatformDefinition } from "./public/time/manifest.js";
 import { translatePlatformDefinition } from "./public/translate/manifest.js";
 import { uptimePlatformDefinition } from "./public/uptime/manifest.js";
@@ -147,7 +147,7 @@ export function getPlatformDefinitionsByCategory(category: PlatformCategory): re
 }
 
 export function getPlatformCategories(): readonly PlatformCategory[] {
-  const order: readonly PlatformCategory[] = ["llm", "editor", "maps", "movie", "music", "social", "shopping", "bots", "api", "public", "forum"];
+  const order: readonly PlatformCategory[] = ["llm", "editor", "finance", "maps", "movie", "music", "social", "shopping", "bots", "api", "public", "forum"];
   return order.filter((category) =>
     definitions.some((definition) => {
       const categories = definition.commandCategories ?? [definition.category];

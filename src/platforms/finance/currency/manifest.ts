@@ -12,6 +12,7 @@ import type { PlatformName } from "../../config.js";
 
 const EXAMPLES = [
   "autocli currency 100 USD INR",
+  "autocli forex 100 USD INR",
   "autocli currency 100 USD EUR GBP",
   "autocli currency 2500 INR USD",
 ] as const;
@@ -46,9 +47,10 @@ function buildCurrencyCommand(options: PlatformCommandBuildOptions = {}): Comman
 
 export const currencyPlatformDefinition: PlatformDefinition = {
   id: "currency" as PlatformName,
-  category: "public",
+  category: "finance",
   displayName: "Currency",
-  description: "Convert currencies from the terminal using a no-key public endpoint",
+  description: "Convert currencies and forex pairs from the terminal using a no-key public endpoint",
+  aliases: ["forex"],
   authStrategies: ["none"],
   buildCommand: buildCurrencyCommand,
   adapter: currencyAdapter,
