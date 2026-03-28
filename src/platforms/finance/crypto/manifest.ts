@@ -39,7 +39,7 @@ function buildCryptoCommand(options: PlatformCommandBuildOptions = {}): Command 
 
 export const cryptoPlatformDefinition: PlatformDefinition = {
   id: "crypto" as PlatformDefinition["id"],
-  category: "public",
+  category: "finance",
   displayName: "Crypto",
   description: "Load crypto prices from CoinGecko without any account setup",
   authStrategies: ["none"],

@@ -18,6 +18,9 @@ const PLATFORM_CATEGORY_DEFINITIONS: Record<PlatformCategory, PlatformCategoryDe
   editor: {
     description: "Local media editors powered by tools like ffmpeg",
   },
+  finance: {
+    description: "Public market, crypto, and forex lookup tools",
+  },
   forum: {
     description: "Forum-style communities and discussion platforms",
   },

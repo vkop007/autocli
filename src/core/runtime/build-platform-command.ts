@@ -9,7 +9,11 @@ export function buildPlatformCommand(
   options: PlatformCommandBuildOptions = {},
 ): Command {
   if (definition.buildCommand) {
-    return definition.buildCommand(options);
+    const command = definition.buildCommand(options);
+    for (const alias of definition.aliases ?? []) {
+      command.alias(alias);
+    }
+    return command;
   }
 
   if (!definition.capabilities || definition.capabilities.length === 0) {

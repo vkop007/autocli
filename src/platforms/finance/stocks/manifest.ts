@@ -39,7 +39,7 @@ function buildStocksCommand(options: PlatformCommandBuildOptions = {}): Command 
 
 export const stocksPlatformDefinition: PlatformDefinition = {
   id: "stocks" as PlatformDefinition["id"],
-  category: "public",
+  category: "finance",
   displayName: "Stocks",
   description: "Load stock quotes from the public Stooq endpoint without any account setup",
   authStrategies: ["none"],

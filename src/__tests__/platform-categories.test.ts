@@ -41,6 +41,15 @@ describe("platform category routing", () => {
     ]);
   });
 
+  test("includes the finance category and providers", () => {
+    expect(getPlatformCategories()).toContain("finance");
+    expect(getPlatformDefinitionsByCategory("finance").map((definition) => definition.id)).toEqual([
+      "crypto",
+      "currency",
+      "stocks",
+    ]);
+  });
+
   test("includes the maps category and providers", () => {
     expect(getPlatformCategories()).toContain("maps");
     expect(getPlatformDefinitionsByCategory("maps").map((definition) => definition.id)).toEqual([
@@ -93,15 +102,12 @@ describe("platform category routing", () => {
   test("includes the new no-key public utility providers", () => {
     const publicIds = getPlatformDefinitionsByCategory("public").map((definition) => definition.id);
     expect(publicIds).toContain("translate");
-    expect(publicIds).toContain("currency");
     expect(publicIds).toContain("dns");
     expect(publicIds).toContain("whois");
     expect(publicIds).toContain("rss");
     expect(publicIds).toContain("screenshot");
     expect(publicIds).toContain("sitemap");
     expect(publicIds).toContain("robots");
-    expect(publicIds).toContain("stocks");
-    expect(publicIds).toContain("crypto");
     expect(publicIds).toContain("markdown-fetch");
     expect(publicIds).toContain("uptime");
   });
