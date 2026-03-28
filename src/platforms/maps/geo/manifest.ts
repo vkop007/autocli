@@ -69,11 +69,28 @@ export const geoPlatformDefinition: PlatformDefinition = {
         }),
       onSuccess: printGeoResult,
     }),
+    createAdapterActionCapability({
+      id: "elevation",
+      command: "elevation <lat> <lon>",
+      aliases: ["height", "altitude"],
+      description: "Look up public elevation data for latitude and longitude",
+      spinnerText: "Loading elevation...",
+      successMessage: "Elevation loaded.",
+      options: [{ flags: "--dataset <name>", description: "Open Topo Data dataset name (default: mapzen)" }],
+      action: ({ args, options }) =>
+        geoAdapter.elevation({
+          lat: String(args[0] ?? ""),
+          lon: String(args[1] ?? ""),
+          dataset: options.dataset as string | undefined,
+        }),
+      onSuccess: printGeoResult,
+    }),
   ],
   examples: [
     'autocli geo distance "19.0760,72.8777" "28.6139,77.2090"',
     'autocli geo midpoint "19.0760,72.8777" "28.6139,77.2090"',
     "autocli geo pluscode-encode 19.0760 72.8777 --length 10",
     "autocli geo pluscode-decode 7JWV3VGV+9X",
+    "autocli geo elevation 27.9881 86.9250 --dataset mapzen",
   ],
 };

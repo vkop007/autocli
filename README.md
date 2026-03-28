@@ -59,9 +59,9 @@ autocli tools translate "hello world" --to hi
 | `shopping` | Amazon, Flipkart | 2 | cookies | Search, products, account/cart/order surfaces | `autocli shopping <provider> ...` |
 | `developer` | GitHub, GitLab, Linear, Notion | 4 | API token | Developer and workspace automation | `autocli developer <provider> ...` |
 | `bot` | Discord Bot, GitHub Bot, Slack Bot, Telegram Bot | 4 | bot token or app token | Notifications, chat ops, bot messaging | `autocli bot <provider> ...` |
-| `tools` | Cheat, DNS, IP, Markdown Fetch, News, QR, Robots, RSS, Screenshot, Sitemap, Time, Translate, Uptime, Weather, Web Search, Whois | 16 | none | Public utilities with zero account setup | `autocli tools <provider> ...` |
+| `tools` | Cheat, DNS, Headers, IP, Markdown Fetch, Metadata, News, QR, Redirect, Robots, RSS, Screenshot, Sitemap, SSL, Time, Translate, Uptime, Weather, Web Search, Whois | 20 | none | Public utilities with zero account setup | `autocli tools <provider> ...` |
 
-AutoCLI currently exposes `63` providers across `11` active command groups.
+AutoCLI currently exposes `67` providers across `11` active command groups.
 
 ## Access Modes
 
@@ -226,12 +226,12 @@ After the first `login`, later commands normally omit `--account` or `--bot` and
 | --- | --- | --- | --- |
 | Archive Editor | local tools | create, inspect, and extract archives | Good for zip/tar/gzip workflows. |
 | Audio Editor | local tools | trim, convert, normalize, denoise, report | Built around `ffmpeg` and related local tooling. |
-| Document Editor | local tools | document conversion and text extraction | Useful for format conversion and markdown export. |
+| Document Editor | local tools | document conversion, OCR, and text extraction | Useful for format conversion, OCR, and markdown export. |
 | GIF Editor | local tools | GIF create, optimize, and video conversion | Great for social clips and quick previews. |
-| Image Editor | local tools | image transformation pipelines | Includes background remove, watermark, compress, metadata strip, and more. |
-| PDF Editor | local tools | merge, split, watermark, reorder, secure | Some advanced flows benefit from `qpdf` when present. |
+| Image Editor | local tools | image transformation pipelines | Includes upscale, background remove, watermark, compress, metadata strip, and more. |
+| PDF Editor | local tools | merge, split, watermark, reorder, secure | Also supports `to-images`, with better multi-page output when `pdftoppm` is installed. |
 | Subtitle Editor | local tools | shift, clean, merge, burn subtitles | Pairs well with YouTube and video publishing flows. |
-| Video Editor | local tools | split, scene detect, overlay, transcode | Strong `ffmpeg`-driven video workflow surface. |
+| Video Editor | local tools | split, stabilize, scene detect, overlay, transcode | Strong `ffmpeg`-driven video workflow surface. |
 
 ### Finance
 
@@ -245,7 +245,7 @@ After the first `login`, later commands normally omit `--account` or `--bot` and
 
 | Provider | Needs | Best for | Notes |
 | --- | --- | --- | --- |
-| Geo | none | distance, midpoint, plus codes | Pure local/public helpers. |
+| Geo | none | distance, midpoint, plus codes, elevation | Pure local/public helpers plus public elevation lookup. |
 | OpenStreetMap | none | search, reverse geocode, nearby lookup | Uses public OSM and Overpass services. |
 | OSRM | none | route, trip, table, nearest, match | Public routing and trip calculations. |
 
@@ -253,12 +253,12 @@ After the first `login`, later commands normally omit `--account` or `--bot` and
 
 | Provider | Needs | Best for | Notes |
 | --- | --- | --- | --- |
-| AniList | none | anime title lookup | Public anime metadata. |
+| AniList | none | anime title lookup, trending, recommendations | Public anime metadata plus trending and recs. |
 | IMDb | none | movie and show lookup | Public search/title surface. |
 | JustWatch | none | where-to-watch checks | Streaming availability lookup. |
 | Kitsu | none | anime and manga discovery | Alternative anime metadata source. |
 | MyAnimeList | none or cookies | public search plus your own saved list | Public lookups work without cookies; personal defaults can use cookies. |
-| TVMaze | none | TV and episode-oriented title lookup | Strong TV-first public catalog. |
+| TVMaze | none | TV and episode-oriented title lookup | Strong TV-first public catalog with episode lists. |
 
 ### Music
 
@@ -309,14 +309,18 @@ After the first `login`, later commands normally omit `--account` or `--bot` and
 | --- | --- | --- | --- |
 | Cheat | none | shell and language cheat sheets | Fast terminal help. |
 | DNS | none | DNS record lookups | Good for quick ops checks. |
+| Headers | none | inspect raw HTTP response headers | Useful for cache, CDN, and server debugging. |
 | IP | none | public IP and network details | Fast no-auth network lookup. |
 | Markdown Fetch | none | turn pages into markdown-like text | Useful for scraping readable content. |
+| Metadata | none | webpage title and social tags | Extracts title, description, canonical, favicon, Open Graph, and Twitter tags. |
 | News | none | headline and feed aggregation | Pulls from public no-key sources. |
 | QR | none | QR generation | Can save or print a public image URL. |
+| Redirect | none | redirect-chain tracing | Shows each HTTP hop and final destination. |
 | Robots | none | `robots.txt` inspection | Useful for site crawling checks. |
 | RSS | none | feed inspection | Reads RSS/Atom without setup. |
 | Screenshot | none | URL-to-image captures | Public no-key render service. |
 | Sitemap | none | sitemap discovery and listing | Good for SEO/crawl inspection. |
+| SSL | none | TLS certificate inspection | Shows certificate, issuer, SANs, protocol, and expiry. |
 | Time | none | timezone and current time lookup | Public time APIs. |
 | Translate | none | quick translation | Uses a public translation endpoint. |
 | Uptime | none | latency and HTTP health checks | Lightweight monitoring helper. |

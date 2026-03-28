@@ -12,6 +12,7 @@ const EXAMPLES = [
   "autocli document info ./notes.docx",
   "autocli document convert ./notes.docx --to txt",
   "autocli document extract-text ./notes.docx",
+  "autocli document ocr ./scan.pdf",
   "autocli document to-markdown ./notes.docx",
   "autocli document metadata ./notes.docx",
 ] as const;
@@ -79,6 +80,37 @@ function buildDocumentEditorCommand(options: PlatformCommandBuildOptions = {}): 
         onSuccess: (result) => printDocumentEditorResult(result, ctx.json),
       });
     });
+
+  command
+    .command("ocr")
+    .description("Extract text from a scanned document using OCR, with native extraction fallback when possible")
+    .argument("<inputPath>", "Input document path")
+    .option("--output <path>", "Exact output file path")
+    .option("--language <code>", "Tesseract language code", "eng")
+    .option("--psm <number>", "Tesseract page segmentation mode", "3")
+    .action(
+      async (
+        inputPath: string,
+        input: { output?: string; language?: string; psm?: string },
+        cmd: Command,
+      ) => {
+        const ctx = resolveCommandContext(cmd);
+        const logger = new Logger(ctx);
+        const spinner = logger.spinner("Running OCR...");
+        await runCommandAction({
+          spinner,
+          successMessage: "OCR complete.",
+          action: () =>
+            documentEditorAdapter.ocr({
+              inputPath,
+              output: input.output,
+              language: input.language,
+              psm: input.psm,
+            }),
+          onSuccess: (result) => printDocumentEditorResult(result, ctx.json),
+        });
+      },
+    );
 
   command
     .command("to-markdown")

@@ -44,6 +44,12 @@ type GeoPlusCodeDecodeInput = {
   code: string;
 };
 
+type GeoElevationInput = {
+  lat: string | number;
+  lon: string | number;
+  dataset?: string;
+};
+
 type Coordinate = {
   lat: number;
   lon: number;
@@ -155,6 +161,77 @@ export class GeoAdapter {
       },
     };
   }
+
+  async elevation(input: GeoElevationInput): Promise<AdapterActionResult> {
+    const lat = normalizeLatitude(input.lat);
+    const lon = normalizeLongitude(input.lon);
+    const dataset = normalizeElevationDataset(input.dataset);
+    const url = new URL(`https://api.opentopodata.org/v1/${dataset}`);
+    url.searchParams.set("locations", `${lat},${lon}`);
+
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        signal: AbortSignal.timeout(15000),
+        headers: {
+          accept: "application/json",
+          "user-agent": "Mozilla/5.0 (compatible; AutoCLI/1.0; +https://github.com/)",
+        },
+      });
+    } catch (error) {
+      throw new AutoCliError("GEO_ELEVATION_REQUEST_FAILED", "Unable to reach the public elevation service.", {
+        cause: error,
+        details: {
+          url: url.toString(),
+        },
+      });
+    }
+
+    if (!response.ok) {
+      throw new AutoCliError("GEO_ELEVATION_REQUEST_FAILED", `Elevation request failed with ${response.status} ${response.statusText}.`, {
+        details: {
+          url: url.toString(),
+          status: response.status,
+          statusText: response.statusText,
+        },
+      });
+    }
+
+    const payload = (await response.json()) as {
+      status?: string;
+      results?: Array<{
+        elevation?: number | null;
+        dataset?: string;
+        location?: { lat?: number; lng?: number };
+      }>;
+    };
+    const result = Array.isArray(payload.results) ? payload.results[0] : undefined;
+    if (!result || typeof result.elevation !== "number") {
+      throw new AutoCliError("GEO_ELEVATION_NOT_FOUND", "The public elevation service did not return an elevation for that coordinate.", {
+        details: {
+          dataset,
+          url: url.toString(),
+          status: payload.status ?? null,
+        },
+      });
+    }
+
+    return {
+      ok: true,
+      platform: this.platform,
+      account: "public",
+      action: "elevation",
+      message: `Loaded elevation ${result.elevation}m for ${lat}, ${lon}.`,
+      url: url.toString(),
+      data: {
+        lat,
+        lon,
+        dataset: result.dataset ?? dataset,
+        elevationMeters: result.elevation,
+        service: "opentopodata",
+      },
+    };
+  }
 }
 
 export const geoAdapter = new GeoAdapter();
@@ -211,6 +288,15 @@ function normalizePlusCode(value: string): string {
   const normalized = value.trim().toUpperCase();
   if (!normalized) {
     throw new AutoCliError("PLUSCODE_REQUIRED", "Plus code cannot be empty.");
+  }
+
+  return normalized;
+}
+
+function normalizeElevationDataset(value: string | undefined): string {
+  const normalized = value?.trim().toLowerCase() || "mapzen";
+  if (!/^[a-z0-9-]+$/.test(normalized)) {
+    throw new AutoCliError("GEO_ELEVATION_DATASET_INVALID", `Invalid elevation dataset "${value}".`);
   }
 
   return normalized;

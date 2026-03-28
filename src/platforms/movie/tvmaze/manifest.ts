@@ -13,10 +13,12 @@ export const tvMazePlatformDefinition: PlatformDefinition = {
   capabilities: createPublicMovieCapabilities(tvMazeAdapter, {
     searchDescription: "Search public TVMaze titles",
     titleDescription: "Load a TVMaze title by URL, show ID, or query",
+    episodesDescription: "Load TVMaze episode details for a show",
   }),
   examples: [
     'autocli tvmaze search "naruto"',
     "autocli tvmaze title 82",
+    "autocli tvmaze episodes 82 --season 1",
     "autocli tvmaze info https://www.tvmaze.com/shows/82/game-of-thrones",
   ],
 };

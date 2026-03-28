@@ -16,6 +16,8 @@ export function printDocumentEditorResult(result: AdapterActionResult, json: boo
   const sizeBytes = asNumber(data.sizeBytes);
   const format = asString(data.format);
   const characters = asNumber(data.characters);
+  const engine = asString(data.engine);
+  const language = asString(data.language);
 
   if (outputPath) {
     console.log(`file: ${outputPath}`);
@@ -23,6 +25,14 @@ export function printDocumentEditorResult(result: AdapterActionResult, json: boo
 
   if (format) {
     console.log(`format: ${format}`);
+  }
+
+  if (engine) {
+    console.log(`engine: ${engine}`);
+  }
+
+  if (language) {
+    console.log(`language: ${language}`);
   }
 
   if (typeof sizeBytes === "number") {

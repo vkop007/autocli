@@ -227,3 +227,34 @@ export function printMovieRecommendationsResult(result: AdapterActionResult, jso
     console.log("");
   }
 }
+
+export function printMovieEpisodesResult(result: AdapterActionResult, json: boolean): void {
+  if (json) {
+    printJson(result);
+    return;
+  }
+
+  printActionResult(result, false);
+  const items = Array.isArray(result.data?.items) ? (result.data?.items as Array<Record<string, unknown>>) : [];
+  if (items.length === 0) {
+    console.log("No episodes found.");
+    return;
+  }
+
+  for (const item of items) {
+    const season = item.season === undefined ? "?" : String(item.season);
+    const number = item.number === undefined ? "?" : String(item.number);
+    const title = String(item.title ?? "-");
+    console.log(`S${season}E${number} ${title}`);
+    if (item.airdate !== undefined) {
+      console.log(`airdate: ${String(item.airdate)}`);
+    }
+    if (item.runtime !== undefined) {
+      console.log(`runtime: ${String(item.runtime)}`);
+    }
+    if (item.summary !== undefined && String(item.summary).trim().length > 0) {
+      console.log(String(item.summary));
+    }
+    console.log("");
+  }
+}

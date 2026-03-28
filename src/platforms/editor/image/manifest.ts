@@ -14,6 +14,7 @@ const EXAMPLES = [
   "autocli image crop ./photo.png --width 1080 --height 1080",
   "autocli image convert ./photo.webp --to png",
   "autocli image rotate ./photo.png --degrees 90",
+  "autocli image upscale ./photo.png --factor 2",
   "autocli image compress ./photo.png --quality 82",
   "autocli image grayscale ./photo.png",
   "autocli image background-remove ./portrait.png --color '#00ff00'",
@@ -145,6 +146,39 @@ function buildImageEditorCommand(options: PlatformCommandBuildOptions = {}): Com
         onSuccess: (result) => printImageEditorResult(result, ctx.json),
       });
     });
+
+  command
+    .command("upscale")
+    .description("Upscale a local image with high-quality Lanczos resampling")
+    .argument("<inputPath>", "Input image path")
+    .option("--factor <value>", "Upscale factor from 1 to 8", "2")
+    .option("--width <px>", "Explicit output width in pixels")
+    .option("--height <px>", "Explicit output height in pixels")
+    .option("--output <path>", "Exact output file path")
+    .action(
+      async (
+        inputPath: string,
+        input: { factor?: string; width?: string; height?: string; output?: string },
+        cmd: Command,
+      ) => {
+        const ctx = resolveCommandContext(cmd);
+        const logger = new Logger(ctx);
+        const spinner = logger.spinner("Upscaling image...");
+        await runCommandAction({
+          spinner,
+          successMessage: "Image upscaled.",
+          action: () =>
+            imageEditorAdapter.upscale({
+              inputPath,
+              factor: input.factor,
+              width: input.width,
+              height: input.height,
+              output: input.output,
+            }),
+          onSuccess: (result) => printImageEditorResult(result, ctx.json),
+        });
+      },
+    );
 
   command
     .command("compress")

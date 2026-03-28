@@ -12,6 +12,7 @@ const EXAMPLES = [
   "autocli pdf info ./document.pdf",
   "autocli pdf merge ./out.pdf ./a.pdf ./b.pdf",
   "autocli pdf split ./book.pdf --output-dir ./pages",
+  "autocli pdf to-images ./book.pdf --output-dir ./book-images",
   'autocli pdf extract-pages ./book.pdf --pages "1,3-5" --output ./excerpt.pdf',
   'autocli pdf remove-pages ./book.pdf --pages "2,4-6" --output ./book-trimmed.pdf',
   'autocli pdf metadata ./book.pdf',
@@ -89,6 +90,39 @@ function buildPdfCommand(options: PlatformCommandBuildOptions = {}): Command {
               toPage: input.to,
               outputDir: input.outputDir,
               prefix: input.prefix,
+            }),
+          onSuccess: (result) => printPdfResult(result, ctx.json),
+        });
+      },
+    );
+
+  command
+    .command("to-images")
+    .description("Render a PDF into page images")
+    .argument("<inputPath>", "Input PDF path")
+    .option("--output-dir <path>", "Directory to write page images into")
+    .option("--prefix <name>", "Filename prefix for rendered page images")
+    .option("--format <value>", "Output image format: png or jpg", "png")
+    .option("--size <pixels>", "Target preview/render size in pixels", "2048")
+    .action(
+      async (
+        inputPath: string,
+        input: { outputDir?: string; prefix?: string; format?: string; size?: string },
+        cmd: Command,
+      ) => {
+        const ctx = resolveCommandContext(cmd);
+        const logger = new Logger(ctx);
+        const spinner = logger.spinner("Rendering PDF pages...");
+        await runCommandAction({
+          spinner,
+          successMessage: "PDF images rendered.",
+          action: () =>
+            pdfEditorAdapter.toImages({
+              inputPath,
+              outputDir: input.outputDir,
+              prefix: input.prefix,
+              format: input.format,
+              size: input.size,
             }),
           onSuccess: (result) => printPdfResult(result, ctx.json),
         });
