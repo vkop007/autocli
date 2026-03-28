@@ -31,6 +31,11 @@ interface AniListMedia {
       name?: string | null;
     }>;
   } | null;
+  recommendations?: {
+    nodes?: Array<{
+      mediaRecommendation?: AniListMedia | null;
+    } | null>;
+  } | null;
 }
 
 interface AniListTitleSummary {
@@ -133,6 +138,124 @@ export class AniListAdapter {
       url: title.url,
       data: {
         title,
+      },
+    };
+  }
+
+  async trending(input: { limit?: number }): Promise<AdapterActionResult> {
+    const perPage = normalizeLimit(input.limit, 10, 25);
+    const data = await this.requestGraphql<{ Page: { media: AniListMedia[] } }>(
+      `
+        query TrendingAnime($perPage: Int!) {
+          Page(page: 1, perPage: $perPage) {
+            media(type: ANIME, sort: [TRENDING_DESC, POPULARITY_DESC]) {
+              id
+              siteUrl
+              format
+              episodes
+              seasonYear
+              averageScore
+              popularity
+              status
+              description(asHtml: false)
+              title {
+                romaji
+                english
+                native
+              }
+              coverImage {
+                large
+              }
+            }
+          }
+        }
+      `,
+      { perPage },
+    );
+
+    const items = (data.Page.media ?? []).map((item) => this.toSummary(item));
+    return {
+      ok: true,
+      platform: this.platform,
+      account: "public",
+      action: "trending",
+      message: `Loaded ${items.length} trending AniList title${items.length === 1 ? "" : "s"}.`,
+      data: {
+        items,
+      },
+    };
+  }
+
+  async recommendations(input: { target: string; limit?: number }): Promise<AdapterActionResult> {
+    const target = input.target.trim();
+    if (!target) {
+      throw new AutoCliError("ANILIST_TARGET_REQUIRED", "Provide an AniList anime URL, anime ID, or query.");
+    }
+
+    const id = extractAniListId(target);
+    const variables = id ? { id, search: null, perPage: normalizeLimit(input.limit, 5, 15) } : { id: null, search: target, perPage: normalizeLimit(input.limit, 5, 15) };
+    const data = await this.requestGraphql<{ Media: AniListMedia | null }>(
+      `
+        query AnimeRecommendations($id: Int, $search: String, $perPage: Int!) {
+          Media(id: $id, search: $search, type: ANIME) {
+            id
+            title {
+              romaji
+              english
+              native
+            }
+            recommendations(sort: [RATING_DESC], perPage: $perPage) {
+              nodes {
+                mediaRecommendation {
+                  id
+                  siteUrl
+                  format
+                  episodes
+                  seasonYear
+                  averageScore
+                  popularity
+                  status
+                  description(asHtml: false)
+                  title {
+                    romaji
+                    english
+                    native
+                  }
+                  coverImage {
+                    large
+                  }
+                }
+              }
+            }
+          }
+        }
+      `,
+      variables,
+    );
+
+    if (!data.Media) {
+      throw new AutoCliError("ANILIST_TITLE_NOT_FOUND", "AniList could not find a matching anime.", {
+        details: {
+          target,
+        },
+      });
+    }
+
+    const items = (data.Media.recommendations?.nodes ?? [])
+      .map((entry) => entry?.mediaRecommendation ?? null)
+      .filter((entry): entry is AniListMedia => Boolean(entry))
+      .slice(0, normalizeLimit(input.limit, 5, 15))
+      .map((item) => this.toSummary(item));
+
+    return {
+      ok: true,
+      platform: this.platform,
+      account: "public",
+      action: "recommendations",
+      message: `Loaded ${items.length} AniList recommendation${items.length === 1 ? "" : "s"} for ${pickAniListTitle(data.Media.title)}.`,
+      data: {
+        target: pickAniListTitle(data.Media.title),
+        items,
       },
     };
   }

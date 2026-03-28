@@ -1,5 +1,7 @@
-import { stat, writeFile } from "node:fs/promises";
-import { basename, extname, resolve } from "node:path";
+import { spawn } from "node:child_process";
+import { mkdtemp, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { basename, extname, join, parse, resolve } from "node:path";
 
 import { ensureParentDirectory } from "../../../config.js";
 import { AutoCliError } from "../../../errors.js";
@@ -27,11 +29,21 @@ type DocumentMetadataInput = {
   inputPath: string;
 };
 
+type DocumentOcrInput = {
+  inputPath: string;
+  output?: string;
+  language?: string;
+  psm?: number | string;
+};
+
 type DocumentFormat = "txt" | "rtf" | "rtfd" | "html" | "doc" | "docx" | "odt" | "wordml" | "webarchive" | "md";
 
 const TEXTUTIL_BIN = process.env.AUTOCLI_TEXTUTIL_BIN || "textutil";
 const MDLS_BIN = process.env.AUTOCLI_MDLS_BIN || "mdls";
 const PDFTOTEXT_BIN = process.env.AUTOCLI_PDFTOTEXT_BIN || "pdftotext";
+const TESSERACT_BIN = process.env.AUTOCLI_TESSERACT_BIN || "tesseract";
+const QLMANAGE_BIN = process.env.AUTOCLI_QLMANAGE_BIN || "qlmanage";
+const SIPS_BIN = process.env.AUTOCLI_SIPS_BIN || "sips";
 
 export class DocumentEditorAdapter {
   readonly platform: Platform = "document" as unknown as Platform;
@@ -143,6 +155,58 @@ export class DocumentEditorAdapter {
       data: {
         inputPath: resolvedInput,
         metadata,
+      },
+    });
+  }
+
+  async ocr(input: DocumentOcrInput): Promise<AdapterActionResult> {
+    const resolvedInput = await assertLocalInputFile(input.inputPath);
+    const extension = extname(resolvedInput).replace(/^\./, "").toLowerCase();
+    const language = normalizeOcrLanguage(input.language);
+    const psm = normalizePageSegmentationMode(input.psm);
+    const outputPath = resolveEditorOutputPath({
+      inputPath: resolvedInput,
+      output: input.output,
+      suffix: "ocr",
+      extension: "txt",
+    });
+
+    let text = "";
+    let engine = "tesseract";
+
+    if (looksLikeTextDocument(extension)) {
+      text = await extractPlainText(resolvedInput);
+      if (text.trim().length > 0) {
+        engine = "native-extract";
+      }
+    }
+
+    if (text.trim().length === 0) {
+      const ocrInputPath = await prepareOcrInput(resolvedInput);
+      try {
+        text = await runTesseract(ocrInputPath, language, psm);
+      } finally {
+        if (ocrInputPath !== resolvedInput) {
+          await rm(parse(ocrInputPath).dir, { recursive: true, force: true });
+        }
+      }
+      engine = "tesseract";
+    }
+
+    await ensureParentDirectory(outputPath);
+    await writeFile(outputPath, normalizeOcrText(text), "utf8");
+
+    return this.buildResult({
+      action: "ocr",
+      message: `Extracted text from ${basename(resolvedInput)} to ${outputPath}.`,
+      data: {
+        inputPath: resolvedInput,
+        outputPath,
+        format: "txt",
+        characters: text.length,
+        engine,
+        language,
+        psm,
       },
     });
   }
@@ -270,4 +334,148 @@ function convertTextToMarkdown(value: string): string {
     .replace(/\n{3,}/g, "\n\n")
     .trim()
     .concat("\n");
+}
+
+function looksLikeTextDocument(extension: string): boolean {
+  return ["txt", "rtf", "rtfd", "html", "doc", "docx", "odt", "wordml", "webarchive", "md", "pdf"].includes(extension);
+}
+
+function normalizeOcrLanguage(value: string | undefined): string {
+  const normalized = value?.trim() || "eng";
+  if (!/^[A-Za-z0-9+_-]+$/.test(normalized)) {
+    throw new AutoCliError("EDITOR_INVALID_ARGUMENT", `Invalid OCR language "${value}".`);
+  }
+
+  return normalized;
+}
+
+function normalizePageSegmentationMode(value: number | string | undefined): number {
+  if (value === undefined) {
+    return 3;
+  }
+
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 0 || parsed > 13) {
+    throw new AutoCliError("EDITOR_INVALID_ARGUMENT", `Invalid OCR page segmentation mode "${value}". Use an integer from 0 to 13.`);
+  }
+
+  return parsed;
+}
+
+async function prepareOcrInput(inputPath: string): Promise<string> {
+  const extension = extname(inputPath).replace(/^\./, "").toLowerCase();
+  if (["png", "jpg", "jpeg", "webp", "bmp", "tif", "tiff"].includes(extension)) {
+    return inputPath;
+  }
+
+  const tempDir = await mkdtemp(join(tmpdir(), "autocli-document-ocr-"));
+  const outputPath = join(tempDir, `${parse(inputPath).name}.preview.png`);
+  await renderDocumentPreview(inputPath, outputPath);
+  return outputPath;
+}
+
+async function renderDocumentPreview(inputPath: string, outputPath: string): Promise<void> {
+  if (await commandExists(QLMANAGE_BIN)) {
+    const tempDir = await mkdtemp(join(tmpdir(), "autocli-document-preview-"));
+    const previewPath = join(tempDir, `${parse(inputPath).base}.png`);
+
+    try {
+      await runEditorBinary({
+        command: QLMANAGE_BIN,
+        args: ["-t", "-s", "2048", "-o", tempDir, inputPath],
+        missingCode: "DOCUMENT_PREVIEW_TOOL_MISSING",
+        missingMessage: "qlmanage is not installed or not available in PATH.",
+        failureCode: "DOCUMENT_PREVIEW_FAILED",
+        failureMessage: "Failed to render a document preview for OCR.",
+      });
+      await ensureParentDirectory(outputPath);
+      await rename(previewPath, outputPath);
+      return;
+    } finally {
+      await rm(tempDir, { recursive: true, force: true });
+    }
+  }
+
+  await runEditorBinary({
+    command: SIPS_BIN,
+    args: ["-s", "format", "png", inputPath, "--out", outputPath],
+    missingCode: "DOCUMENT_PREVIEW_TOOL_MISSING",
+    missingMessage: "Neither qlmanage nor sips is available in PATH for OCR previews.",
+    failureCode: "DOCUMENT_PREVIEW_FAILED",
+    failureMessage: "Failed to render a document preview for OCR.",
+  });
+}
+
+async function runTesseract(inputPath: string, language: string, psm: number): Promise<string> {
+  const imageBuffer = await readFile(inputPath);
+
+  return new Promise((resolvePromise, rejectPromise) => {
+    const child = spawn(TESSERACT_BIN, ["stdin", "stdout", "-l", language, "--psm", String(psm)], {
+      env: process.env,
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+
+    let stdout = "";
+    let stderr = "";
+
+    child.stdout.on("data", (chunk) => {
+      stdout += String(chunk);
+    });
+
+    child.stderr.on("data", (chunk) => {
+      stderr += String(chunk);
+    });
+
+    child.on("error", (error) => {
+      rejectPromise(
+        new AutoCliError("DOCUMENT_OCR_UNAVAILABLE", "tesseract is not installed or not available in PATH.", {
+          details: {
+            command: TESSERACT_BIN,
+          },
+          cause: error,
+        }),
+      );
+    });
+
+    child.on("close", (code) => {
+      if (code === 0) {
+        resolvePromise(stdout);
+        return;
+      }
+
+      rejectPromise(
+        new AutoCliError("DOCUMENT_OCR_FAILED", "Failed to run OCR on the document preview.", {
+          details: {
+            command: TESSERACT_BIN,
+            args: ["stdin", "stdout", "-l", language, "--psm", String(psm)],
+            stdout: stdout.trim() || null,
+            stderr: stderr.trim() || null,
+          },
+        }),
+      );
+    });
+
+    child.stdin.end(imageBuffer);
+  });
+}
+
+function normalizeOcrText(value: string): string {
+  return value
+    .replace(/\r\n/g, "\n")
+    .replace(/\u000c/g, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim()
+    .concat("\n");
+}
+
+async function commandExists(command: string): Promise<boolean> {
+  return new Promise((resolvePromise) => {
+    const child = spawn(command, ["-h"], {
+      env: process.env,
+      stdio: ["ignore", "ignore", "ignore"],
+    });
+
+    child.on("error", () => resolvePromise(false));
+    child.on("close", () => resolvePromise(true));
+  });
 }

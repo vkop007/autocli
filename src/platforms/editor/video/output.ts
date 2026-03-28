@@ -20,6 +20,7 @@ export function printVideoEditorResult(result: AdapterActionResult, json: boolea
   const durationSeconds = asNumber(data.durationSeconds);
   const format = asString(data.format);
   const fps = asNumber(data.fps);
+  const method = asString(data.method);
   const threshold = asNumber(data.threshold);
   const sceneCount = asNumber(data.sceneCount);
   const sceneTimesSeconds = Array.isArray(data.sceneTimesSeconds)
@@ -54,6 +55,10 @@ export function printVideoEditorResult(result: AdapterActionResult, json: boolea
 
   if (typeof fps === "number") {
     console.log(`fps: ${fps.toFixed(2)}`);
+  }
+
+  if (method) {
+    console.log(`method: ${method}`);
   }
 
   if (typeof threshold === "number") {

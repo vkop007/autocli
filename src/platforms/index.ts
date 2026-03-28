@@ -40,13 +40,17 @@ import { youtubeMusicPlatformDefinition } from "./music/youtube-music/manifest.j
 import { notionPlatformDefinition } from "./developer/notion/manifest.js";
 import { cheatPlatformDefinition } from "./tools/cheat/manifest.js";
 import { dnsPlatformDefinition } from "./tools/dns/manifest.js";
+import { headersPlatformDefinition } from "./tools/headers/manifest.js";
 import { ipPlatformDefinition } from "./tools/ip/manifest.js";
 import { markdownFetchPlatformDefinition } from "./tools/markdown-fetch/manifest.js";
+import { metadataPlatformDefinition } from "./tools/metadata/manifest.js";
 import { qrPlatformDefinition } from "./tools/qr/manifest.js";
+import { redirectPlatformDefinition } from "./tools/redirect/manifest.js";
 import { screenshotPlatformDefinition } from "./tools/screenshot/manifest.js";
 import { robotsPlatformDefinition } from "./tools/robots/manifest.js";
 import { rssPlatformDefinition } from "./tools/rss/manifest.js";
 import { sitemapPlatformDefinition } from "./tools/sitemap/manifest.js";
+import { sslPlatformDefinition } from "./tools/ssl/manifest.js";
 import { timePlatformDefinition } from "./tools/time/manifest.js";
 import { translatePlatformDefinition } from "./tools/translate/manifest.js";
 import { uptimePlatformDefinition } from "./tools/uptime/manifest.js";
@@ -99,20 +103,24 @@ const definitions: readonly PlatformDefinition[] = [
   githubPlatformDefinition,
   githubbotPlatformDefinition,
   gitlabPlatformDefinition,
+  headersPlatformDefinition,
   ipPlatformDefinition,
   instagramPlatformDefinition,
   markdownFetchPlatformDefinition,
+  metadataPlatformDefinition,
   newsPlatformDefinition,
   linkedinPlatformDefinition,
   linearPlatformDefinition,
   notionPlatformDefinition,
   pdfPlatformDefinition,
   qrPlatformDefinition,
+  redirectPlatformDefinition,
   screenshotPlatformDefinition,
   robotsPlatformDefinition,
   rssPlatformDefinition,
   sitemapPlatformDefinition,
   slackbotPlatformDefinition,
+  sslPlatformDefinition,
   spotifyPlatformDefinition,
   stocksPlatformDefinition,
   telegrambotPlatformDefinition,

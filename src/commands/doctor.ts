@@ -82,10 +82,28 @@ const BINARY_CHECKS = [
     purpose: "editor document pdf extraction",
   },
   {
+    id: "pdftoppm",
+    command: process.env.AUTOCLI_PDFTOPPM_BIN || "pdftoppm",
+    args: ["-h"],
+    purpose: "editor pdf to-images rendering",
+  },
+  {
+    id: "qlmanage",
+    command: process.env.AUTOCLI_QLMANAGE_BIN || "qlmanage",
+    args: ["-h"],
+    purpose: "editor document/pdf preview rendering on macOS",
+  },
+  {
     id: "textutil",
     command: process.env.AUTOCLI_TEXTUTIL_BIN || "textutil",
     args: ["-help"],
     purpose: "editor document conversion",
+  },
+  {
+    id: "tesseract",
+    command: process.env.AUTOCLI_TESSERACT_BIN || "tesseract",
+    args: ["--version"],
+    purpose: "editor document OCR",
   },
   {
     id: "mdls",

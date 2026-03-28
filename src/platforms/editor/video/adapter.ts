@@ -18,6 +18,8 @@ import { AutoCliError } from "../../../errors.js";
 
 import type { AdapterActionResult, Platform } from "../../../types.js";
 
+const FFMPEG_COMMAND = process.env.AUTOCLI_FFMPEG_BIN || "ffmpeg";
+
 type VideoInfoInput = {
   inputPath: string;
 };
@@ -33,6 +35,16 @@ type VideoTrimInput = {
 type VideoSceneDetectInput = {
   inputPath: string;
   threshold?: number | string;
+};
+
+type VideoStabilizeInput = {
+  inputPath: string;
+  output?: string;
+  method?: string;
+  shakiness?: number | string;
+  accuracy?: number | string;
+  smoothing?: number | string;
+  zoom?: number | string;
 };
 
 type VideoConvertInput = {
@@ -293,6 +305,130 @@ export class VideoEditorAdapter {
         sceneCount: sceneChanges.length,
         sceneChanges,
         sceneSegments,
+      },
+    });
+  }
+
+  async stabilize(input: VideoStabilizeInput): Promise<AdapterActionResult> {
+    const resolvedInput = await assertLocalInputFile(input.inputPath);
+    const format = normalizeVideoExtension(extname(resolvedInput).replace(/^\./, "") || "mp4");
+    const outputPath = resolveEditorOutputPath({
+      inputPath: resolvedInput,
+      output: input.output,
+      suffix: "stabilized",
+      extension: format,
+    });
+    const method = normalizeStabilizeMethod(input.method);
+    const shakiness = clampNumber(Math.round(toNumber(input.shakiness) ?? 7), 1, 10);
+    const accuracy = clampNumber(Math.round(toNumber(input.accuracy) ?? 9), 1, 15);
+    const smoothing = clampNumber(Math.round(toNumber(input.smoothing) ?? 15), 1, 100);
+    const zoom = clampNumber(toNumber(input.zoom) ?? 0, 0, 10);
+    const probe = await runFfprobe(resolvedInput);
+    const hasAudio = (probe.streams ?? []).some((entry) => entry.codec_type === "audio");
+
+    if (method === "auto" || method === "vidstab") {
+      const supportsVidstab = await ffmpegSupportsFilters(["vidstabdetect", "vidstabtransform"]);
+      if (supportsVidstab) {
+        const tempDir = await mkdtemp(join(tmpdir(), "autocli-video-stabilize-"));
+        const transformPath = join(tempDir, "transforms.trf");
+
+        try {
+          try {
+            await runFfmpegCommand(
+              [
+                "-y",
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-i",
+                resolvedInput,
+                "-vf",
+                `vidstabdetect=shakiness=${shakiness}:accuracy=${accuracy}:result=${escapeFilterPath(transformPath)}`,
+                "-f",
+                "null",
+                "-",
+              ],
+              "VIDEO_STABILIZE_ANALYSIS_FAILED",
+              "Failed to analyze the video for stabilization.",
+            );
+
+            const resolvedOutput = await runFfmpegEdit({
+              inputPath: resolvedInput,
+              outputPath,
+              args: [
+                "-i",
+                "{input}",
+                "-vf",
+                `vidstabtransform=input=${escapeFilterPath(transformPath)}:smoothing=${smoothing}:zoom=${formatFilterNumber(zoom)}:optzoom=0,unsharp=5:5:0.8:3:3:0.4`,
+                ...buildVideoCodecArgs(format, 21, "medium"),
+                "{output}",
+              ],
+            });
+
+            return this.buildResult({
+              action: "stabilize",
+              message: `Saved stabilized video to ${resolvedOutput}.`,
+              data: {
+                inputPath: resolvedInput,
+                outputPath: resolvedOutput,
+                format,
+                method: "vidstab",
+                hasAudio,
+                shakiness,
+                accuracy,
+                smoothing,
+                zoom,
+              },
+            });
+          } catch (error) {
+            if (method === "vidstab") {
+              throw error;
+            }
+          }
+        } finally {
+          await rm(tempDir, { recursive: true, force: true });
+        }
+      }
+
+      if (method === "vidstab") {
+        throw new AutoCliError(
+          "VIDEO_STABILIZE_FILTER_MISSING",
+          "ffmpeg on this machine does not include the vidstab stabilization filters.",
+          {
+            details: {
+              requiredFilters: ["vidstabdetect", "vidstabtransform"],
+            },
+          },
+        );
+      }
+    }
+
+    const resolvedOutput = await runFfmpegEdit({
+      inputPath: resolvedInput,
+      outputPath,
+      args: [
+        "-i",
+        "{input}",
+        "-vf",
+        "deshake=x=64:y=64:rx=16:ry=16:edge=mirror:blocksize=8:contrast=125",
+        ...buildVideoCodecArgs(format, 21, "medium"),
+        "{output}",
+      ],
+    });
+
+    return this.buildResult({
+      action: "stabilize",
+      message: `Saved stabilized video to ${resolvedOutput}.`,
+      data: {
+        inputPath: resolvedInput,
+        outputPath: resolvedOutput,
+        format,
+        method: "deshake",
+        hasAudio,
+        shakiness,
+        accuracy,
+        smoothing,
+        zoom,
       },
     });
   }
@@ -1467,6 +1603,92 @@ async function runVideoAnalysis(input: {
       );
     });
   });
+}
+
+let ffmpegFilterCache: Set<string> | null = null;
+
+async function ffmpegSupportsFilters(requiredFilters: string[]): Promise<boolean> {
+  if (!ffmpegFilterCache) {
+    const { stdout } = await runFfmpegCommand(
+      ["-hide_banner", "-filters"],
+      "FFMPEG_FILTERS_FAILED",
+      "Failed to inspect the available ffmpeg filters.",
+    );
+    ffmpegFilterCache = new Set(
+      stdout
+        .split(/\r?\n/)
+        .map((line) => line.trim().split(/\s+/).at(1))
+        .filter((value): value is string => Boolean(value)),
+    );
+  }
+
+  return requiredFilters.every((filterName) => ffmpegFilterCache?.has(filterName));
+}
+
+async function runFfmpegCommand(args: string[], failureCode: string, failureMessage: string): Promise<{ stdout: string; stderr: string }> {
+  return new Promise((resolvePromise, rejectPromise) => {
+    const child = spawn(FFMPEG_COMMAND, args, {
+      env: process.env,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+
+    let stdout = "";
+    let stderr = "";
+
+    child.stdout.on("data", (chunk) => {
+      stdout += String(chunk);
+    });
+
+    child.stderr.on("data", (chunk) => {
+      stderr += String(chunk);
+    });
+
+    child.on("error", (error) => {
+      rejectPromise(
+        new AutoCliError("FFMPEG_NOT_AVAILABLE", "ffmpeg is not installed or not available in PATH.", {
+          details: {
+            command: FFMPEG_COMMAND,
+          },
+          cause: error,
+        }),
+      );
+    });
+
+    child.on("close", (code) => {
+      if (code === 0) {
+        resolvePromise({ stdout, stderr });
+        return;
+      }
+
+      rejectPromise(
+        new AutoCliError(failureCode, failureMessage, {
+          details: {
+            command: FFMPEG_COMMAND,
+            args,
+            stdout: stdout.trim() || null,
+            stderr: stderr.trim() || null,
+          },
+        }),
+      );
+    });
+  });
+}
+
+function normalizeStabilizeMethod(value: string | undefined): "auto" | "vidstab" | "deshake" {
+  const normalized = value?.trim().toLowerCase() ?? "auto";
+  if (normalized === "auto" || normalized === "vidstab" || normalized === "deshake") {
+    return normalized;
+  }
+
+  throw new AutoCliError("EDITOR_INVALID_ARGUMENT", `Unsupported stabilize method "${value}".`, {
+    details: {
+      supportedMethods: ["auto", "vidstab", "deshake"],
+    },
+  });
+}
+
+function escapeFilterPath(value: string): string {
+  return resolve(value).replace(/\\/g, "/").replace(/:/g, "\\:").replace(/,/g, "\\,").replace(/'/g, "\\'");
 }
 
 function parseSceneDetectLog(log: string): Array<{

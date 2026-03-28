@@ -71,6 +71,14 @@ type ImageThumbnailInput = {
   output?: string;
 };
 
+type ImageUpscaleInput = {
+  inputPath: string;
+  factor?: number | string;
+  width?: number | string;
+  height?: number | string;
+  output?: string;
+};
+
 type ImageBackgroundRemoveInput = {
   inputPath: string;
   color?: string;
@@ -377,6 +385,49 @@ export class ImageEditorAdapter {
         outputPath: resolvedOutput,
         width,
         height: height ?? null,
+      },
+    });
+  }
+
+  async upscale(input: ImageUpscaleInput): Promise<AdapterActionResult> {
+    const probe = await runFfprobe(input.inputPath);
+    const stream = (probe.streams ?? []).find((entry) => entry.codec_type === "video");
+    if (!stream || typeof stream.width !== "number" || typeof stream.height !== "number") {
+      throw new AutoCliError("IMAGE_INFO_UNAVAILABLE", "Could not read image dimensions from the file.", {
+        details: {
+          inputPath: input.inputPath,
+        },
+      });
+    }
+
+    const requestedWidth = input.width !== undefined ? requirePositiveInteger(input.width, "width") : undefined;
+    const requestedHeight = input.height !== undefined ? requirePositiveInteger(input.height, "height") : undefined;
+    const factor = clampNumber(toNumber(input.factor) ?? 2, 1, 8);
+    const width = requestedWidth ?? Math.max(1, Math.round(stream.width * factor));
+    const height = requestedHeight ?? Math.max(1, Math.round(stream.height * factor));
+    const outputPath = resolveEditorOutputPath({
+      inputPath: input.inputPath,
+      output: input.output,
+      suffix: "upscaled",
+    });
+
+    const resolvedOutput = await runFfmpegEdit({
+      inputPath: input.inputPath,
+      outputPath,
+      args: ["-i", "{input}", "-vf", `scale=${width}:${height}:flags=lanczos`, "{output}"],
+    });
+
+    return this.buildResult({
+      action: "upscale",
+      message: `Saved upscaled image to ${resolvedOutput}.`,
+      data: {
+        inputPath: input.inputPath,
+        outputPath: resolvedOutput,
+        width,
+        height,
+        factor: requestedWidth || requestedHeight ? null : factor,
+        sourceWidth: stream.width,
+        sourceHeight: stream.height,
       },
     });
   }

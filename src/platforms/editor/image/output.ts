@@ -17,6 +17,9 @@ export function printImageEditorResult(result: AdapterActionResult, json: boolea
   const height = asNumber(data.height);
   const format = asString(data.format);
   const sizeBytes = asNumber(data.sizeBytes);
+  const factor = asNumber(data.factor);
+  const sourceWidth = asNumber(data.sourceWidth);
+  const sourceHeight = asNumber(data.sourceHeight);
 
   if (outputPath) {
     console.log(`file: ${outputPath}`);
@@ -24,6 +27,14 @@ export function printImageEditorResult(result: AdapterActionResult, json: boolea
 
   if (typeof width === "number" && typeof height === "number") {
     console.log(`size: ${width}x${height}`);
+  }
+
+  if (typeof sourceWidth === "number" && typeof sourceHeight === "number") {
+    console.log(`source-size: ${sourceWidth}x${sourceHeight}`);
+  }
+
+  if (typeof factor === "number") {
+    console.log(`factor: ${factor}`);
   }
 
   if (format) {

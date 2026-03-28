@@ -32,6 +32,17 @@ interface TvMazeShow {
   summary?: string | null;
 }
 
+interface TvMazeEpisode {
+  id: number;
+  url?: string;
+  name?: string;
+  season?: number;
+  number?: number;
+  airdate?: string | null;
+  runtime?: number | null;
+  summary?: string | null;
+}
+
 interface TvMazeSearchItem {
   score?: number;
   show?: TvMazeShow;
@@ -107,6 +118,45 @@ export class TvMazeAdapter {
       url: title.url,
       data: {
         title,
+      },
+    };
+  }
+
+  async episodes(input: { target: string; season?: number; limit?: number }): Promise<AdapterActionResult> {
+    const target = input.target.trim();
+    if (!target) {
+      throw new AutoCliError("TVMAZE_TARGET_REQUIRED", "Provide a TVMaze show URL, show ID, or query.");
+    }
+
+    const show = await this.resolveShow(target);
+    const response = await this.fetchJson<TvMazeEpisode[]>(`https://api.tvmaze.com/shows/${show.id}/episodes`);
+    const season = input.season;
+    const items = response
+      .filter((episode) => (season ? episode.season === season : true))
+      .slice(0, normalizeLimit(input.limit, season ? 25 : 10, 100))
+      .map((episode) => ({
+        id: episode.id,
+        title: episode.name ?? `Episode ${episode.number ?? "?"}`,
+        season: episode.season ?? undefined,
+        number: episode.number ?? undefined,
+        airdate: episode.airdate ?? undefined,
+        runtime: episode.runtime ?? undefined,
+        summary: trimSummary(decodeHtml(episode.summary ?? ""), 280),
+        url: episode.url ?? undefined,
+      }));
+
+    return {
+      ok: true,
+      platform: this.platform,
+      account: "public",
+      action: "episodes",
+      message: `Loaded ${items.length} TVMaze episode${items.length === 1 ? "" : "s"} for ${show.name ?? "Untitled"}.`,
+      id: String(show.id),
+      url: show.url ?? `https://www.tvmaze.com/shows/${show.id}`,
+      data: {
+        title: show.name ?? "Untitled",
+        season: season ?? null,
+        items,
       },
     };
   }

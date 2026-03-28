@@ -13,6 +13,7 @@ const EXAMPLES = [
   "autocli video trim ./clip.mp4 --start 00:00:05 --duration 10",
   "autocli video split ./clip.mp4 --duration 00:00:15 --output-dir ./parts",
   "autocli video scene-detect ./clip.mp4",
+  "autocli video stabilize ./clip.mp4",
   "autocli video convert ./clip.mov --to mp4",
   "autocli video compress ./clip.mp4 --crf 28",
   "autocli video speed ./clip.mp4 --factor 1.5",
@@ -133,6 +134,43 @@ function buildVideoEditorCommand(options: PlatformCommandBuildOptions = {}): Com
         onSuccess: (result) => printVideoEditorResult(result, ctx.json),
       });
     });
+
+  command
+    .command("stabilize")
+    .description("Stabilize a shaky local video")
+    .argument("<inputPath>", "Input video path")
+    .option("--method <name>", "Stabilization method: auto, vidstab, or deshake", "auto")
+    .option("--shakiness <value>", "vidstab shakiness from 1 to 10", "7")
+    .option("--accuracy <value>", "vidstab accuracy from 1 to 15", "9")
+    .option("--smoothing <value>", "vidstab smoothing from 1 to 100", "15")
+    .option("--zoom <value>", "Optional stabilization zoom from 0 to 10", "0")
+    .option("--output <path>", "Exact output file path")
+    .action(
+      async (
+        inputPath: string,
+        input: { method?: string; shakiness?: string; accuracy?: string; smoothing?: string; zoom?: string; output?: string },
+        cmd: Command,
+      ) => {
+        const ctx = resolveCommandContext(cmd);
+        const logger = new Logger(ctx);
+        const spinner = logger.spinner("Stabilizing video...");
+        await runCommandAction({
+          spinner,
+          successMessage: "Video stabilized.",
+          action: () =>
+            videoEditorAdapter.stabilize({
+              inputPath,
+              method: input.method,
+              shakiness: input.shakiness,
+              accuracy: input.accuracy,
+              smoothing: input.smoothing,
+              zoom: input.zoom,
+              output: input.output,
+            }),
+          onSuccess: (result) => printVideoEditorResult(result, ctx.json),
+        });
+      },
+    );
 
   command
     .command("convert")

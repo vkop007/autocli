@@ -1,11 +1,13 @@
-import { readFile, stat, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
+import { tmpdir } from "node:os";
 import { join, parse, resolve } from "node:path";
 
 import { ensureParentDirectory } from "../../../config.js";
 import { AutoCliError } from "../../../errors.js";
 import { degrees, PDFDocument, rgb, StandardFonts } from "pdf-lib";
+import { runEditorBinary } from "../shared/process.js";
 
 import type { AdapterActionResult, Platform } from "../../../types.js";
 
@@ -36,6 +38,14 @@ type PdfRemovePagesInput = {
   inputPath: string;
   pages: string;
   outputPath?: string;
+};
+
+type PdfToImagesInput = {
+  inputPath: string;
+  outputDir?: string;
+  prefix?: string;
+  format?: string;
+  size?: number | string;
 };
 
 type PdfMetadataInput = {
@@ -115,6 +125,9 @@ type PdfMetadata = {
 };
 
 const QPDF_BIN = process.env.AUTOCLI_QPDF_BIN || "qpdf";
+const PDFTOPPM_BIN = process.env.AUTOCLI_PDFTOPPM_BIN || "pdftoppm";
+const QLMANAGE_BIN = process.env.AUTOCLI_QLMANAGE_BIN || "qlmanage";
+const SIPS_BIN = process.env.AUTOCLI_SIPS_BIN || "sips";
 
 export class PdfEditorAdapter {
   readonly platform: Platform = "pdf" as unknown as Platform;
@@ -186,6 +199,42 @@ export class PdfEditorAdapter {
         fromPage: startPage,
         toPage: endPage,
         outputPaths,
+      },
+    });
+  }
+
+  async toImages(input: PdfToImagesInput): Promise<AdapterActionResult> {
+    const resolvedInput = await assertReadableFile(input.inputPath);
+    const sourcePdf = await PDFDocument.load(await readFile(resolvedInput));
+    const pageCountTotal = sourcePdf.getPageCount();
+    const format = normalizePdfImageFormat(input.format ?? "png");
+    const size = clampPositiveInteger(input.size, 2048, "size");
+    const outputDir = resolve(input.outputDir ?? join(parse(resolvedInput).dir, `${parse(resolvedInput).name}.images`));
+    const prefix = normalizePrefix(input.prefix ?? parse(resolvedInput).name);
+    await ensureParentDirectory(join(outputDir, `${prefix}.placeholder`));
+
+    const rendered = await renderPdfImages({
+      inputPath: resolvedInput,
+      outputDir,
+      prefix,
+      format,
+      size,
+    });
+
+    return this.buildResult({
+      action: "to-images",
+      message: rendered.partial
+        ? `Rendered a preview image for ${parse(resolvedInput).base}.`
+        : `Rendered ${rendered.outputPaths.length} PDF page image${rendered.outputPaths.length === 1 ? "" : "s"} for ${parse(resolvedInput).base}.`,
+      data: {
+        inputPath: resolvedInput,
+        outputDir,
+        outputPaths: rendered.outputPaths,
+        format,
+        renderer: rendered.renderer,
+        partial: rendered.partial,
+        pagesExported: rendered.outputPaths.length,
+        totalPages: pageCountTotal,
       },
     });
   }
@@ -648,6 +697,22 @@ function normalizePrefix(value: string): string {
   return normalized || "pdf";
 }
 
+function normalizePdfImageFormat(value: string): "png" | "jpg" {
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "png") {
+    return "png";
+  }
+  if (normalized === "jpg" || normalized === "jpeg") {
+    return "jpg";
+  }
+
+  throw new AutoCliError("EDITOR_INVALID_ARGUMENT", `Unsupported PDF image format "${value}".`, {
+    details: {
+      supportedFormats: ["png", "jpg", "jpeg"],
+    },
+  });
+}
+
 function buildSiblingOutputPath(inputPath: string, suffix: string): string {
   const parsed = parse(inputPath);
   return join(parsed.dir, `${parsed.name}${suffix}`);
@@ -669,6 +734,11 @@ function clampPositiveNumber(value: number | string | undefined, fallback: numbe
   }
 
   return parsed;
+}
+
+function clampPositiveInteger(value: number | string | undefined, fallback: number, label: string): number {
+  const parsed = clampPositiveNumber(value, fallback, label);
+  return Math.max(1, Math.round(parsed));
 }
 
 function clampBetween(
@@ -930,6 +1000,132 @@ function normalizeEncryptionBits(value: number): PdfEncryptionBits {
 
 function generatePassword(): string {
   return randomBytes(12).toString("base64url");
+}
+
+async function renderPdfImages(input: {
+  inputPath: string;
+  outputDir: string;
+  prefix: string;
+  format: "png" | "jpg";
+  size: number;
+}): Promise<{ outputPaths: string[]; renderer: string; partial: boolean }> {
+  if (await commandExists(PDFTOPPM_BIN)) {
+    const tempDir = await mkdtemp(join(tmpdir(), "autocli-pdf-images-"));
+    const prefixBase = join(tempDir, input.prefix);
+
+    try {
+      await runEditorBinary({
+        command: PDFTOPPM_BIN,
+        args: [input.format === "png" ? "-png" : "-jpeg", "-scale-to", String(input.size), input.inputPath, prefixBase],
+        missingCode: "PDF_TO_IMAGES_TOOL_MISSING",
+        missingMessage: "pdftoppm is not installed or not available in PATH.",
+        failureCode: "PDF_TO_IMAGES_FAILED",
+        failureMessage: "Failed to render PDF pages to images.",
+      });
+
+      const entries = (await readdir(tempDir))
+        .filter((entry) => entry.startsWith(`${input.prefix}-`) && entry.toLowerCase().endsWith(`.${input.format}`))
+        .sort((left, right) => left.localeCompare(right, undefined, { numeric: true }));
+
+      const outputPaths: string[] = [];
+      for (let index = 0; index < entries.length; index += 1) {
+        const entry = entries[index]!;
+        const sourcePath = join(tempDir, entry);
+        const outputPath = join(input.outputDir, `${input.prefix}.page-${String(index + 1).padStart(3, "0")}.${input.format}`);
+        await ensureParentDirectory(outputPath);
+        await rename(sourcePath, outputPath);
+        outputPaths.push(outputPath);
+      }
+
+      return {
+        outputPaths,
+        renderer: "pdftoppm",
+        partial: false,
+      };
+    } finally {
+      await rm(tempDir, { recursive: true, force: true });
+    }
+  }
+
+  const previewOutputPath = join(input.outputDir, `${input.prefix}.page-001.${input.format}`);
+  await renderPdfPreviewImage({
+    inputPath: input.inputPath,
+    outputPath: previewOutputPath,
+    format: input.format,
+    size: input.size,
+  });
+
+  return {
+    outputPaths: [previewOutputPath],
+    renderer: "quicklook-preview",
+    partial: true,
+  };
+}
+
+async function renderPdfPreviewImage(input: {
+  inputPath: string;
+  outputPath: string;
+  format: "png" | "jpg";
+  size: number;
+}): Promise<void> {
+  if (await commandExists(QLMANAGE_BIN)) {
+    const tempDir = await mkdtemp(join(tmpdir(), "autocli-pdf-preview-"));
+    const expectedPreviewPath = join(tempDir, `${parse(input.inputPath).base}.png`);
+
+    try {
+      await runEditorBinary({
+        command: QLMANAGE_BIN,
+        args: ["-t", "-s", String(input.size), "-o", tempDir, input.inputPath],
+        missingCode: "PDF_TO_IMAGES_TOOL_MISSING",
+        missingMessage: "qlmanage is not installed or not available in PATH.",
+        failureCode: "PDF_TO_IMAGES_FAILED",
+        failureMessage: "Failed to render the PDF preview image.",
+      });
+
+      const previewPath = expectedPreviewPath;
+      const intermediatePath = input.format === "png" ? previewPath : join(tempDir, `${parse(input.inputPath).name}.preview.png`);
+      await ensureParentDirectory(input.outputPath);
+
+      if (input.format === "png") {
+        await rename(previewPath, input.outputPath);
+      } else {
+        await rename(previewPath, intermediatePath);
+        await runEditorBinary({
+          command: SIPS_BIN,
+          args: ["-s", "format", input.format, intermediatePath, "--out", input.outputPath],
+          missingCode: "PDF_TO_IMAGES_TOOL_MISSING",
+          missingMessage: "sips is not installed or not available in PATH.",
+          failureCode: "PDF_TO_IMAGES_FAILED",
+          failureMessage: "Failed to convert the PDF preview image.",
+        });
+      }
+
+      return;
+    } finally {
+      await rm(tempDir, { recursive: true, force: true });
+    }
+  }
+
+  await runEditorBinary({
+    command: SIPS_BIN,
+    args: ["-s", "format", input.format, input.inputPath, "--out", input.outputPath],
+    missingCode: "PDF_TO_IMAGES_TOOL_MISSING",
+    missingMessage: "Neither pdftoppm, qlmanage, nor sips is available in PATH for PDF image rendering.",
+    failureCode: "PDF_TO_IMAGES_FAILED",
+    failureMessage: "Failed to render the PDF preview image.",
+  });
+}
+
+async function commandExists(command: string): Promise<boolean> {
+  return new Promise((resolvePromise) => {
+    const child = spawn(command, ["-h"], {
+      env: process.env,
+      stdio: ["ignore", "ignore", "ignore"],
+    });
+
+    child.on("error", () => resolvePromise(false));
+    child.on("close", () => resolvePromise(true));
+  });
 }
 
 function buildQpdfPageRange(ranges: Array<{ start: number; end: number }>): string {

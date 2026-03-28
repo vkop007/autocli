@@ -21,7 +21,11 @@ export function printPdfResult(result: AdapterActionResult, json: boolean): void
   const optimized = typeof data.optimized === "boolean" ? data.optimized : undefined;
   const linearized = typeof data.linearized === "boolean" ? data.linearized : undefined;
   const decrypted = typeof data.decrypted === "boolean" ? data.decrypted : undefined;
+  const partial = typeof data.partial === "boolean" ? data.partial : undefined;
   const bits = asNumber(data.bits);
+  const pagesExported = asNumber(data.pagesExported);
+  const totalPages = asNumber(data.totalPages);
+  const renderer = asString(data.renderer);
   const outputPaths = Array.isArray(data.outputPaths) ? data.outputPaths.filter((value): value is string => typeof value === "string") : [];
   const pageSpec = asString(data.pageSpec);
   const removedPages = formatPageNumbers(data.removedPages);
@@ -60,6 +64,22 @@ export function printPdfResult(result: AdapterActionResult, json: boolean): void
 
   if (typeof bits === "number") {
     console.log(`bits: ${bits}`);
+  }
+
+  if (renderer) {
+    console.log(`renderer: ${renderer}`);
+  }
+
+  if (typeof partial === "boolean") {
+    console.log(`partial: ${partial ? "yes" : "no"}`);
+  }
+
+  if (typeof pagesExported === "number") {
+    console.log(`pages-exported: ${pagesExported}`);
+  }
+
+  if (typeof totalPages === "number") {
+    console.log(`total-pages: ${totalPages}`);
   }
 
   if (typeof angle === "string") {
