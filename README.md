@@ -11,9 +11,10 @@ Commands are organized by category only:
 - `autocli movie ...`
 - `autocli social ...`
 - `autocli shopping ...`
-- `autocli api ...`
 - `autocli music ...`
-- `autocli public ...`
+- `autocli developer ...`
+- `autocli bot ...`
+- `autocli tools ...`
 
 ## Why `Commander.js + Zod`
 
@@ -41,9 +42,10 @@ Reference points:
 | Music | Spotify, YouTube Music | 2 | `autocli music <provider> ...` |
 | Social | Facebook, Instagram, LinkedIn, TikTok, X, YouTube | 6 | `autocli social <provider> ...` |
 | Shopping | Amazon, Flipkart | 2 | `autocli shopping <provider> ...` |
-| API | Discord Bot, GitHub, GitHub Bot, GitLab, Linear, Notion, Slack Bot, Telegram Bot | 8 | `autocli api <provider> ...` |
-| Public | Cheat, DNS, IP, Markdown Fetch, News, QR, Robots, RSS, Screenshot, Sitemap, Time, Translate, Uptime, Weather, Web Search, Whois | 16 | `autocli public <provider> ...` |
-| Total | 63 providers across 10 command groups | 63 | category-only |
+| Developer | GitHub, GitLab, Linear, Notion | 4 | `autocli developer <provider> ...` |
+| Bot | Discord Bot, GitHub Bot, Slack Bot, Telegram Bot | 4 | `autocli bot <provider> ...` |
+| Tools | Cheat, DNS, IP, Markdown Fetch, News, QR, Robots, RSS, Screenshot, Sitemap, Time, Translate, Uptime, Weather, Web Search, Whois | 16 | `autocli tools <provider> ...` |
+| Total | 63 providers across 11 command groups | 63 | category-only |
 
 ### Capability highlights
 
@@ -380,9 +382,9 @@ That gives you a much more durable production system than relying on private web
     │   ├── status.ts
     │   └── ...
     ├── platforms
-    │   ├── api
-    │   ├── bots
-    │   ├── public
+    │   ├── bot
+    │   ├── developer
+    │   ├── tools
     │   ├── shared
     │   ├── social
     │   ├── config.ts
@@ -467,48 +469,49 @@ bun run dev status
 Save a GitHub personal access token:
 
 ```bash
-autocli api github login --token github_pat_xxx
+autocli developer github login --token github_pat_xxx
 ```
 
 Inspect the authenticated account and repos:
 
 ```bash
-autocli api github me
-autocli api github user torvalds
-autocli api github repos
-autocli api github repo openai/openai-node
-autocli api github search-repos "typescript cli" --limit 10
-autocli api github starred
-autocli api github branches openai/openai-node
-autocli api github pulls openai/openai-node --state open --limit 10
-autocli api github releases openai/openai-node --limit 5
-autocli api github readme openai/openai-node
+autocli developer github me
+autocli developer github user torvalds
+autocli developer github repos
+autocli developer github repo openai/openai-node
+autocli developer github search-repos "typescript cli" --limit 10
+autocli developer github starred
+autocli developer github branches openai/openai-node
+autocli developer github pulls openai/openai-node --state open --limit 10
+autocli developer github releases openai/openai-node --limit 5
+autocli developer github readme openai/openai-node
 ```
 
 Work with issues and repository actions:
 
 ```bash
-autocli api github issues openai/openai-node --state open --limit 10
-autocli api github issue openai/openai-node 1
-autocli api github create-issue owner/repo --title "Bug report" --body "Details here"
-autocli api github comment owner/repo 123 --body "Looks good to me"
-autocli api github create-repo autocli-playground --private --auto-init
-autocli api github fork openai/openai-node
-autocli api github star openai/openai-node
+autocli developer github issues openai/openai-node --state open --limit 10
+autocli developer github issue openai/openai-node 1
+autocli developer github create-issue owner/repo --title "Bug report" --body "Details here"
+autocli developer github comment owner/repo 123 --body "Looks good to me"
+autocli developer github create-repo autocli-playground --private --auto-init
+autocli developer github fork openai/openai-node
+autocli developer github star openai/openai-node
+```
 
 ## GitHub Bot
 
 Use a GitHub App installation token or bot-style token with the same GitHub command surface:
 
 ```bash
-autocli api githubbot login --token <github-app-or-bot-token>
-autocli api githubbot me
-autocli api githubbot repos
-autocli api githubbot repo openai/openai-node
-autocli api githubbot issues openai/openai-node --state open --limit 10
-autocli api githubbot pulls openai/openai-node --state open --limit 10
-autocli api githubbot create-issue owner/repo --title "Bug report" --body "Details here"
-autocli api githubbot star openai/openai-node
+autocli bot githubbot login --token <github-app-or-bot-token>
+autocli bot githubbot me
+autocli bot githubbot repos
+autocli bot githubbot repo openai/openai-node
+autocli bot githubbot issues openai/openai-node --state open --limit 10
+autocli bot githubbot pulls openai/openai-node --state open --limit 10
+autocli bot githubbot create-issue owner/repo --title "Bug report" --body "Details here"
+autocli bot githubbot star openai/openai-node
 ```
 
 ## GitLab
@@ -516,16 +519,16 @@ autocli api githubbot star openai/openai-node
 Use a GitLab personal access token to inspect projects, issues, and merge requests:
 
 ```bash
-autocli api gitlab login --token glpat_xxx
-autocli api gitlab me
-autocli api gitlab projects "autocli" --limit 10
-autocli api gitlab project group/subgroup/project
-autocli api gitlab search-projects "typescript cli" --limit 10
-autocli api gitlab issues group/project --state opened --limit 10
-autocli api gitlab issue group/project 123
-autocli api gitlab create-issue group/project --title "Bug report" --body "Details here"
-autocli api gitlab merge-requests group/project --state opened --limit 10
-autocli api gitlab merge-request group/project 123
+autocli developer gitlab login --token glpat_xxx
+autocli developer gitlab me
+autocli developer gitlab projects "autocli" --limit 10
+autocli developer gitlab project group/subgroup/project
+autocli developer gitlab search-projects "typescript cli" --limit 10
+autocli developer gitlab issues group/project --state opened --limit 10
+autocli developer gitlab issue group/project 123
+autocli developer gitlab create-issue group/project --title "Bug report" --body "Details here"
+autocli developer gitlab merge-requests group/project --state opened --limit 10
+autocli developer gitlab merge-request group/project 123
 ```
 
 ## Linear
@@ -533,15 +536,15 @@ autocli api gitlab merge-request group/project 123
 Use a Linear personal API key to inspect teams, projects, and issues:
 
 ```bash
-autocli api linear login --token lin_api_xxx
-autocli api linear me
-autocli api linear teams
-autocli api linear projects
-autocli api linear issues --team ENG --limit 20
-autocli api linear issue ENG-123
-autocli api linear create-issue --team ENG --title "Bug report" --description "Details here"
-autocli api linear update-issue ENG-123 --title "Updated title"
-autocli api linear comment ENG-123 --body "Looks good"
+autocli developer linear login --token lin_api_xxx
+autocli developer linear me
+autocli developer linear teams
+autocli developer linear projects
+autocli developer linear issues --team ENG --limit 20
+autocli developer linear issue ENG-123
+autocli developer linear create-issue --team ENG --title "Bug report" --description "Details here"
+autocli developer linear update-issue ENG-123 --title "Updated title"
+autocli developer linear comment ENG-123 --body "Looks good"
 ```
 
 ## Notion
@@ -549,18 +552,18 @@ autocli api linear comment ENG-123 --body "Looks good"
 Use a Notion integration token to search, inspect, and edit pages and data sources shared with the integration:
 
 ```bash
-autocli api notion login --token secret_xxx
-autocli api notion me
-autocli api notion search "roadmap"
-autocli api notion pages "launch"
-autocli api notion page <page-id-or-url>
-autocli api notion create-page --parent <page-or-data-source-id> --title "AutoCLI Notes" --content "Shipped from terminal"
-autocli api notion update-page <page-id-or-url> --title "Updated title"
-autocli api notion append <page-id-or-url> --text "Another paragraph"
-autocli api notion databases
-autocli api notion database <data-source-id-or-url>
-autocli api notion query <data-source-id-or-url> --limit 10
-autocli api notion comment <page-id-or-url> --text "Looks good"
+autocli developer notion login --token secret_xxx
+autocli developer notion me
+autocli developer notion search "roadmap"
+autocli developer notion pages "launch"
+autocli developer notion page <page-id-or-url>
+autocli developer notion create-page --parent <page-or-data-source-id> --title "AutoCLI Notes" --content "Shipped from terminal"
+autocli developer notion update-page <page-id-or-url> --title "Updated title"
+autocli developer notion append <page-id-or-url> --text "Another paragraph"
+autocli developer notion databases
+autocli developer notion database <data-source-id-or-url>
+autocli developer notion query <data-source-id-or-url> --limit 10
+autocli developer notion comment <page-id-or-url> --text "Looks good"
 ```
 
 ## Web Search
@@ -568,15 +571,15 @@ autocli api notion comment <page-id-or-url> --text "Looks good"
 Search the web with multiple engines without any account setup:
 
 ```bash
-autocli public websearch engines
-autocli public websearch search "bun cookies fetch"
-autocli public websearch search "bun cookies fetch" --summary
-autocli public websearch search "typescript cli" --engine bing
-autocli public websearch search "typescript cli" --engine yahoo
-autocli public websearch search "typescript cli" --engine yandex
-autocli public websearch search "typescript cli" --engine baidu
-autocli public websearch search "llm agent frameworks" --engine brave --limit 5
-autocli public websearch search "terminal weather" --all --limit 3
+autocli tools websearch engines
+autocli tools websearch search "bun cookies fetch"
+autocli tools websearch search "bun cookies fetch" --summary
+autocli tools websearch search "typescript cli" --engine bing
+autocli tools websearch search "typescript cli" --engine yahoo
+autocli tools websearch search "typescript cli" --engine yandex
+autocli tools websearch search "typescript cli" --engine baidu
+autocli tools websearch search "llm agent frameworks" --engine brave --limit 5
+autocli tools websearch search "terminal weather" --all --limit 3
 ```
 
 ## News
@@ -584,11 +587,11 @@ autocli public websearch search "terminal weather" --all --limit 3
 Read headlines and feeds from no-key sources such as Google News RSS, GDELT, Hacker News, Reddit, and generic RSS/Atom URLs:
 
 ```bash
-autocli public news sources
-autocli public news top
-autocli public news search "typescript cli"
-autocli public news search "ai agents" --source google
-autocli public news feed "https://news.ycombinator.com/rss"
+autocli tools news sources
+autocli tools news top
+autocli tools news search "typescript cli"
+autocli tools news search "ai agents" --source google
+autocli tools news feed "https://news.ycombinator.com/rss"
 ```
 
 ## Default flow
@@ -752,8 +755,8 @@ YouTube video uploads and community posting are not implemented yet. `autocli so
 Commands are category-based, so provider routes always live under their provider type:
 
 ```bash
-autocli api github me
-autocli api discordbot me
+autocli developer github me
+autocli bot discordbot me
 autocli llm chatgpt text "Hello my name is Justine"
 autocli llm claude text "Summarize this changelog"
 autocli llm deepseek text "Draft release notes for AutoCLI"
@@ -816,45 +819,45 @@ YouTube Music read commands can fall back to public browsing when there is no va
 Save a Telegram bot token:
 
 ```bash
-autocli api telegrambot login --token 123456:ABCDEF --name alerts-bot
-autocli api telegrambot me
-autocli api telegrambot me --bot alerts-bot
-autocli api telegrambot chats --limit 25
-autocli api telegrambot updates --limit 10
-autocli api telegrambot send 123456789 "Hello from AutoCLI"
-autocli api telegrambot send-photo 123456789 ./photo.jpg --caption "Hello"
-autocli api telegrambot send-audio 123456789 ./clip.mp3 --caption "Listen"
-autocli api telegrambot send-voice 123456789 ./voice.ogg
-autocli api telegrambot edit 123456789 42 "Updated text"
-autocli api telegrambot delete 123456789 42
+autocli bot telegrambot login --token 123456:ABCDEF --name alerts-bot
+autocli bot telegrambot me
+autocli bot telegrambot me --bot alerts-bot
+autocli bot telegrambot chats --limit 25
+autocli bot telegrambot updates --limit 10
+autocli bot telegrambot send 123456789 "Hello from AutoCLI"
+autocli bot telegrambot send-photo 123456789 ./photo.jpg --caption "Hello"
+autocli bot telegrambot send-audio 123456789 ./clip.mp3 --caption "Listen"
+autocli bot telegrambot send-voice 123456789 ./voice.ogg
+autocli bot telegrambot edit 123456789 42 "Updated text"
+autocli bot telegrambot delete 123456789 42
 ```
 
 Save a Discord bot token:
 
 ```bash
-autocli api discordbot login --token <bot-token> --name ops-bot
-autocli api discordbot me
-autocli api discordbot guilds --bot ops-bot
-autocli api discordbot channels 123456789012345678
-autocli api discordbot history 123456789012345678 --limit 20
-autocli api discordbot send 123456789012345678 "hello world"
-autocli api discordbot send-file 123456789012345678 ./report.pdf --content "build output"
-autocli api discordbot edit 123456789012345678 234567890123456789 "updated message"
-autocli api discordbot delete 123456789012345678 234567890123456789
+autocli bot discordbot login --token <bot-token> --name ops-bot
+autocli bot discordbot me
+autocli bot discordbot guilds --bot ops-bot
+autocli bot discordbot channels 123456789012345678
+autocli bot discordbot history 123456789012345678 --limit 20
+autocli bot discordbot send 123456789012345678 "hello world"
+autocli bot discordbot send-file 123456789012345678 ./report.pdf --content "build output"
+autocli bot discordbot edit 123456789012345678 234567890123456789 "updated message"
+autocli bot discordbot delete 123456789012345678 234567890123456789
 ```
 
 Save a Slack bot token:
 
 ```bash
-autocli api slackbot login --token xoxb-123 --name alerts-bot
-autocli api slackbot me
-autocli api slackbot me --bot alerts-bot
-autocli api slackbot channels
-autocli api slackbot history general --limit 20
-autocli api slackbot send general "hello from AutoCLI"
-autocli api slackbot send-file general ./build.log --comment "nightly build"
-autocli api slackbot edit general 1700000000.000000 "updated text"
-autocli api slackbot delete general 1700000000.000000
+autocli bot slackbot login --token xoxb-123 --name alerts-bot
+autocli bot slackbot me
+autocli bot slackbot me --bot alerts-bot
+autocli bot slackbot channels
+autocli bot slackbot history general --limit 20
+autocli bot slackbot send general "hello from AutoCLI"
+autocli bot slackbot send-file general ./build.log --comment "nightly build"
+autocli bot slackbot edit general 1700000000.000000 "updated text"
+autocli bot slackbot delete general 1700000000.000000
 ```
 
 If you connect multiple accounts for the same platform, AutoCLI keeps them all as named session files and uses the most recently logged-in one by default.
