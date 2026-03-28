@@ -11,6 +11,17 @@ The core idea is simple:
 
 For cookie-backed and session-backed platforms, AutoCLI is designed to stay headless after setup. For token-backed platforms, AutoCLI stores the connection once and reuses it. For local editors and public utilities, there is no auth step at all.
 
+## At a Glance
+
+| Item | Value |
+| --- | --- |
+| Package | `@vkop007/autocli` |
+| CLI command | `autocli` |
+| Providers | `94` |
+| Categories | `13` |
+| npm install | `npm install -g @vkop007/autocli` |
+| Local setup | `bun install` |
+
 ## Why Use AutoCLI
 
 - One command surface for many provider types: cookies, saved user sessions, API tokens, bot tokens, local tools, and no-auth public services.
@@ -85,7 +96,13 @@ AutoCLI currently exposes `94` providers across `13` active command groups.
 
 ## Installation
 
-Install dependencies:
+Install from npm:
+
+```bash
+npm install -g @vkop007/autocli
+```
+
+Set up the repo locally with Bun:
 
 ```bash
 bun install
@@ -110,6 +127,14 @@ bun run link:global
 ```
 
 If your shell still says `command not found`, open a new shell or run `hash -r`.
+
+## Open Source Project Files
+
+- [LICENSE](./LICENSE)
+- [Contributing Guide](./CONTRIBUTING.md)
+- [Security Policy](./SECURITY.md)
+
+If you plan to contribute, please do not commit live cookies, tokens, QR session state, or personal exports. AutoCLI should only store those locally on the contributor machine, never in the repository.
 
 ## Quick Start
 

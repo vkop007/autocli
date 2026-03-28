@@ -1,0 +1,39 @@
+name: Feature request
+description: Suggest a new provider, category improvement, or command.
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Provider
+        - Category
+        - Editor
+        - Data
+        - Tools
+        - Docs
+        - DX / CI
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve?
+      placeholder: Agents need ...
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      placeholder: Add `autocli ...`
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Extra context
+      description: Share example commands, provider docs, or related repos if helpful.
