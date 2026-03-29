@@ -7,6 +7,7 @@ describe("root program routing", () => {
   test("registers only global commands and category commands at the top level", () => {
     const program = createProgram();
     expect(program.commands.map((command) => command.name())).toEqual([
+      "login",
       "status",
       "doctor",
       "sessions",
@@ -50,6 +51,7 @@ describe("root program routing", () => {
   });
 
   test("allows category-based invocations", () => {
+    expect(() => assertCategoryOnlyInvocation(["login", "--browser"])).not.toThrow();
     expect(() => assertCategoryOnlyInvocation(["llm", "chatgpt", "text", "Hello"])).not.toThrow();
     expect(() => assertCategoryOnlyInvocation(["editor", "image", "info", "./photo.png"])).not.toThrow();
     expect(() => assertCategoryOnlyInvocation(["finance", "stocks", "AAPL"])).not.toThrow();

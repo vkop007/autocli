@@ -16,6 +16,8 @@ Built for real automation work:
 
 AutoCLI is designed to stay headless after setup. Import cookies, open a browser once and let AutoCLI capture the session for you, save a bot token once, or use public and local-tool providers with no auth at all.
 
+You can also bootstrap a shared AutoCLI browser profile once with `autocli login --browser`, then let later provider logins reuse that saved browser state for Google sign-in, passkeys, and other web-based identity flows.
+
 ## At a Glance
 
 | Item | Value |
@@ -45,6 +47,7 @@ bun run build
 Typical commands:
 
 ```bash
+autocli login --browser
 autocli status
 autocli llm chatgpt text "Write release notes for AutoCLI"
 autocli developer github me --json
@@ -210,12 +213,13 @@ autocli social x post "Launching AutoCLI" --image ./launch.png
 If you do not want to export cookies manually, many cookie-backed providers now also support:
 
 ```bash
+autocli login --browser
 autocli developer github login --browser
 autocli social x login --browser
 autocli llm qwen login --browser
 ```
 
-AutoCLI opens a real browser window, waits for you to sign in, extracts the session automatically, and skips the browser if an already-saved active session is available.
+`autocli login --browser` opens AutoCLI's shared browser profile so you can sign into Google or other identity providers once. Later provider logins reuse that same saved browser profile, and `autocli <category> <provider> login --browser` still skips opening the browser entirely when an already-saved active provider session is available.
 
 ### LLM prompting and generation
 

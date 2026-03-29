@@ -9,8 +9,10 @@ export const SESSIONS_DIR = join(AUTOCLI_DIR, "sessions");
 export const CONNECTIONS_DIR = join(AUTOCLI_DIR, "connections");
 export const JOBS_DIR = join(AUTOCLI_DIR, "jobs");
 export const CACHE_DIR = join(AUTOCLI_DIR, "cache");
+export const BROWSER_DIR = join(AUTOCLI_DIR, "browser");
 export const SESSION_FILE_VERSION = 1 as const;
 export const DEFAULT_ACCOUNT_NAME = "default";
+export const DEFAULT_BROWSER_PROFILE = "default";
 
 export function sanitizeAccountName(input: string): string {
   const normalized = input.trim().toLowerCase();
@@ -46,6 +48,14 @@ export function getCachePath(...segments: string[]): string {
   return join(CACHE_DIR, ...segments);
 }
 
+export function getBrowserProfileDir(profile = DEFAULT_BROWSER_PROFILE): string {
+  return join(BROWSER_DIR, sanitizeAccountName(profile));
+}
+
+export function getBrowserStatePath(profile = DEFAULT_BROWSER_PROFILE): string {
+  return join(getBrowserProfileDir(profile), "state.json");
+}
+
 export async function ensureDirectory(path: string): Promise<void> {
   await mkdir(path, { recursive: true });
 }
@@ -79,6 +89,15 @@ export async function ensureJobDirectory(platform?: Platform): Promise<void> {
 
 export async function ensureCacheDirectory(...segments: string[]): Promise<void> {
   await ensureDirectory(join(CACHE_DIR, ...segments));
+}
+
+export async function ensureBrowserDirectory(profile?: string): Promise<void> {
+  if (profile) {
+    await ensureDirectory(getBrowserProfileDir(profile));
+    return;
+  }
+
+  await ensureDirectory(BROWSER_DIR);
 }
 
 export async function ensureParentDirectory(filePath: string): Promise<void> {
