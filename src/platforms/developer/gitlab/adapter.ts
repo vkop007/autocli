@@ -1,5 +1,5 @@
 import { AutoCliError } from "../../../errors.js";
-import type { AdapterActionResult, AdapterStatusResult, Platform, SessionStatus, SessionUser } from "../../../types.js";
+import type { AdapterActionResult, AdapterStatusResult, LoginInput, Platform, SessionStatus, SessionUser } from "../../../types.js";
 import { CookieManager, createSessionFile, serializeCookieJar } from "../../../utils/cookie-manager.js";
 import type { CookieJar } from "tough-cookie";
 import {
@@ -26,7 +26,7 @@ export class GitLabAdapter {
 
   private readonly cookieManager = new CookieManager();
 
-  async login(input: { account?: string; cookieFile?: string; cookieString?: string; cookieJson?: string }): Promise<AdapterActionResult> {
+  async login(input: LoginInput): Promise<AdapterActionResult> {
     const imported = await this.cookieManager.importCookies(this.platform, input);
     const baseUrl = this.resolveBaseUrl();
     await this.ensureSessionCookie(imported.jar, baseUrl);

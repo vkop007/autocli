@@ -17,7 +17,8 @@ export class DeepSeekAdapter extends CookieLlmAdapter {
   async login(input: LoginInput): Promise<AdapterActionResult> {
     const imported = await this.cookieManager.importCookies(this.platform, input);
     const account = input.account?.trim() || "default";
-    const token = normalizeOptionalDeepSeekToken(input.token);
+    const token = normalizeOptionalDeepSeekToken(input.token)
+      ?? extractDeepSeekTokenFromBrowserState(imported.browserState?.localStorage);
     const sessionPath = await this.saveSession({
       account,
       source: imported.source,
@@ -155,4 +156,19 @@ function normalizeOptionalDeepSeekToken(token?: string): string | undefined {
   }
 
   return normalizeDeepSeekAuthToken(token);
+}
+
+function extractDeepSeekTokenFromBrowserState(localStorage?: Record<string, string>): string | undefined {
+  if (!localStorage) {
+    return undefined;
+  }
+
+  for (const key of ["userToken", "authToken", "token"]) {
+    const value = localStorage[key];
+    if (typeof value === "string" && value.trim().length > 0) {
+      return normalizeDeepSeekAuthToken(value);
+    }
+  }
+
+  return undefined;
 }

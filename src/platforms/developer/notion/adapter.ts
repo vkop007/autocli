@@ -56,9 +56,13 @@ export class NotionAdapter {
 
   async login(input: LoginInput): Promise<AdapterActionResult> {
     const imported = await this.cookieManager.importCookies(this.platform, {
+      account: input.account,
       cookieFile: input.cookieFile,
       cookieString: input.cookieString,
       cookieJson: input.cookieJson,
+      browser: input.browser,
+      browserTimeoutSeconds: input.browserTimeoutSeconds,
+      browserUrl: input.browserUrl,
     });
 
     const tokenV2 = await this.getCookieValue(imported.jar, "token_v2");

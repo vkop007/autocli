@@ -17,7 +17,8 @@ export class QwenAdapter extends CookieLlmAdapter {
   async login(input: LoginInput): Promise<AdapterActionResult> {
     const imported = await this.cookieManager.importCookies(this.platform, input);
     const account = input.account?.trim() || "default";
-    const token = normalizeOptionalQwenToken(input.token);
+    const token = normalizeOptionalQwenToken(input.token)
+      ?? extractQwenTokenFromBrowserState(imported.browserState?.localStorage);
     const sessionPath = await this.saveSession({
       account,
       source: imported.source,
@@ -147,4 +148,19 @@ function normalizeOptionalQwenToken(token?: string): string | undefined {
   }
 
   return normalizeQwenAuthToken(token);
+}
+
+function extractQwenTokenFromBrowserState(localStorage?: Record<string, string>): string | undefined {
+  if (!localStorage) {
+    return undefined;
+  }
+
+  for (const key of ["token", "accessToken", "authToken"]) {
+    const value = localStorage[key];
+    if (typeof value === "string" && value.trim().length > 0) {
+      return normalizeQwenAuthToken(value);
+    }
+  }
+
+  return undefined;
 }

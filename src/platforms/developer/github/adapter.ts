@@ -112,9 +112,13 @@ export class GitHubAdapter {
 
   async loginWithCookies(input: LoginInput): Promise<AdapterActionResult> {
     const imported = await this.cookieManager.importCookies(this.platform, {
+      account: input.account,
       cookieFile: input.cookieFile,
       cookieString: input.cookieString,
       cookieJson: input.cookieJson,
+      browser: input.browser,
+      browserTimeoutSeconds: input.browserTimeoutSeconds,
+      browserUrl: input.browserUrl,
     });
     const client = new GitHubApiClient({ jar: imported.jar });
     const viewer = await client.getViewer();

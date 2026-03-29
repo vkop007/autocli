@@ -1,7 +1,7 @@
 {
   "name": "@vkop007/autocli",
   "version": "0.1.0",
-  "description": "Bun-first CLI for browserless social media automation using imported web sessions.",
+  "description": "Terminal automation toolkit for developers and AI agents across LLMs, social platforms, developer tools, editors, data tools, and public utilities.",
   "type": "module",
   "license": "MIT",
   "repository": {
@@ -44,8 +44,8 @@
     "prepublishOnly": "bun run typecheck && bun test && bun run build",
     "link:global": "bun run scripts/link-global.ts",
     "typecheck": "tsc --noEmit",
-    "build": "bun build --target=node --format=esm --external tlsclientwrapper --outdir dist ./src/index.ts",
-    "build:bin": "bun build --compile --target=bun --outfile bin/autocli ./src/index.ts",
+    "build": "bun build --target=node --format=esm --external tlsclientwrapper --external playwright-core --outdir dist ./src/index.ts",
+    "build:bin": "bun build --compile --target=bun --external playwright-core --outfile bin/autocli ./src/index.ts",
     "test": "bun test"
   },
   "dependencies": {
@@ -60,6 +60,7 @@
     "ora": "^9.3.0",
     "pdf-lib": "^1.17.1",
     "picocolors": "^1.1.1",
+    "playwright-core": "^1.58.2",
     "qrcode-terminal": "^0.12.0",
     "telegram": "^2.26.22",
     "tlsclientwrapper": "^4.2.0",

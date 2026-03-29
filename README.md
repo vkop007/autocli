@@ -14,7 +14,7 @@ Built for real automation work:
 - clean `--json` output for scripts, agents, and orchestration
 - support for cookies, saved sessions, bot tokens, local tools, and public services
 
-AutoCLI is designed to stay headless after setup. Import a browser session once, save a bot token once, or use public and local-tool providers with no auth at all.
+AutoCLI is designed to stay headless after setup. Import cookies, open a browser once and let AutoCLI capture the session for you, save a bot token once, or use public and local-tool providers with no auth at all.
 
 ## At a Glance
 
@@ -116,7 +116,7 @@ AutoCLI currently exposes `94` providers across `13` active command groups.
 | --- | --- |
 | `none` | Public or local functionality. No cookies, no token, no API key. |
 | `local tools` | Uses binaries already installed on the machine, like `ffmpeg`, `ffprobe`, `qpdf`, or `yt-dlp`. |
-| `cookies` | Import a browser session once with `login --cookies ...`, then reuse it headlessly. |
+| `cookies` | Import a browser session with `login --cookies ...` or let AutoCLI open a browser with `login --browser`, then reuse it headlessly. |
 | `session` | Do one interactive login once, save the resulting user session locally, then reuse it headlessly. |
 | `cookies + local token` | Cookie session plus a token the site keeps in localStorage or a similar client store. |
 | `api token` | A personal or service token saved once with `login --token ...`. |
@@ -187,6 +187,7 @@ Typical first-run flows:
 
 ```bash
 autocli social x login --cookies ./x.cookies.json
+autocli developer github login --browser
 autocli llm chatgpt text "Summarize this changelog"
 autocli developer github login --cookies ./github.cookies.json
 autocli social telegram login --api-id 123456 --api-hash abcdef123456 --qr
@@ -205,6 +206,16 @@ autocli social instagram post ./photo.jpg --caption "Shipping from the terminal"
 autocli social x login --cookies ./x.cookies.json
 autocli social x post "Launching AutoCLI" --image ./launch.png
 ```
+
+If you do not want to export cookies manually, many cookie-backed providers now also support:
+
+```bash
+autocli developer github login --browser
+autocli social x login --browser
+autocli llm qwen login --browser
+```
+
+AutoCLI opens a real browser window, waits for you to sign in, extracts the session automatically, and skips the browser if an already-saved active session is available.
 
 ### LLM prompting and generation
 
@@ -515,6 +526,8 @@ AutoCLI includes a refresh layer in `src/utils/autorefresh.ts`.
 - Some platforms still do not support a durable cookie-only refresh path, so expiration handling remains provider-specific.
 
 This is the most practical browserless approach for copied web sessions, but it is not a universal guarantee for every website.
+
+For cookie-backed providers that support interactive capture, you can also use `login --browser` to open a real browser, complete the sign-in flow manually, and let AutoCLI save the session automatically.
 
 ## Project Structure
 

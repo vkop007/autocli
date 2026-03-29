@@ -44,6 +44,9 @@ export interface LoginInput {
   cookieFile?: string;
   cookieString?: string;
   cookieJson?: string;
+  browser?: boolean;
+  browserTimeoutSeconds?: number;
+  browserUrl?: string;
   token?: string;
 }
 
