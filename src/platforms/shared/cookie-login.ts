@@ -38,3 +38,5 @@ function parseBrowserTimeoutSeconds(value: string): number {
 
   return parsed;
 }
+
+export { parseBrowserTimeoutSeconds };

@@ -4,7 +4,7 @@ import { constants } from "node:fs";
 
 import { Command } from "commander";
 
-import { AUTOCLI_DIR, CACHE_DIR, CONNECTIONS_DIR, JOBS_DIR, SESSIONS_DIR } from "../config.js";
+import { AUTOCLI_DIR, BROWSER_DIR, CACHE_DIR, CONNECTIONS_DIR, JOBS_DIR, SESSIONS_DIR } from "../config.js";
 import { ConnectionStore } from "../core/auth/connection-store.js";
 import { resolveCommandContext } from "../utils/cli.js";
 import { printDoctorTable, printJson } from "../utils/output.js";
@@ -42,6 +42,7 @@ const DIRECTORY_CHECKS = [
   { id: "connections-dir", label: "Connections directory", path: CONNECTIONS_DIR },
   { id: "jobs-dir", label: "Jobs directory", path: JOBS_DIR },
   { id: "cache-dir", label: "Cache directory", path: CACHE_DIR },
+  { id: "browser-dir", label: "Browser directory", path: BROWSER_DIR },
 ] as const;
 
 const BINARY_CHECKS = [
