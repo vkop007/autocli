@@ -17,6 +17,7 @@ import {
 } from "../config.js";
 import { AutoCliError } from "../errors.js";
 import { getPlatformCookieDomain, getPlatformHomeUrl, isPlatform, PLATFORM_NAMES } from "../platforms/config.js";
+import { captureBrowserLogin, type BrowserLoginCapture } from "./browser-cookie-login.js";
 import type { Platform, PlatformSession, SessionSource } from "../types.js";
 
 const BrowserCookieSchema = z.object({
@@ -67,27 +68,33 @@ const SessionFileSchema = z.object({
 interface ImportedCookies {
   jar: CookieJar;
   source: SessionSource;
+  browserState?: BrowserLoginCapture;
 }
 
 export class CookieManager {
   async importCookies(
     platform: Platform,
     input: {
+      account?: string;
       cookieFile?: string;
       cookieString?: string;
       cookieJson?: string;
+      browser?: boolean;
+      browserTimeoutSeconds?: number;
+      browserUrl?: string;
     },
   ): Promise<ImportedCookies> {
     const providedInputs = [
       input.cookieFile ? "cookieFile" : null,
       input.cookieString ? "cookieString" : null,
       input.cookieJson ? "cookieJson" : null,
+      input.browser ? "browser" : null,
     ].filter(Boolean);
 
     if (providedInputs.length !== 1) {
       throw new AutoCliError(
         "INVALID_LOGIN_INPUT",
-        "Provide exactly one of --cookies, --cookie-string, or --cookie-json.",
+        "Provide exactly one of --cookies, --cookie-string, --cookie-json, or --browser.",
         {
           details: {
             providedInputs,
@@ -118,6 +125,28 @@ export class CookieManager {
           importedAt: new Date().toISOString(),
           description: "Imported from raw cookie string",
         },
+      };
+    }
+
+    if (input.browser) {
+      const reused = await this.tryReuseActiveSession(platform, input.account);
+      if (reused) {
+        return reused;
+      }
+
+      const browserState = await captureBrowserLogin(platform, {
+        browserUrl: input.browserUrl,
+        timeoutSeconds: input.browserTimeoutSeconds,
+      });
+
+      return {
+        jar: await this.parseCookieJson(platform, JSON.stringify(browserState.cookies)),
+        source: {
+          kind: "cookie_json",
+          importedAt: new Date().toISOString(),
+          description: `Imported from interactive browser login for ${platform}`,
+        },
+        browserState,
       };
     }
 
@@ -381,6 +410,22 @@ export class CookieManager {
           },
         },
       );
+    }
+  }
+
+  private async tryReuseActiveSession(platform: Platform, account?: string): Promise<ImportedCookies | null> {
+    try {
+      const { session } = await this.loadSession(platform, account);
+      if (session.status.state !== "active") {
+        return null;
+      }
+
+      return {
+        jar: await this.createJar(session),
+        source: session.source,
+      };
+    } catch {
+      return null;
     }
   }
 }

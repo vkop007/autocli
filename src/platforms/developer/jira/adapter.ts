@@ -26,9 +26,13 @@ export class JiraAdapter {
 
   async login(input: LoginInput & { site?: string }): Promise<AdapterActionResult> {
     const imported = await this.cookieManager.importCookies(this.platform, {
+      account: input.account,
       cookieFile: input.cookieFile,
       cookieString: input.cookieString,
       cookieJson: input.cookieJson,
+      browser: input.browser,
+      browserTimeoutSeconds: input.browserTimeoutSeconds,
+      browserUrl: input.site ?? input.browserUrl,
     });
     const siteUrl = await this.resolveSiteUrl(imported.jar, input.site);
     const client = this.createClient(imported.jar, siteUrl);

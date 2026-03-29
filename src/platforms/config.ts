@@ -103,6 +103,8 @@ export interface PlatformConfig {
   homeUrl: string;
   cookieDomain: string;
   authCookieNames: readonly string[];
+  browserAuthCookieNames?: readonly string[];
+  browserAuthStorageKeys?: readonly string[];
 }
 
 export const PLATFORM_CONFIG: Record<PlatformName, PlatformConfig> = {
@@ -175,6 +177,7 @@ export const PLATFORM_CONFIG: Record<PlatformName, PlatformConfig> = {
     homeUrl: "https://www.atlassian.com/software/confluence",
     cookieDomain: "atlassian.net",
     authCookieNames: ["cloud.session.token", "tenant.session.token", "atlassian.xsrf.token"],
+    browserAuthCookieNames: ["cloud.session.token", "tenant.session.token"],
   },
   crypto: {
     displayName: "Crypto",
@@ -196,6 +199,7 @@ export const PLATFORM_CONFIG: Record<PlatformName, PlatformConfig> = {
     homeUrl: "https://chat.deepseek.com/",
     cookieDomain: "deepseek.com",
     authCookieNames: [],
+    browserAuthStorageKeys: ["userToken", "authToken", "token"],
   },
   deezer: {
     displayName: "Deezer",
@@ -322,6 +326,7 @@ export const PLATFORM_CONFIG: Record<PlatformName, PlatformConfig> = {
     homeUrl: "https://github.com/",
     cookieDomain: "github.com",
     authCookieNames: ["user_session", "_gh_sess", "logged_in"],
+    browserAuthCookieNames: ["user_session", "logged_in"],
   },
   githubbot: {
     displayName: "GitHub Bot",
@@ -378,6 +383,7 @@ export const PLATFORM_CONFIG: Record<PlatformName, PlatformConfig> = {
     homeUrl: "https://www.instagram.com/",
     cookieDomain: "instagram.com",
     authCookieNames: ["sessionid", "csrftoken", "ds_user_id"],
+    browserAuthCookieNames: ["sessionid", "ds_user_id"],
   },
   jira: {
     displayName: "Jira",
@@ -385,6 +391,7 @@ export const PLATFORM_CONFIG: Record<PlatformName, PlatformConfig> = {
     homeUrl: "https://www.atlassian.com/software/jira",
     cookieDomain: "atlassian.net",
     authCookieNames: ["cloud.session.token", "tenant.session.token", "atlassian.xsrf.token"],
+    browserAuthCookieNames: ["cloud.session.token", "tenant.session.token"],
   },
   justwatch: {
     displayName: "JustWatch",
@@ -476,6 +483,7 @@ export const PLATFORM_CONFIG: Record<PlatformName, PlatformConfig> = {
     homeUrl: "https://www.linkedin.com/",
     cookieDomain: "linkedin.com",
     authCookieNames: ["li_at", "JSESSIONID"],
+    browserAuthCookieNames: ["li_at"],
   },
   linear: {
     displayName: "Linear",
@@ -490,6 +498,7 @@ export const PLATFORM_CONFIG: Record<PlatformName, PlatformConfig> = {
     homeUrl: "https://www.notion.so/",
     cookieDomain: "notion.so",
     authCookieNames: ["token_v2", "notion_user_id"],
+    browserAuthCookieNames: ["token_v2"],
   },
   perplexity: {
     displayName: "Perplexity",
@@ -735,6 +744,7 @@ export const PLATFORM_CONFIG: Record<PlatformName, PlatformConfig> = {
     homeUrl: "https://x.com/",
     cookieDomain: "x.com",
     authCookieNames: ["auth_token", "ct0"],
+    browserAuthCookieNames: ["auth_token"],
   },
   xml: {
     displayName: "XML",
@@ -792,4 +802,13 @@ export function getPlatformCookieDomain(platform: PlatformName): string {
 
 export function getPlatformAuthCookieNames(platform: PlatformName): readonly string[] {
   return getPlatformConfig(platform).authCookieNames;
+}
+
+export function getPlatformBrowserAuthCookieNames(platform: PlatformName): readonly string[] {
+  const config = getPlatformConfig(platform);
+  return config.browserAuthCookieNames ?? config.authCookieNames;
+}
+
+export function getPlatformBrowserAuthStorageKeys(platform: PlatformName): readonly string[] {
+  return getPlatformConfig(platform).browserAuthStorageKeys ?? [];
 }

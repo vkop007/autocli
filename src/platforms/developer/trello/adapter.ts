@@ -25,9 +25,13 @@ export class TrelloAdapter {
 
   async login(input: LoginInput): Promise<AdapterActionResult> {
     const imported = await this.cookieManager.importCookies(this.platform, {
+      account: input.account,
       cookieFile: input.cookieFile,
       cookieString: input.cookieString,
       cookieJson: input.cookieJson,
+      browser: input.browser,
+      browserTimeoutSeconds: input.browserTimeoutSeconds,
+      browserUrl: input.browserUrl,
     });
     const client = this.createClient(imported.jar);
     const viewer = await client.getMe();
