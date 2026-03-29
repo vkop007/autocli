@@ -271,6 +271,7 @@ autocli tools timezone "Mumbai"
 autocli tools oembed https://www.youtube.com/watch?v=dQw4w9WgXcQ
 autocli login --browser
 autocli tools http github.com capture --browser-timeout 60
+autocli tools http github.com capture --summary --group-by endpoint --browser-timeout 60
 autocli tools uptime https://example.com --json
 autocli tools rss https://hnrss.org/frontpage --limit 5
 ```

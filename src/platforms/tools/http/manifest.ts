@@ -13,6 +13,7 @@ import type { PlatformCommandBuildOptions, PlatformDefinition } from "../../../c
 const EXAMPLES = [
   "autocli tools http github inspect",
   "autocli tools http github.com capture --browser-timeout 60",
+  "autocli tools http github.com capture --summary --group-by endpoint --browser-timeout 60",
   "autocli tools http github request GET /settings/profile",
   "autocli tools http officialgxdyt.atlassian.net request GET /rest/api/3/myself --platform jira",
   "autocli tools http github request POST /session --json-body '{\"ok\":true}' --browser",
@@ -30,6 +31,8 @@ function buildHttpCommand(options: PlatformCommandBuildOptions = {}): Command {
     .option("--browser-timeout <seconds>", "Browser wait timeout in seconds", (value) => Number.parseInt(value, 10), 60)
     .option("--limit <number>", "Capture result limit (default: 25)", (value) => Number.parseInt(value, 10), 25)
     .option("--filter <text>", "Only include captured requests whose URL contains this text")
+    .option("--summary", "Summarize captured requests into likely useful endpoint groups")
+    .option("--group-by <mode>", "Capture summary grouping: endpoint, full-url, method, or status", "endpoint")
     .option("--timeout <ms>", "Request timeout in milliseconds", (value) => Number.parseInt(value, 10), 20000)
     .option("--header <header>", "Request header in 'Name: value' form", collectOptionValues, [])
     .option("--body <text>", "Raw request body for request")
@@ -54,6 +57,8 @@ function buildHttpCommand(options: PlatformCommandBuildOptions = {}): Command {
       browserTimeout: number;
       limit: number;
       filter?: string;
+      summary?: boolean;
+      groupBy?: string;
       timeout: number;
       header: string[];
       body?: string;
@@ -79,6 +84,8 @@ function buildHttpCommand(options: PlatformCommandBuildOptions = {}): Command {
             browserTimeoutSeconds: input.browserTimeout,
             limit: input.limit,
             filter: input.filter,
+            summary: input.summary,
+            groupBy: input.groupBy as "endpoint" | "full-url" | "method" | "status" | undefined,
           });
         case "request": {
           const [method, pathOrUrl] = args;

@@ -80,6 +80,29 @@ function printCapture(data: Record<string, unknown>): void {
   printKeyValue("hostname", data.hostname);
   printKeyValue("final-url", data.finalUrl);
   printKeyValue("timed-out", data.timedOut);
+  printKeyValue("group-by", data.groupBy);
+
+  const summary = toRecord(data.summary);
+  const groups = Array.isArray(summary.groups) ? summary.groups : [];
+  if (groups.length > 0) {
+    console.log("summary:");
+    for (const rawGroup of groups.slice(0, 10)) {
+      if (!rawGroup || typeof rawGroup !== "object") {
+        continue;
+      }
+
+      const group = rawGroup as Record<string, unknown>;
+      const count = typeof group.count === "number" ? group.count : 0;
+      const methods = toStringArray(group.methods).join(", ");
+      const statuses = toNumberArray(group.statuses).join(", ");
+      const key = typeof group.key === "string" ? group.key : "unknown";
+      const details = [
+        methods ? `methods=${methods}` : "",
+        statuses ? `statuses=${statuses}` : "",
+      ].filter(Boolean).join(" ");
+      console.log(`  ${count}x ${key}${details ? ` (${details})` : ""}`);
+    }
+  }
 
   const requests = Array.isArray(data.requests) ? data.requests : [];
   if (requests.length === 0) {
@@ -150,4 +173,12 @@ function toStringArray(value: unknown): string[] {
   }
 
   return value.filter((entry): entry is string => typeof entry === "string" && entry.length > 0);
+}
+
+function toNumberArray(value: unknown): number[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.filter((entry): entry is number => typeof entry === "number" && Number.isFinite(entry));
 }

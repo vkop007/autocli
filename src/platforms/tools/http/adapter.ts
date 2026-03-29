@@ -32,6 +32,8 @@ export type SessionHttpCaptureInput = {
   browserTimeoutSeconds?: number;
   limit?: number;
   filter?: string;
+  summary?: boolean;
+  groupBy?: SessionHttpCaptureGroupBy;
 };
 
 export type SessionHttpRequestInput = {
@@ -71,6 +73,8 @@ type RequestBody = {
   body?: string;
   contentType?: string;
 };
+
+export type SessionHttpCaptureGroupBy = "endpoint" | "full-url" | "method" | "status";
 
 type RequestResponsePayload = {
   requestUrl: string;
@@ -167,13 +171,21 @@ export class SessionHttpAdapter {
       filterText: input.filter,
       limit: input.limit,
     });
+    const groupBy = normalizeCaptureGroupBy(input.groupBy);
+    const summary = input.summary || input.groupBy
+      ? summarizeCapturedRequests(capture.requests, groupBy)
+      : undefined;
+    const groupLabel = groupBy === "full-url" ? "URL" : groupBy;
+    const message = summary
+      ? `Captured ${capture.requests.length} requests across ${summary.groups.length} ${groupLabel} group${summary.groups.length === 1 ? "" : "s"} for ${resolved.hostname}.`
+      : `Captured ${capture.requests.length} request${capture.requests.length === 1 ? "" : "s"} for ${resolved.hostname}.`;
 
     return {
       ok: true,
       platform: this.platform,
       account: resolved.session?.session.account ?? "browser",
       action: "capture",
-      message: `Captured ${capture.requests.length} request${capture.requests.length === 1 ? "" : "s"} for ${resolved.hostname}.`,
+      message,
       url: capture.finalUrl,
       sessionPath: resolved.session?.path,
       user: resolved.session?.session.user,
@@ -185,6 +197,8 @@ export class SessionHttpAdapter {
         finalUrl: capture.finalUrl,
         timedOut: capture.timedOut,
         launchedFresh: capture.launchedFresh,
+        groupBy: summary ? groupBy : undefined,
+        summary,
         requests: capture.requests,
       },
     };
@@ -725,6 +739,18 @@ function normalizeHttpMethod(method: string): string {
   return normalized;
 }
 
+function normalizeCaptureGroupBy(value: SessionHttpCaptureInput["groupBy"]): SessionHttpCaptureGroupBy {
+  const normalized = value?.trim().toLowerCase() ?? "endpoint";
+  if (normalized === "endpoint" || normalized === "full-url" || normalized === "method" || normalized === "status") {
+    return normalized;
+  }
+
+  throw new AutoCliError(
+    "TOOLS_HTTP_CAPTURE_GROUP_INVALID",
+    `Unsupported capture group value "${value}". Use endpoint, full-url, method, or status.`,
+  );
+}
+
 function ensureTrailingSlash(value: string): string {
   return value.endsWith("/") ? value : `${value}/`;
 }
@@ -746,5 +772,111 @@ function decodeURIComponentSafe(value: string): string {
     return decodeURIComponent(value);
   } catch {
     return value;
+  }
+}
+
+export function summarizeCapturedRequests(
+  requests: ReadonlyArray<{
+    method: string;
+    url: string;
+    status?: number;
+    resourceType?: string;
+  }>,
+  groupBy: SessionHttpCaptureGroupBy,
+): {
+  totalRequests: number;
+  groups: Array<{
+    key: string;
+    count: number;
+    methods: string[];
+    statuses: number[];
+    resourceTypes: string[];
+    sampleUrl?: string;
+  }>;
+} {
+  const groups = new Map<string, {
+    key: string;
+    count: number;
+    methods: Set<string>;
+    statuses: Set<number>;
+    resourceTypes: Set<string>;
+    sampleUrl?: string;
+  }>();
+
+  for (const request of requests) {
+    const key = buildCaptureGroupKey(request, groupBy);
+    const existing = groups.get(key) ?? {
+      key,
+      count: 0,
+      methods: new Set<string>(),
+      statuses: new Set<number>(),
+      resourceTypes: new Set<string>(),
+      sampleUrl: request.url,
+    };
+
+    existing.count += 1;
+    if (request.method) {
+      existing.methods.add(request.method);
+    }
+    if (typeof request.status === "number") {
+      existing.statuses.add(request.status);
+    }
+    if (request.resourceType) {
+      existing.resourceTypes.add(request.resourceType);
+    }
+    if (!existing.sampleUrl) {
+      existing.sampleUrl = request.url;
+    }
+
+    groups.set(key, existing);
+  }
+
+  return {
+    totalRequests: requests.length,
+    groups: [...groups.values()]
+      .map((group) => ({
+        key: group.key,
+        count: group.count,
+        methods: [...group.methods].sort((left, right) => left.localeCompare(right)),
+        statuses: [...group.statuses].sort((left, right) => left - right),
+        resourceTypes: [...group.resourceTypes].sort((left, right) => left.localeCompare(right)),
+        sampleUrl: group.sampleUrl,
+      }))
+      .sort((left, right) => {
+        if (left.count !== right.count) {
+          return right.count - left.count;
+        }
+        return left.key.localeCompare(right.key);
+      }),
+  };
+}
+
+function buildCaptureGroupKey(
+  request: {
+    method: string;
+    url: string;
+    status?: number;
+  },
+  groupBy: SessionHttpCaptureGroupBy,
+): string {
+  switch (groupBy) {
+    case "full-url":
+      return request.url;
+    case "method":
+      return request.method || "UNKNOWN";
+    case "status":
+      return typeof request.status === "number" ? String(request.status) : "unknown";
+    case "endpoint":
+    default:
+      return normalizeEndpointKey(request.url);
+  }
+}
+
+function normalizeEndpointKey(url: string): string {
+  try {
+    const parsed = new URL(url);
+    return `${parsed.origin}${parsed.pathname}`;
+  } catch {
+    return url;
   }
 }
