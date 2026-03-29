@@ -60,6 +60,7 @@ export const PLATFORM_NAMES = [
   "pinterest",
   "qr",
   "qwen",
+  "reddit",
   "redirect",
   "screenshot",
   "robots",
@@ -549,6 +550,14 @@ export const PLATFORM_CONFIG: Record<PlatformName, PlatformConfig> = {
     homeUrl: "https://chat.qwen.ai/",
     cookieDomain: "qwen.ai",
     authCookieNames: ["token"],
+  },
+  reddit: {
+    displayName: "Reddit",
+    origin: "https://www.reddit.com",
+    homeUrl: "https://www.reddit.com/",
+    cookieDomain: "reddit.com",
+    authCookieNames: ["reddit_session", "token_v2"],
+    browserAuthCookieNames: ["reddit_session", "token_v2"],
   },
   redirect: {
     displayName: "Redirect",

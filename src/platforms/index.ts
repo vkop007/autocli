@@ -56,6 +56,7 @@ import { youtubeMusicPlatformDefinition } from "./music/youtube-music/manifest.j
 import { notionPlatformDefinition } from "./developer/notion/manifest.js";
 import { blueskyPlatformDefinition } from "./social/bluesky/manifest.js";
 import { pinterestPlatformDefinition } from "./social/pinterest/manifest.js";
+import { redditPlatformDefinition } from "./social/reddit/manifest.js";
 import { cheatPlatformDefinition } from "./tools/cheat/manifest.js";
 import { dnsPlatformDefinition } from "./tools/dns/manifest.js";
 import { faviconPlatformDefinition } from "./tools/favicon/manifest.js";
@@ -172,6 +173,7 @@ const definitions: readonly PlatformDefinition[] = [
   stocksPlatformDefinition,
   textPlatformDefinition,
   pinterestPlatformDefinition,
+  redditPlatformDefinition,
   telegramPlatformDefinition,
   telegrambotPlatformDefinition,
   threadsPlatformDefinition,
