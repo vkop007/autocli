@@ -13,7 +13,7 @@ import {
   normalizeRedditThreadTarget,
   normalizeRedditUsernameTarget,
 } from "./helpers.js";
-import { runBackgroundBrowserAction, runSharedBrowserAction } from "../../../utils/browser-cookie-login.js";
+import { runBrowserActionPlan } from "../../../utils/browser-cookie-login.js";
 
 import type { Page as PlaywrightPage } from "playwright-core";
 import type { SessionHttpClient } from "../../../utils/http-client.js";
@@ -604,13 +604,14 @@ export class RedditAdapter extends BasePlatformAdapter {
   private async browserSubmitPost(input: RedditSubmitInput): Promise<AdapterActionResult> {
     const loaded = await this.ensureAvailableSession(input.account);
     const submitUrl = `${REDDIT_ORIGIN}/r/${encodeURIComponent(input.subreddit)}/submit${input.url ? "?type=LINK" : "?type=TEXT"}`;
-    const result = await runBackgroundBrowserAction({
+    const result = await runBrowserActionPlan({
       targetUrl: submitUrl,
       timeoutSeconds: input.browserTimeoutSeconds ?? 60,
       initialCookies: loaded.session.cookieJar.cookies,
       headless: true,
       userAgent: REDDIT_BROWSER_USER_AGENT,
       locale: "en-US",
+      steps: [{ source: "headless" }],
       action: async (page) => {
         await this.ensureBrowserAuthenticated(page);
         await this.throwIfBrowserBlocked(page);
@@ -680,11 +681,16 @@ export class RedditAdapter extends BasePlatformAdapter {
     const loaded = await this.ensureAvailableSession(input.account);
     const resolved = normalizeRedditThingTarget(input.target);
     const targetUrl = resolved.url ? resolved.url.replace(REDDIT_ORIGIN, OLD_REDDIT_ORIGIN) : buildOldRedditThreadUrl(resolved);
-    const result = await runSharedBrowserAction({
+    const result = await runBrowserActionPlan({
       targetUrl,
       timeoutSeconds: input.browserTimeoutSeconds ?? 60,
-      announceLabel: `Opening shared AutoCLI browser profile for Reddit commenting: ${targetUrl}`,
       initialCookies: loaded.session.cookieJar.cookies,
+      steps: [
+        {
+          source: "shared",
+          announceLabel: `Opening shared AutoCLI browser profile for Reddit commenting: ${targetUrl}`,
+        },
+      ],
       action: async (page) => {
         await this.ensureBrowserAuthenticated(page);
         const thing = await this.findBrowserThing(page, resolved.fullname);
@@ -726,11 +732,16 @@ export class RedditAdapter extends BasePlatformAdapter {
     const loaded = await this.ensureAvailableSession(input.account);
     const resolved = normalizeRedditThingTarget(input.target);
     const targetUrl = resolved.url ? resolved.url.replace(REDDIT_ORIGIN, OLD_REDDIT_ORIGIN) : buildOldRedditThreadUrl(resolved);
-    const result = await runSharedBrowserAction({
+    const result = await runBrowserActionPlan({
       targetUrl,
       timeoutSeconds: input.browserTimeoutSeconds ?? 60,
-      announceLabel: `Opening shared AutoCLI browser profile for Reddit voting: ${targetUrl}`,
       initialCookies: loaded.session.cookieJar.cookies,
+      steps: [
+        {
+          source: "shared",
+          announceLabel: `Opening shared AutoCLI browser profile for Reddit voting: ${targetUrl}`,
+        },
+      ],
       action: async (page) => {
         await this.ensureBrowserAuthenticated(page);
         const thing = await this.findBrowserThing(page, resolved.fullname);
@@ -763,11 +774,16 @@ export class RedditAdapter extends BasePlatformAdapter {
     const loaded = await this.ensureAvailableSession(input.account);
     const resolved = normalizeRedditThingTarget(input.target);
     const targetUrl = resolved.url ? resolved.url.replace(REDDIT_ORIGIN, OLD_REDDIT_ORIGIN) : buildOldRedditThreadUrl(resolved);
-    const result = await runSharedBrowserAction({
+    const result = await runBrowserActionPlan({
       targetUrl,
       timeoutSeconds: input.browserTimeoutSeconds ?? 60,
-      announceLabel: `Opening shared AutoCLI browser profile for Reddit save: ${targetUrl}`,
       initialCookies: loaded.session.cookieJar.cookies,
+      steps: [
+        {
+          source: "shared",
+          announceLabel: `Opening shared AutoCLI browser profile for Reddit save: ${targetUrl}`,
+        },
+      ],
       action: async (page) => {
         await this.ensureBrowserAuthenticated(page);
         const thing = await this.findBrowserThing(page, resolved.fullname);
