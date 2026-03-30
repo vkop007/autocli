@@ -54,6 +54,15 @@ export interface PostMediaInput {
   account?: string;
   mediaPath: string;
   caption?: string;
+  title?: string;
+  description?: string;
+  visibility?: string;
+  madeForKids?: boolean;
+  tags?: string[];
+  playlist?: string;
+  thumbnailPath?: string;
+  browser?: boolean;
+  browserTimeoutSeconds?: number;
 }
 
 export interface TextPostInput {

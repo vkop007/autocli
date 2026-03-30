@@ -248,7 +248,9 @@ const PROVIDER_OVERRIDES: Partial<Record<PlatformDefinition["id"], PlatformCapab
   youtube: {
     mutation: "partial",
     browserLogin: "supported",
+    browserFallback: "supported",
     stability: "partial",
+    notes: ["Studio uploads are browser-backed. Watch-page likes, dislikes, comments, and subscriptions still use request tokens from the saved session."],
   },
   bluesky: {
     mutation: "unsupported",

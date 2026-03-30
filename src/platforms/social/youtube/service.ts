@@ -1,12 +1,14 @@
 import { createHash } from "node:crypto";
 import { spawn } from "node:child_process";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { access, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { basename, join, resolve } from "node:path";
 
 import { AutoCliError, isAutoCliError } from "../../../errors.js";
 import { maybeAutoRefreshSession } from "../../../utils/autorefresh.js";
+import { runBrowserActionPlan } from "../../../utils/browser-cookie-login.js";
 import { getPlatformHomeUrl, getPlatformOrigin } from "../../config.js";
+import { normalizeWhitespace } from "../../data/shared/text.js";
 import { parseYouTubeChannelTarget, parseYouTubePlaylistTarget, parseYouTubeTarget } from "../../../utils/targets.js";
 import { BasePlatformAdapter } from "../../shared/base-platform-adapter.js";
 import { Cookie, CookieJar } from "tough-cookie";
@@ -22,9 +24,11 @@ import type {
   SessionStatus,
   TextPostInput,
 } from "../../../types.js";
+import type { Page as PlaywrightPage } from "playwright-core";
 
 const YOUTUBE_ORIGIN = getPlatformOrigin("youtube");
 const YOUTUBE_HOME = getPlatformHomeUrl("youtube");
+const YOUTUBE_STUDIO_ORIGIN = "https://studio.youtube.com";
 const YOUTUBE_WATCH = `${YOUTUBE_ORIGIN}/watch?v=`;
 const YOUTUBE_CLIENT_NAME = "WEB";
 const YOUTUBE_CLIENT_NAME_ID = "1";
@@ -144,6 +148,15 @@ interface YouTubeCaptionTrack {
   isTranslatable?: boolean;
 }
 
+type YouTubeUploadVisibility = "private" | "unlisted" | "public";
+
+interface YouTubeUploadResult {
+  source: "headless" | "profile" | "shared";
+  studioUrl?: string;
+  videoUrl?: string;
+  videoId?: string;
+}
+
 export class YouTubeAdapter extends BasePlatformAdapter {
   readonly platform = "youtube" as const;
 
@@ -198,10 +211,98 @@ export class YouTubeAdapter extends BasePlatformAdapter {
   }
 
   async postMedia(_input: PostMediaInput): Promise<AdapterActionResult> {
-    throw new AutoCliError(
-      "UNSUPPORTED_ACTION",
-      "YouTube uploads are not implemented yet. They require a separate Studio upload flow, not just watch-page session actions.",
-    );
+    const input = _input;
+    const { session, path } = await this.prepareSession(input.account);
+    await this.ensureUsableSession(session);
+    await this.assertReadableUploadFile(input.mediaPath, "YOUTUBE_UPLOAD_FILE_MISSING", "Expected a readable video file for YouTube upload.");
+    if (input.thumbnailPath) {
+      await this.assertReadableUploadFile(
+        input.thumbnailPath,
+        "YOUTUBE_UPLOAD_THUMBNAIL_MISSING",
+        "Expected a readable thumbnail file for YouTube upload.",
+      );
+    }
+
+    const title = normalizeYouTubeUploadText(input.title ?? input.caption) ?? inferYouTubeUploadTitle(input.mediaPath);
+    const description = normalizeYouTubeUploadText(input.description);
+    const visibility = normalizeYouTubeUploadVisibility(input.visibility);
+    const tags = Array.isArray(input.tags) ? input.tags.map((entry) => entry.trim()).filter((entry) => entry.length > 0).slice(0, 50) : [];
+    const playlist = normalizeYouTubeUploadText(input.playlist);
+    const timeoutSeconds = input.browserTimeoutSeconds ?? 900;
+    const madeForKids = input.madeForKids ?? false;
+
+    const result = await runBrowserActionPlan<YouTubeUploadResult>({
+      targetUrl: YOUTUBE_STUDIO_ORIGIN,
+      timeoutSeconds,
+      initialCookies: session.cookieJar.cookies,
+      headless: true,
+      userAgent: YOUTUBE_USER_AGENT,
+      locale: "en-US",
+      steps: [
+        {
+          source: "headless",
+          shouldContinueOnError: (error) => shouldRetryYouTubeUploadInSharedBrowser(error),
+        },
+        {
+          source: "shared",
+          announceLabel: `Opening shared AutoCLI browser profile for YouTube Studio upload: ${YOUTUBE_STUDIO_ORIGIN}`,
+        },
+      ],
+      action: async (page, source) => {
+        await this.ensureStudioBrowserAuthenticated(page);
+        await this.openStudioUploadPage(page);
+        await this.attachStudioUploadFile(page, input.mediaPath);
+        await this.waitForStudioEditor(page);
+        await this.fillStudioTitle(page, title);
+
+        if (description) {
+          await this.fillStudioDescription(page, description);
+        }
+
+        await this.setStudioAudience(page, madeForKids);
+
+        if (playlist) {
+          await this.setStudioPlaylist(page, playlist);
+        }
+
+        if (tags.length > 0) {
+          await this.setStudioTags(page, tags);
+        }
+
+        if (input.thumbnailPath) {
+          await this.attachStudioThumbnail(page, input.thumbnailPath);
+        }
+
+        await this.advanceStudioUploadWizard(page, visibility);
+        return {
+          ...(await this.resolveStudioUploadResult(page)),
+          source,
+        };
+      },
+    });
+
+    return {
+      ok: true,
+      platform: this.platform,
+      account: session.account,
+      action: "upload",
+      message: `YouTube Studio upload completed for ${session.account} as ${visibility}.`,
+      id: result.videoId,
+      url: result.videoUrl ?? result.studioUrl,
+      sessionPath: path,
+      data: {
+        title,
+        description,
+        visibility,
+        madeForKids,
+        tags,
+        playlist,
+        thumbnailPath: input.thumbnailPath,
+        studioUrl: result.studioUrl,
+        videoUrl: result.videoUrl,
+        source: result.source,
+      },
+    };
   }
 
   async download(input: {
@@ -1053,6 +1154,19 @@ export class YouTubeAdapter extends BasePlatformAdapter {
     return lines.at(-1);
   }
 
+  private async assertReadableUploadFile(filePath: string, code: string, message: string): Promise<void> {
+    try {
+      await access(resolve(filePath));
+    } catch (error) {
+      throw new AutoCliError(code, message, {
+        cause: error,
+        details: {
+          path: resolve(filePath),
+        },
+      });
+    }
+  }
+
   private async prepareVideoActionContext(
     session: PlatformSession,
     videoId: string,
@@ -1384,6 +1498,281 @@ export class YouTubeAdapter extends BasePlatformAdapter {
     }
 
     return undefined;
+  }
+
+  private async ensureStudioBrowserAuthenticated(page: PlaywrightPage): Promise<void> {
+    await page.waitForLoadState("domcontentloaded");
+    await page.waitForTimeout(1_000);
+
+    const url = page.url();
+    if (isYouTubeLoginUrl(url)) {
+      throw new AutoCliError("YOUTUBE_BROWSER_NOT_LOGGED_IN", "The browser session is not logged into YouTube Studio. Re-login with `autocli social youtube login --browser` first.");
+    }
+
+    await this.throwIfStudioBrowserBlocked(page);
+  }
+
+  private async openStudioUploadPage(page: PlaywrightPage): Promise<void> {
+    const currentChannelId = extractStudioChannelId(page.url()) ?? (await this.resolveStudioChannelId(page));
+    if (currentChannelId) {
+      const uploadUrl = `${YOUTUBE_STUDIO_ORIGIN}/channel/${currentChannelId}/videos/upload?d=ud`;
+      if (page.url() !== uploadUrl) {
+        await page.goto(uploadUrl, {
+          waitUntil: "domcontentloaded",
+        });
+        await page.waitForTimeout(1_000);
+      }
+    } else {
+      const createTrigger = await firstVisibleYouTubeStudioLocator(page, [
+        '[aria-label="Create"]',
+        '#create-icon',
+        'button:has-text("Create")',
+      ]);
+      await createTrigger.click();
+      const uploadMenuItem = await firstVisibleYouTubeStudioLocator(page, [
+        'tp-yt-paper-item:has-text("Upload videos")',
+        '[role="menuitem"]:has-text("Upload videos")',
+        'button:has-text("Upload videos")',
+      ]);
+      await uploadMenuItem.click();
+    }
+
+    await firstPresentYouTubeStudioLocator(page, ['input[type="file"][accept*="video"]', 'input[type="file"]']);
+  }
+
+  private async attachStudioUploadFile(page: PlaywrightPage, mediaPath: string): Promise<void> {
+    const input = await firstPresentYouTubeStudioLocator(page, ['input[type="file"][accept*="video"]', 'input[type="file"]']);
+    await input.setInputFiles(mediaPath);
+    await page.waitForTimeout(2_000);
+  }
+
+  private async waitForStudioEditor(page: PlaywrightPage): Promise<void> {
+    const deadline = Date.now() + 120_000;
+    while (Date.now() < deadline) {
+      if (
+        await hasVisibleYouTubeStudioLocator(page, [
+          'ytcp-social-suggestions-textbox[label*="Title" i] #textbox',
+          '#textbox[contenteditable="true"]',
+          'tp-yt-paper-radio-button:has-text("No, it\'s not made for kids")',
+        ])
+      ) {
+        return;
+      }
+
+      await this.throwIfStudioBrowserBlocked(page);
+      await page.waitForTimeout(500);
+    }
+
+    throw new AutoCliError("YOUTUBE_UPLOAD_EDITOR_TIMEOUT", "YouTube Studio never showed the upload editor after selecting the media file.");
+  }
+
+  private async fillStudioTitle(page: PlaywrightPage, title: string): Promise<void> {
+    const titleBox = await this.getStudioMetadataTextboxes(page).then((boxes) => boxes[0]);
+    if (!titleBox) {
+      throw new AutoCliError("YOUTUBE_UPLOAD_TITLE_MISSING", "YouTube Studio did not expose the title field after the upload started.");
+    }
+
+    await titleBox.click();
+    await page.keyboard.press("Meta+A").catch(() => {});
+    await page.keyboard.type(title, { delay: 8 });
+    await page.waitForTimeout(300);
+  }
+
+  private async fillStudioDescription(page: PlaywrightPage, description: string): Promise<void> {
+    const descriptionBox = await this.getStudioMetadataTextboxes(page).then((boxes) => boxes[1]);
+    if (!descriptionBox) {
+      throw new AutoCliError("YOUTUBE_UPLOAD_DESCRIPTION_MISSING", "YouTube Studio did not expose the description field after the upload started.");
+    }
+
+    await descriptionBox.click();
+    await page.keyboard.press("Meta+A").catch(() => {});
+    await page.keyboard.type(description, { delay: 6 });
+    await page.waitForTimeout(300);
+  }
+
+  private async getStudioMetadataTextboxes(page: PlaywrightPage) {
+    const selectors = [
+      'ytcp-social-suggestions-textbox #textbox[contenteditable="true"]',
+      '#textbox[contenteditable="true"]',
+      'textarea',
+    ] as const;
+
+    for (const selector of selectors) {
+      const locator = page.locator(selector);
+      const count = await locator.count().catch(() => 0);
+      const visible: Array<ReturnType<PlaywrightPage["locator"]>> = [];
+      for (let index = 0; index < count; index += 1) {
+        const candidate = locator.nth(index);
+        if (await candidate.isVisible().catch(() => false)) {
+          visible.push(candidate);
+        }
+      }
+      if (visible.length >= 1) {
+        return visible;
+      }
+    }
+
+    return [] as Array<ReturnType<PlaywrightPage["locator"]>>;
+  }
+
+  private async setStudioAudience(page: PlaywrightPage, madeForKids: boolean): Promise<void> {
+    const selectorText = madeForKids ? "Yes, it's made for kids" : "No, it's not made for kids";
+    const option = await firstVisibleYouTubeStudioLocator(page, [
+      `tp-yt-paper-radio-button:has-text("${selectorText}")`,
+      `[role="radio"][aria-label*="${madeForKids ? "made for kids" : "not made for kids"}" i]`,
+      `label:has-text("${selectorText}")`,
+    ]);
+    await clickYouTubeStudioLocator(option);
+    await page.waitForTimeout(300);
+  }
+
+  private async setStudioPlaylist(page: PlaywrightPage, playlistName: string): Promise<void> {
+    const picker = await firstVisibleYouTubeStudioLocator(page, [
+      'ytcp-video-metadata-playlists button',
+      'button:has-text("Select")',
+      'button:has-text("Playlist")',
+    ]);
+    await picker.click();
+    await page.waitForTimeout(500);
+
+    const search = await firstVisibleYouTubeStudioLocator(page, [
+      'input[placeholder*="Search" i]',
+      'input[aria-label*="Search" i]',
+    ]);
+    await search.fill(playlistName);
+    await page.waitForTimeout(500);
+
+    const option = await firstVisibleYouTubeStudioLocator(page, [
+      `tp-yt-paper-checkbox:has-text("${playlistName}")`,
+      `[role="checkbox"][aria-label*="${playlistName}" i]`,
+      `label:has-text("${playlistName}")`,
+    ]);
+    await clickYouTubeStudioLocator(option);
+    const done = await firstVisibleYouTubeStudioLocator(page, ['button:has-text("Done")', 'ytcp-button:has-text("Done") button']);
+    await clickYouTubeStudioLocator(done);
+    await page.waitForTimeout(500);
+  }
+
+  private async setStudioTags(page: PlaywrightPage, tags: readonly string[]): Promise<void> {
+    await this.expandStudioShowMore(page);
+    const input = await firstVisibleYouTubeStudioLocator(page, [
+      'input[aria-label*="tags" i]',
+      'textarea[aria-label*="tags" i]',
+      '#tags-input input',
+    ]);
+    await input.click();
+    await input.fill(tags.join(", "));
+    await page.waitForTimeout(300);
+  }
+
+  private async attachStudioThumbnail(page: PlaywrightPage, thumbnailPath: string): Promise<void> {
+    await this.expandStudioShowMore(page);
+    const input = await firstPresentYouTubeStudioLocator(page, ['input[type="file"][accept*="image"]']);
+    await input.setInputFiles(thumbnailPath);
+    await page.waitForTimeout(1_500);
+  }
+
+  private async expandStudioShowMore(page: PlaywrightPage): Promise<void> {
+    if (!(await hasVisibleYouTubeStudioLocator(page, ['button:has-text("Show more")', 'ytcp-button:has-text("Show more") button']))) {
+      return;
+    }
+
+    const toggle = await firstVisibleYouTubeStudioLocator(page, ['button:has-text("Show more")', 'ytcp-button:has-text("Show more") button']);
+    await clickYouTubeStudioLocator(toggle);
+    await page.waitForTimeout(300);
+  }
+
+  private async advanceStudioUploadWizard(page: PlaywrightPage, visibility: YouTubeUploadVisibility): Promise<void> {
+    for (let index = 0; index < 3; index += 1) {
+      const nextButton = await firstVisibleYouTubeStudioLocator(page, [
+        '#next-button button',
+        'ytcp-button#next-button button',
+        'button:has-text("Next")',
+      ]);
+      await clickYouTubeStudioLocator(nextButton);
+      await page.waitForTimeout(1_000);
+    }
+
+    const visibilityOption = await firstVisibleYouTubeStudioLocator(page, [
+      `tp-yt-paper-radio-button:has-text("${capitalizeUploadVisibility(visibility)}")`,
+      `[role="radio"][aria-label*="${visibility}" i]`,
+      `label:has-text("${capitalizeUploadVisibility(visibility)}")`,
+    ]);
+    await clickYouTubeStudioLocator(visibilityOption);
+    await page.waitForTimeout(500);
+
+    const doneButton = await firstVisibleYouTubeStudioLocator(page, [
+      '#done-button button',
+      'ytcp-button#done-button button',
+      'button:has-text("Done")',
+    ]);
+    await clickYouTubeStudioLocator(doneButton);
+    await page.waitForTimeout(2_000);
+  }
+
+  private async resolveStudioUploadResult(page: PlaywrightPage): Promise<Omit<YouTubeUploadResult, "source">> {
+    const studioUrl = page.url().startsWith(YOUTUBE_STUDIO_ORIGIN) ? page.url() : undefined;
+    const linkLocator = page.locator('a[href*="watch?v="], a[href*="youtu.be/"], input[value*="watch?v="], input[value*="youtu.be/"]').first();
+    const href = await linkLocator.getAttribute("href").catch(() => null);
+    const value = await linkLocator.inputValue().catch(() => null);
+    const candidateUrl = href ?? value ?? undefined;
+    const videoUrl = candidateUrl ? new URL(candidateUrl, YOUTUBE_ORIGIN).toString() : undefined;
+    const videoId = extractYouTubeUploadVideoId(videoUrl) ?? extractStudioVideoId(studioUrl);
+
+    return {
+      studioUrl,
+      videoUrl: videoId ? `${YOUTUBE_WATCH}${videoId}` : videoUrl,
+      videoId,
+    };
+  }
+
+  private async resolveStudioChannelId(page: PlaywrightPage): Promise<string | undefined> {
+    const links = [
+      'a[href*="/channel/"]',
+      'ytcp-button a[href*="/channel/"]',
+    ] as const;
+
+    for (const selector of links) {
+      const locator = page.locator(selector);
+      const count = await locator.count().catch(() => 0);
+      for (let index = 0; index < count; index += 1) {
+        const href = await locator.nth(index).getAttribute("href").catch(() => null);
+        const channelId = extractStudioChannelId(href ?? undefined);
+        if (channelId) {
+          return channelId;
+        }
+      }
+    }
+
+    return undefined;
+  }
+
+  private async throwIfStudioBrowserBlocked(page: PlaywrightPage): Promise<void> {
+    const bodyText = normalizeWhitespace(await page.locator("body").innerText().catch(() => ""));
+    if (!bodyText) {
+      return;
+    }
+
+    const patterns = [
+      /something went wrong/i,
+      /couldn.?t sign you in/i,
+      /this browser or app may not be secure/i,
+      /verify it'?s you/i,
+      /choose an account/i,
+      /sign in to continue/i,
+      /try again later/i,
+    ];
+
+    for (const pattern of patterns) {
+      const match = bodyText.match(pattern);
+      if (match) {
+        throw new AutoCliError("YOUTUBE_BROWSER_ACTION_FAILED", match[0], {
+          details: {
+            url: page.url(),
+          },
+        });
+      }
+    }
   }
 
   private extractSubscriptionErrorMessage(response: Record<string, unknown>): string | undefined {
@@ -2337,4 +2726,188 @@ function formatDuration(totalSeconds: number): string {
   }
 
   return `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
+
+function normalizeYouTubeUploadText(value: string | undefined): string | undefined {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  const normalized = normalizeWhitespace(value);
+  return normalized.length > 0 ? normalized : undefined;
+}
+
+function inferYouTubeUploadTitle(mediaPath: string): string {
+  const fileName = basename(mediaPath).replace(/\.[A-Za-z0-9]+$/u, "");
+  const normalized = normalizeWhitespace(fileName.replace(/[_-]+/gu, " "));
+  return normalized.length > 0 ? normalized : "AutoCLI upload";
+}
+
+function normalizeYouTubeUploadVisibility(value: string | undefined): YouTubeUploadVisibility {
+  const normalized = value?.trim().toLowerCase();
+  if (!normalized) {
+    return "private";
+  }
+
+  if (normalized === "private" || normalized === "unlisted" || normalized === "public") {
+    return normalized;
+  }
+
+  throw new AutoCliError(
+    "YOUTUBE_UPLOAD_VISIBILITY_INVALID",
+    "Expected YouTube upload visibility to be one of: private, unlisted, public.",
+    {
+      details: {
+        visibility: value,
+      },
+    },
+  );
+}
+
+function capitalizeUploadVisibility(value: YouTubeUploadVisibility): string {
+  return `${value.charAt(0).toUpperCase()}${value.slice(1)}`;
+}
+
+function shouldRetryYouTubeUploadInSharedBrowser(error: unknown): boolean {
+  if (!isAutoCliError(error)) {
+    return false;
+  }
+
+  if (
+    error.code === "SESSION_EXPIRED" ||
+    error.code === "YOUTUBE_UPLOAD_FILE_MISSING" ||
+    error.code === "YOUTUBE_UPLOAD_THUMBNAIL_MISSING" ||
+    error.code === "YOUTUBE_UPLOAD_VISIBILITY_INVALID"
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
+function isYouTubeLoginUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    const hostname = parsed.hostname.toLowerCase();
+    const pathname = parsed.pathname.toLowerCase();
+    return (
+      hostname.includes("accounts.google.com") ||
+      hostname.includes("accounts.youtube.com") ||
+      pathname.includes("/servicelogin") ||
+      pathname.includes("/signin")
+    );
+  } catch {
+    const normalized = url.toLowerCase();
+    return normalized.includes("accounts.google.com") || normalized.includes("/servicelogin") || normalized.includes("/signin");
+  }
+}
+
+function extractStudioChannelId(url: string | undefined): string | undefined {
+  if (!url) {
+    return undefined;
+  }
+
+  const match = url.match(/\/channel\/([A-Za-z0-9_-]+)/u);
+  return match?.[1];
+}
+
+function extractStudioVideoId(url: string | undefined): string | undefined {
+  if (!url) {
+    return undefined;
+  }
+
+  const match = url.match(/\/video\/([A-Za-z0-9_-]{6,})\b/u);
+  return match?.[1];
+}
+
+function extractYouTubeUploadVideoId(url: string | undefined): string | undefined {
+  if (!url) {
+    return undefined;
+  }
+
+  try {
+    const parsed = new URL(url, YOUTUBE_ORIGIN);
+    if (parsed.hostname === "youtu.be") {
+      const shortId = parsed.pathname.replace(/^\/+/u, "").split("/")[0];
+      return shortId || undefined;
+    }
+
+    const watchId = parsed.searchParams.get("v");
+    if (watchId) {
+      return watchId;
+    }
+
+    const pathMatch = parsed.pathname.match(/\/(?:shorts|embed)\/([A-Za-z0-9_-]{6,})\b/u);
+    return pathMatch?.[1];
+  } catch {
+    const watchMatch = url.match(/[?&]v=([A-Za-z0-9_-]{6,})/u);
+    if (watchMatch?.[1]) {
+      return watchMatch[1];
+    }
+
+    const shortMatch = url.match(/youtu\.be\/([A-Za-z0-9_-]{6,})/u);
+    return shortMatch?.[1];
+  }
+}
+
+async function firstVisibleYouTubeStudioLocator(page: PlaywrightPage, selectors: readonly string[]) {
+  for (const selector of selectors) {
+    const locator = page.locator(selector);
+    const count = await locator.count().catch(() => 0);
+    for (let index = 0; index < count; index += 1) {
+      const candidate = locator.nth(index);
+      if (await candidate.isVisible().catch(() => false)) {
+        return candidate;
+      }
+    }
+  }
+
+  throw new AutoCliError(
+    "YOUTUBE_STUDIO_ELEMENT_NOT_FOUND",
+    `Could not find any visible YouTube Studio element for selectors: ${selectors.join(", ")}`,
+  );
+}
+
+async function firstPresentYouTubeStudioLocator(page: PlaywrightPage, selectors: readonly string[]) {
+  for (const selector of selectors) {
+    const locator = page.locator(selector);
+    const count = await locator.count().catch(() => 0);
+    if (count > 0) {
+      return locator.first();
+    }
+  }
+
+  throw new AutoCliError(
+    "YOUTUBE_STUDIO_ELEMENT_NOT_FOUND",
+    `Could not find any YouTube Studio element for selectors: ${selectors.join(", ")}`,
+  );
+}
+
+async function hasVisibleYouTubeStudioLocator(page: PlaywrightPage, selectors: readonly string[]): Promise<boolean> {
+  for (const selector of selectors) {
+    const locator = page.locator(selector);
+    const count = await locator.count().catch(() => 0);
+    for (let index = 0; index < count; index += 1) {
+      const candidate = locator.nth(index);
+      if (await candidate.isVisible().catch(() => false)) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+async function clickYouTubeStudioLocator(locator: ReturnType<PlaywrightPage["locator"]>): Promise<void> {
+  try {
+    await locator.click({
+      timeout: 5_000,
+    });
+    return;
+  } catch {
+    await locator.click({
+      force: true,
+      timeout: 5_000,
+    });
+  }
 }
