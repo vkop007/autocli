@@ -6,6 +6,7 @@ import {
   printYouTubeInfoResult,
   printYouTubePlaylistResult,
   printYouTubeSearchResult,
+  printYouTubeUploadResult,
 } from "../output.js";
 import { parseYouTubeLimitOption } from "../options.js";
 import { youtubeAdapter } from "../adapter.js";
@@ -40,11 +41,20 @@ export const youtubeDownloadCapability = createAdapterActionCapability({
 export const youtubeUploadCapability = createAdapterActionCapability({
   id: "upload",
   command: "upload <mediaPath>",
-  description: "Upload a YouTube video with the saved session",
-  spinnerText: "Checking YouTube upload support...",
+  description: "Upload a YouTube video through YouTube Studio using the saved session",
+  spinnerText: "Uploading YouTube video...",
   successMessage: "YouTube upload completed.",
   options: [
-    { flags: "--caption <text>", description: "Optional title or description text for a future upload flow" },
+    { flags: "--caption <text>", description: "Backward-compatible alias for --title" },
+    { flags: "--title <text>", description: "Video title to set in YouTube Studio" },
+    { flags: "--description <text>", description: "Video description to set in YouTube Studio" },
+    { flags: "--visibility <mode>", description: "Visibility: private, unlisted, or public", parser: parseYouTubeUploadVisibility },
+    { flags: "--made-for-kids", description: "Mark the upload as made for kids" },
+    { flags: "--not-made-for-kids", description: "Mark the upload as not made for kids (default)" },
+    { flags: "--tags <csv>", description: "Comma-separated tags to add in the Studio metadata form", parser: parseYouTubeUploadTags },
+    { flags: "--playlist <name>", description: "Playlist name to select in the Studio playlist picker" },
+    { flags: "--thumbnail <path>", description: "Optional thumbnail image to upload in Studio" },
+    { flags: "--browser-timeout <seconds>", description: "Maximum seconds to allow the browser upload flow to complete", parser: parseYouTubeUploadTimeout },
     { flags: "--account <name>", description: "Optional override for a specific saved YouTube session" },
   ],
   action: ({ args, options }) =>
@@ -52,7 +62,16 @@ export const youtubeUploadCapability = createAdapterActionCapability({
       account: options.account as string | undefined,
       mediaPath: String(args[0] ?? ""),
       caption: options.caption as string | undefined,
+      title: options.title as string | undefined,
+      description: options.description as string | undefined,
+      visibility: options.visibility as string | undefined,
+      madeForKids: resolveYouTubeMadeForKidsOption(options),
+      tags: options.tags as string[] | undefined,
+      playlist: options.playlist as string | undefined,
+      thumbnailPath: options.thumbnail as string | undefined,
+      browserTimeoutSeconds: options.browserTimeout as number | undefined,
     }),
+  onSuccess: printYouTubeUploadResult,
 });
 
 export const youtubePostCapability = createAdapterActionCapability({
@@ -185,3 +204,44 @@ export const youtubeCaptionsCapability = createAdapterActionCapability({
     }),
   onSuccess: printYouTubeCaptionsResult,
 });
+
+function parseYouTubeUploadVisibility(value: string): string {
+  const normalized = value.trim().toLowerCase();
+  if (!["private", "unlisted", "public"].includes(normalized)) {
+    throw new Error("Expected --visibility to be one of: private, unlisted, public.");
+  }
+
+  return normalized;
+}
+
+function parseYouTubeUploadTags(value: string): string[] {
+  return value
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
+}
+
+function parseYouTubeUploadTimeout(value: string): number {
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    throw new Error("Expected --browser-timeout to be a positive integer.");
+  }
+
+  return parsed;
+}
+
+function resolveYouTubeMadeForKidsOption(options: Record<string, unknown>): boolean | undefined {
+  if (options.madeForKids && options.notMadeForKids) {
+    throw new Error("Choose either --made-for-kids or --not-made-for-kids, not both.");
+  }
+
+  if (options.madeForKids) {
+    return true;
+  }
+
+  if (options.notMadeForKids) {
+    return false;
+  }
+
+  return false;
+}

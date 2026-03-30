@@ -71,6 +71,35 @@ export function printYouTubeDownloadResult(result: AdapterActionResult, json: bo
   }
 }
 
+export function printYouTubeUploadResult(result: AdapterActionResult, json: boolean): void {
+  if (json) {
+    printJson(result);
+    return;
+  }
+
+  printActionResult(result, false);
+  const data = result.data;
+  if (!data || typeof data !== "object") {
+    return;
+  }
+
+  if (typeof data.title === "string" && data.title.length > 0) {
+    console.log(`title: ${data.title}`);
+  }
+  if (typeof data.visibility === "string" && data.visibility.length > 0) {
+    console.log(`visibility: ${data.visibility}`);
+  }
+  if (typeof data.source === "string" && data.source.length > 0) {
+    console.log(`source: ${data.source}`);
+  }
+  if (typeof data.studioUrl === "string" && data.studioUrl.length > 0) {
+    console.log(`studio: ${data.studioUrl}`);
+  }
+  if (typeof data.videoUrl === "string" && data.videoUrl.length > 0) {
+    console.log(`watch: ${data.videoUrl}`);
+  }
+}
+
 export function printYouTubeInfoResult(result: AdapterActionResult, json: boolean): void {
   if (json) {
     printJson(result);
