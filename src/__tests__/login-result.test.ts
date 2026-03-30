@@ -98,4 +98,46 @@ describe("login result normalization", () => {
       count: 2,
     });
   });
+
+  test("adds stable items and entity aliases for agent-facing result parsing", () => {
+    const definition = getPlatformDefinition("tmdb");
+    expect(definition).toBeDefined();
+
+    const result = normalizeActionResult(
+      {
+        ok: true,
+        platform: "tmdb",
+        account: "public",
+        action: "title",
+        message: "Loaded title details.",
+        data: {
+          movie: {
+            id: 27205,
+            title: "Inception",
+          },
+          recommendations: [{ id: 157336, title: "Interstellar" }],
+        },
+      },
+      definition!,
+      "title",
+    );
+
+    expect(result.data?.entity).toEqual({
+      id: 27205,
+      title: "Inception",
+    });
+    expect(result.data?.items).toEqual([{ id: 157336, title: "Interstellar" }]);
+    expect(result.data?.meta).toEqual({
+      listKey: "items",
+      count: 1,
+    });
+    expect(result.data?.guidance).toEqual({
+      recommendedNextCommand: "autocli movie tmdb recommendations --json",
+      nextCommands: [
+        "autocli movie tmdb recommendations --json",
+        "autocli movie tmdb capabilities --json",
+      ],
+      stability: "stable",
+    });
+  });
 });

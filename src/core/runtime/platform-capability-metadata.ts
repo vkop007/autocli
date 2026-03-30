@@ -3,6 +3,7 @@ import pc from "picocolors";
 
 import { resolveCommandContext } from "../../utils/cli.js";
 import { printJson } from "../../utils/output.js";
+import { buildPlatformCommandPrefix } from "./platform-command-prefix.js";
 
 import type {
   PlatformCapabilityMetadata,
@@ -356,8 +357,7 @@ export function resolvePlatformCapabilityMetadata(definition: PlatformDefinition
 export function buildCapabilityMetadataHelpText(definition: PlatformDefinition): string {
   const metadata = resolvePlatformCapabilityMetadata(definition);
   const notes = metadata.notes ?? [];
-  const category = definition.commandCategories?.[0] ?? definition.category;
-  const capabilityCommand = `autocli ${category} ${definition.id} capabilities --json`;
+  const capabilityCommand = `${buildPlatformCommandPrefix(definition)} capabilities --json`;
   const rows: Array<[string, string]> = [
     ["auth", metadata.auth.join(", ") || "none"],
     ["stability", metadata.stability],
@@ -374,6 +374,15 @@ export function buildCapabilityMetadataHelpText(definition: PlatformDefinition):
   return `
 Support Profile:
 ${rows.map(([label, value]) => `  ${label.padEnd(width)}  ${value}`).join("\n")}${notes.length > 0 ? `\n  notes${" ".repeat(Math.max(0, width - "notes".length))}  ${notes.join(" | ")}` : ""}
+`;
+}
+
+export function buildStabilityGuideHelpText(): string {
+  return `
+Stability Guide:
+  stable        Ready for routine automation.
+  partial       Core flows work well, with some narrower or evolving edges.
+  experimental  Useful, but still changing quickly.
 `;
 }
 

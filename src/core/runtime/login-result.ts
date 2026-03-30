@@ -1,5 +1,6 @@
 import type { AuthStrategyKind } from "../auth/auth-types.js";
 import type { PlatformDefinition } from "./platform-definition.js";
+import { buildPlatformCommandPrefix } from "./platform-command-prefix.js";
 import { resolvePlatformCapabilityMetadata } from "./platform-capability-metadata.js";
 import type { AdapterActionResult, Platform, SessionState } from "../../types.js";
 import type { PlatformStability } from "./platform-definition.js";
@@ -70,6 +71,89 @@ const ACTION_FOLLOW_UPS: Partial<Record<string, readonly string[]>> = {
 };
 
 const META_EXCLUDED_KEYS = new Set(["guidance", "login", "meta", "candidates", "requests", "cookies", "localStorage", "sessionStorage"]);
+const LIST_ALIAS_KEYS = [
+  "items",
+  "results",
+  "posts",
+  "recommendations",
+  "tracks",
+  "albums",
+  "products",
+  "pages",
+  "repos",
+  "projects",
+  "issues",
+  "pulls",
+  "mergeRequests",
+  "releases",
+  "boards",
+  "lists",
+  "cards",
+  "services",
+  "zones",
+  "functions",
+  "organizations",
+  "accounts",
+  "sites",
+  "deployments",
+  "teams",
+  "tasks",
+  "chats",
+  "messages",
+  "episodes",
+  "spaces",
+  "children",
+  "domains",
+  "machines",
+  "volumes",
+  "certificates",
+  "apps",
+  "playlists",
+  "artists",
+  "comments",
+  "followers",
+  "following",
+  "stories",
+] as const;
+const ENTITY_ALIAS_KEYS = [
+  "entity",
+  "profile",
+  "target",
+  "item",
+  "page",
+  "project",
+  "repo",
+  "issue",
+  "pull",
+  "mergeRequest",
+  "product",
+  "order",
+  "track",
+  "album",
+  "artist",
+  "playlist",
+  "movie",
+  "show",
+  "title",
+  "post",
+  "thread",
+  "site",
+  "service",
+  "app",
+  "zone",
+  "board",
+  "card",
+  "list",
+  "team",
+  "space",
+  "organization",
+  "account",
+  "deployment",
+  "function",
+  "machine",
+  "volume",
+  "certificate",
+] as const;
 
 export function normalizeActionResult(
   result: AdapterActionResult,
@@ -77,27 +161,31 @@ export function normalizeActionResult(
   actionId?: string,
 ): AdapterActionResult {
   const normalizedLogin = result.action === "login" ? normalizeLoginActionResult(result, definition) : result;
+  const normalizedData = normalizeResultDataShape(normalizedLogin.data);
   if (!definition) {
-    return normalizedLogin;
+    return {
+      ...normalizedLogin,
+      ...(normalizedData ? { data: normalizedData } : {}),
+    };
   }
 
-  const existingGuidance = readActionGuidance(normalizedLogin.data?.guidance);
-  const inferredNextCommands = inferActionNextCommands(definition, actionId ?? normalizedLogin.action, normalizedLogin.data);
+  const existingGuidance = readActionGuidance(normalizedData?.guidance);
+  const inferredNextCommands = inferActionNextCommands(definition, actionId ?? normalizedLogin.action, normalizedData);
   const nextCommands = uniqueStrings([...(existingGuidance?.nextCommands ?? []), ...inferredNextCommands]);
   const capabilityMetadata = resolvePlatformCapabilityMetadata(definition as PlatformDefinition);
-  const meta = inferResultMeta(normalizedLogin.data);
+  const meta = inferResultMeta(normalizedData);
 
   return {
     ...normalizedLogin,
     data: {
-      ...(normalizedLogin.data ?? {}),
+      ...(normalizedData ?? {}),
       guidance: {
         ...(existingGuidance ?? {}),
         stability: existingGuidance?.stability ?? capabilityMetadata.stability,
         ...(nextCommands.length > 0 ? { nextCommands } : {}),
         ...((existingGuidance?.recommendedNextCommand ?? nextCommands[0]) ? { recommendedNextCommand: existingGuidance?.recommendedNextCommand ?? nextCommands[0] } : {}),
       } satisfies ActionGuidanceMetadata,
-      ...(meta ? { meta: { ...(toRecord(normalizedLogin.data?.meta) ?? {}), ...meta } } : {}),
+      ...(meta ? { meta: { ...(toRecord(normalizedData?.meta) ?? {}), ...meta } } : {}),
     },
   };
 }
@@ -248,12 +336,11 @@ function buildCommandPrefix(
   definition: Pick<PlatformDefinition, "id" | "category" | "commandCategories">,
   data?: Record<string, unknown>,
 ): string {
-  const category = definition.commandCategories?.[0] ?? definition.category;
   if (definition.id === "http") {
     const target = typeof data?.target === "string" && data.target.trim().length > 0 ? data.target.trim() : "<target>";
-    return `autocli ${category} ${definition.id} ${target}`;
+    return `${buildPlatformCommandPrefix(definition)} ${target}`;
   }
-  return `autocli ${category} ${definition.id}`;
+  return buildPlatformCommandPrefix(definition);
 }
 
 function readLoginMetadata(value: unknown): LoginActionMetadata | undefined {
@@ -317,18 +404,71 @@ function inferResultMeta(data: Record<string, unknown> | undefined): Record<stri
     return undefined;
   }
 
-  for (const [key, value] of Object.entries(data)) {
-    if (META_EXCLUDED_KEYS.has(key) || !Array.isArray(value)) {
-      continue;
-    }
-
+  const itemsAlias = inferItemsAlias(data);
+  if (itemsAlias) {
     return {
-      listKey: key,
-      count: value.length,
+      listKey: "items",
+      count: itemsAlias.value.length,
+      ...(itemsAlias.key !== "items" ? { sourceListKey: itemsAlias.key } : {}),
     };
   }
 
   return undefined;
+}
+
+function normalizeResultDataShape(data: Record<string, unknown> | undefined): Record<string, unknown> | undefined {
+  if (!data) {
+    return undefined;
+  }
+
+  const normalized: Record<string, unknown> = { ...data };
+  const itemsAlias = inferItemsAlias(data);
+  if (!Array.isArray(normalized.items) && itemsAlias) {
+    normalized.items = itemsAlias.value;
+  }
+
+  const entityAlias = inferEntityAlias(data);
+  if (!hasNonArrayObject(normalized.entity) && entityAlias) {
+    normalized.entity = entityAlias.value;
+  }
+
+  return normalized;
+}
+
+function inferItemsAlias(
+  data: Record<string, unknown>,
+): { key: string; value: unknown[] } | undefined {
+  for (const key of LIST_ALIAS_KEYS) {
+    const value = data[key];
+    if (Array.isArray(value)) {
+      return {
+        key,
+        value,
+      };
+    }
+  }
+
+  return undefined;
+}
+
+function inferEntityAlias(
+  data: Record<string, unknown>,
+): { key: string; value: Record<string, unknown> } | undefined {
+  for (const key of ENTITY_ALIAS_KEYS) {
+    const value = data[key];
+    if (hasNonArrayObject(value)) {
+      return {
+        key,
+        value,
+      };
+    }
+  }
+
+  return undefined;
+}
+
+function hasNonArrayObject(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
 function toRecord(value: unknown): Record<string, unknown> | undefined {
