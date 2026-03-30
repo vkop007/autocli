@@ -84,6 +84,16 @@ export interface BackgroundBrowserActionInput<T> {
   action: (page: PlaywrightPage) => Promise<T>;
 }
 
+export interface BackgroundBrowserProfileActionInput<T> {
+  targetUrl: string;
+  timeoutSeconds?: number;
+  headless?: boolean;
+  profile?: string;
+  userAgent?: string;
+  locale?: string;
+  action: (page: PlaywrightPage) => Promise<T>;
+}
+
 type ManagedBrowserState = {
   pid: number;
   port: number;
@@ -381,6 +391,44 @@ export async function runBackgroundBrowserAction<T>(input: BackgroundBrowserActi
     return await input.action(page);
   } finally {
     await browser.close().catch(() => {});
+  }
+}
+
+export async function runBackgroundBrowserProfileAction<T>(input: BackgroundBrowserProfileActionInput<T>): Promise<T> {
+  const timeoutMs = Math.max(1, input.timeoutSeconds ?? 60) * 1000;
+  const profile = input.profile ?? DEFAULT_BROWSER_PROFILE;
+  await ensureBrowserDirectory(profile);
+
+  const existing = await readManagedBrowserState(profile);
+  if (existing && await isManagedBrowserReachable(existing)) {
+    throw new AutoCliError(
+      "BROWSER_PROFILE_IN_USE",
+      "The shared AutoCLI browser profile is currently open. Close it before running this invisible browser action.",
+      {
+        details: {
+          profile,
+          browserProfilePath: getBrowserProfileDir(profile),
+        },
+      },
+    );
+  }
+
+  const executablePath = await resolveBrowserExecutable();
+  const { chromium } = await import("playwright-core");
+  const context = await chromium.launchPersistentContext(getBrowserProfileDir(profile), {
+    executablePath,
+    headless: input.headless ?? true,
+    ...(input.userAgent ? { userAgent: input.userAgent } : {}),
+    ...(input.locale ? { locale: input.locale } : {}),
+    args: ["--no-first-run", "--no-default-browser-check"],
+  });
+
+  try {
+    const page = context.pages()[0] ?? await context.newPage();
+    await navigatePage(page, input.targetUrl, Math.min(timeoutMs, 15_000));
+    return await input.action(page);
+  } finally {
+    await context.close().catch(() => {});
   }
 }
 
