@@ -1,5 +1,5 @@
 import { AutoCliError } from "../../../errors.js";
-import { runBackgroundBrowserAction, runBackgroundBrowserProfileAction, runSharedBrowserAction } from "../../../utils/browser-cookie-login.js";
+import { runBrowserActionPlan } from "../../../utils/browser-cookie-login.js";
 import { SessionHttpClient } from "../../../utils/http-client.js";
 import { parseAmazonProductTarget } from "../../../utils/targets.js";
 import { getPlatformHomeUrl, getPlatformOrigin } from "../../config.js";
@@ -970,43 +970,28 @@ export class AmazonAdapter extends BaseShoppingAdapter {
     timeoutSeconds: number | undefined,
     action: (page: PlaywrightPage, source: "headless" | "profile" | "shared") => Promise<T>,
   ): Promise<T> {
-    try {
-      return await runBackgroundBrowserAction({
-        targetUrl,
-        timeoutSeconds: timeoutSeconds ?? 60,
-        initialCookies: session.cookieJar.cookies,
-        headless: true,
-        userAgent: AMAZON_USER_AGENT,
-        locale: "en-US",
-        action: (page) => action(page, "headless"),
-      });
-    } catch (error) {
-      if (!this.shouldRetryAmazonBrowserWithProfile(error)) {
-        throw error;
-      }
-    }
-
-    try {
-      return await runBackgroundBrowserProfileAction({
-        targetUrl,
-        timeoutSeconds: timeoutSeconds ?? 60,
-        headless: true,
-        userAgent: AMAZON_USER_AGENT,
-        locale: "en-US",
-        action: (page) => action(page, "profile"),
-      });
-    } catch (error) {
-      if (!(error instanceof AutoCliError) || error.code !== "BROWSER_PROFILE_IN_USE") {
-        throw error;
-      }
-    }
-
-    return runSharedBrowserAction({
+    return runBrowserActionPlan({
       targetUrl,
       timeoutSeconds: timeoutSeconds ?? 60,
-      announceLabel: `Reusing the shared AutoCLI browser profile for Amazon: ${targetUrl}`,
       initialCookies: session.cookieJar.cookies,
-      action: (page) => action(page, "shared"),
+      headless: true,
+      userAgent: AMAZON_USER_AGENT,
+      locale: "en-US",
+      steps: [
+        {
+          source: "headless",
+          shouldContinueOnError: (error) => this.shouldRetryAmazonBrowserWithProfile(error),
+        },
+        {
+          source: "profile",
+          shouldContinueOnError: (error) => error instanceof AutoCliError && error.code === "BROWSER_PROFILE_IN_USE",
+        },
+        {
+          source: "shared",
+          announceLabel: `Reusing the shared AutoCLI browser profile for Amazon: ${targetUrl}`,
+        },
+      ],
+      action,
     });
   }
 

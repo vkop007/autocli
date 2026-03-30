@@ -94,6 +94,26 @@ export interface BackgroundBrowserProfileActionInput<T> {
   action: (page: PlaywrightPage) => Promise<T>;
 }
 
+export type BrowserActionSource = "headless" | "profile" | "shared";
+
+export interface BrowserActionPlanStep {
+  source: BrowserActionSource;
+  announceLabel?: string;
+  shouldContinueOnError?: (error: unknown) => boolean;
+}
+
+export interface BrowserActionPlanInput<T> {
+  targetUrl: string;
+  timeoutSeconds?: number;
+  initialCookies?: unknown[];
+  headless?: boolean;
+  profile?: string;
+  userAgent?: string;
+  locale?: string;
+  steps: readonly BrowserActionPlanStep[];
+  action: (page: PlaywrightPage, source: BrowserActionSource) => Promise<T>;
+}
+
 type ManagedBrowserState = {
   pid: number;
   port: number;
@@ -430,6 +450,54 @@ export async function runBackgroundBrowserProfileAction<T>(input: BackgroundBrow
   } finally {
     await context.close().catch(() => {});
   }
+}
+
+export async function runBrowserActionPlan<T>(input: BrowserActionPlanInput<T>): Promise<T> {
+  let lastError: unknown;
+
+  for (const step of input.steps) {
+    try {
+      switch (step.source) {
+        case "headless":
+          return await runBackgroundBrowserAction({
+            targetUrl: input.targetUrl,
+            timeoutSeconds: input.timeoutSeconds,
+            initialCookies: input.initialCookies,
+            headless: input.headless,
+            userAgent: input.userAgent,
+            locale: input.locale,
+            action: (page) => input.action(page, "headless"),
+          });
+        case "profile":
+          return await runBackgroundBrowserProfileAction({
+            targetUrl: input.targetUrl,
+            timeoutSeconds: input.timeoutSeconds,
+            headless: input.headless,
+            profile: input.profile,
+            userAgent: input.userAgent,
+            locale: input.locale,
+            action: (page) => input.action(page, "profile"),
+          });
+        case "shared":
+          return await runSharedBrowserAction({
+            targetUrl: input.targetUrl,
+            timeoutSeconds: input.timeoutSeconds,
+            announceLabel: step.announceLabel,
+            initialCookies: input.initialCookies,
+            action: (page) => input.action(page, "shared"),
+          });
+      }
+    } catch (error) {
+      lastError = error;
+      if (!step.shouldContinueOnError?.(error)) {
+        throw error;
+      }
+    }
+  }
+
+  throw lastError instanceof Error
+    ? lastError
+    : new AutoCliError("BROWSER_ACTION_FAILED", "Browser action plan failed before completing the requested operation.");
 }
 
 export function hasDetectedAuthenticatedState(
