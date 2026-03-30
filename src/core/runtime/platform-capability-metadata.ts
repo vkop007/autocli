@@ -288,9 +288,12 @@ const PROVIDER_OVERRIDES: Partial<Record<PlatformDefinition["id"], PlatformCapab
     notes: ["`add-to-cart`, `remove-from-cart`, `update-cart`, `orders`, `order`, and `cart` support browser-backed execution when the saved session alone is not enough."],
   },
   flipkart: {
-    mutation: "partial",
+    mutation: "supported",
     browserLogin: "supported",
     stability: "stable",
+    notes: [
+      "Uses the saved Flipkart session for cart actions. New adds use the authenticated cart endpoint; quantity updates and removals use the saved session in an invisible browser.",
+    ],
   },
   ebay: {
     mutation: "unsupported",

@@ -178,13 +178,17 @@ export function createShoppingCapabilities(adapter: BaseShoppingAdapter): readon
         id: "add-to-cart",
         command: "add-to-cart <target>",
         aliases: ["add", "cart-add"],
-        description: `Add an exact ${adapter.displayName} product to the saved cart using a browser-backed session`,
+        description: `Add an exact ${adapter.displayName} product to the saved cart`,
         spinnerText: `Adding ${adapter.displayName} product to cart...`,
         successMessage: `${adapter.displayName} cart updated.`,
         options: [
           { flags: "--account <name>", description: "Optional saved session name to use" },
           { flags: "--qty <number>", description: "Quantity to add (1-10, default: 1)", parser: parseShoppingQuantityOption },
-          { flags: "--browser-timeout <seconds>", description: "Maximum seconds to allow the browser action to complete", parser: parseBrowserTimeoutSeconds },
+          {
+            flags: "--browser-timeout <seconds>",
+            description: "Maximum seconds to allow the action to complete when the adapter uses browser-backed flows",
+            parser: parseBrowserTimeoutSeconds,
+          },
         ],
         action: ({ args, options }) =>
           extendedAdapter.addToCart!({
@@ -204,12 +208,16 @@ export function createShoppingCapabilities(adapter: BaseShoppingAdapter): readon
         id: "remove-from-cart",
         command: "remove-from-cart <target>",
         aliases: ["remove", "cart-remove"],
-        description: `Remove an exact ${adapter.displayName} product from the saved cart using a browser-backed session`,
+        description: `Remove an exact ${adapter.displayName} product from the saved cart`,
         spinnerText: `Removing ${adapter.displayName} product from cart...`,
         successMessage: `${adapter.displayName} cart updated.`,
         options: [
           { flags: "--account <name>", description: "Optional saved session name to use" },
-          { flags: "--browser-timeout <seconds>", description: "Maximum seconds to allow the browser action to complete", parser: parseBrowserTimeoutSeconds },
+          {
+            flags: "--browser-timeout <seconds>",
+            description: "Maximum seconds to allow the action to complete when the adapter uses browser-backed flows",
+            parser: parseBrowserTimeoutSeconds,
+          },
         ],
         action: ({ args, options }) =>
           extendedAdapter.removeFromCart!({
@@ -228,13 +236,17 @@ export function createShoppingCapabilities(adapter: BaseShoppingAdapter): readon
         id: "update-cart",
         command: "update-cart <target>",
         aliases: ["cart-update", "set-qty"],
-        description: `Update the saved ${adapter.displayName} cart quantity for an exact product using a browser-backed session`,
+        description: `Update the saved ${adapter.displayName} cart quantity for an exact product`,
         spinnerText: `Updating ${adapter.displayName} cart quantity...`,
         successMessage: `${adapter.displayName} cart updated.`,
         options: [
           { flags: "--account <name>", description: "Optional saved session name to use" },
           { flags: "--qty <number>", description: "Target quantity to keep in cart (1-10)", parser: parseShoppingQuantityOption, required: true },
-          { flags: "--browser-timeout <seconds>", description: "Maximum seconds to allow the browser action to complete", parser: parseBrowserTimeoutSeconds },
+          {
+            flags: "--browser-timeout <seconds>",
+            description: "Maximum seconds to allow the action to complete when the adapter uses browser-backed flows",
+            parser: parseBrowserTimeoutSeconds,
+          },
         ],
         action: ({ args, options }) =>
           extendedAdapter.updateCart!({

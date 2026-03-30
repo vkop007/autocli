@@ -1,4 +1,5 @@
 import { AutoCliError } from "../../../errors.js";
+import { runBackgroundBrowserAction } from "../../../utils/browser-cookie-login.js";
 import { SessionHttpClient } from "../../../utils/http-client.js";
 import { parseFlipkartProductTarget } from "../../../utils/targets.js";
 import { getPlatformHomeUrl, getPlatformOrigin } from "../../config.js";
@@ -6,6 +7,7 @@ import { BaseShoppingAdapter, type ShoppingSessionProbe } from "../shared/base-s
 import { clamp, collapseWhitespace, extractBalancedJsonSegments, toAbsoluteUrl } from "../shared/helpers.js";
 
 import type { AdapterActionResult, PlatformSession } from "../../../types.js";
+import type { Locator as PlaywrightLocator, Page as PlaywrightPage } from "playwright-core";
 
 const FLIPKART_ORIGIN = getPlatformOrigin("flipkart");
 const FLIPKART_HOME = getPlatformHomeUrl("flipkart");
@@ -51,6 +53,20 @@ interface FlipkartSessionContext {
   state: Record<string, unknown>;
   bootstrap: Record<string, unknown>;
   apiOrigin: string;
+}
+
+interface FlipkartCartSnapshot {
+  count: number;
+  fkItemCount: number;
+  groceryItemCount: number;
+  items: Array<Record<string, unknown>>;
+}
+
+interface FlipkartCartTarget {
+  pid: string;
+  listingId: string;
+  url: string;
+  title?: string;
 }
 
 export class FlipkartAdapter extends BaseShoppingAdapter {
@@ -103,7 +119,7 @@ export class FlipkartAdapter extends BaseShoppingAdapter {
   async cart(input: { account?: string; browser?: boolean; browserTimeoutSeconds?: number }): Promise<AdapterActionResult> {
     const { session } = await this.ensureActiveSession(input.account);
     const context = await this.loadFlipkartSessionContext(session);
-    const items = extractFlipkartCartItems(context.state);
+    const cart = buildFlipkartCartSnapshot(context.state);
 
     return {
       ok: true,
@@ -111,14 +127,170 @@ export class FlipkartAdapter extends BaseShoppingAdapter {
       account: session.account,
       action: "cart",
       message:
-        items.length > 0
-          ? `Loaded ${items.length} Flipkart cart item${items.length === 1 ? "" : "s"} for ${session.account}.`
+        cart.items.length > 0
+          ? `Loaded ${cart.items.length} Flipkart cart item${cart.items.length === 1 ? "" : "s"} for ${session.account}.`
           : `The Flipkart cart is empty for ${session.account}.`,
+      data: { ...cart },
+    };
+  }
+
+  async addToCart(input: { target: string; quantity?: number; account?: string; browserTimeoutSeconds?: number }): Promise<AdapterActionResult> {
+    const quantity = clamp(input.quantity ?? 1, 1, 10);
+    const { session, path } = await this.ensureActiveSession(input.account);
+    const context = await this.loadFlipkartSessionContext(session);
+    const beforeCart = buildFlipkartCartSnapshot(context.state);
+    const target = await this.resolveFlipkartCartTarget(context, input.target, beforeCart.items);
+    const previousItem = findFlipkartCartItem(beforeCart.items, target);
+    const previousQuantity = getFlipkartCartQuantity(previousItem);
+    const finalQuantity = clamp(previousQuantity + quantity, 1, 10);
+
+    if (previousQuantity > 0) {
+      await this.updateFlipkartCartQuantityInBrowser(session, target, finalQuantity, beforeCart.count, input.browserTimeoutSeconds);
+    } else {
+      await this.mutateFlipkartCart(context, target, finalQuantity, "ProductPage");
+    }
+
+    const afterContext = await this.loadFlipkartSessionContext(session);
+    const afterCart = buildFlipkartCartSnapshot(afterContext.state);
+    const item = findFlipkartCartItem(afterCart.items, target);
+
+    if (!item || getFlipkartCartQuantity(item) !== finalQuantity) {
+      throw new AutoCliError(
+        "FLIPKART_ADD_TO_CART_NOT_CONFIRMED",
+        `Flipkart loaded the cart, but AutoCLI could not confirm that ${target.pid} was added.`,
+        {
+          details: {
+            pid: target.pid,
+            listingId: target.listingId,
+            requestedQuantity: quantity,
+            previousQuantity,
+            expectedQuantity: finalQuantity,
+          },
+        },
+      );
+    }
+
+    return {
+      ok: true,
+      platform: this.platform,
+      account: session.account,
+      action: "add-to-cart",
+      id: target.pid,
+      url: asString(item.url) ?? target.url,
+      message: `Added Flipkart product ${target.pid} to the cart for ${session.account}.`,
+      user: session.user,
+      sessionPath: path,
       data: {
-        count: items.length,
-        fkItemCount: extractFlipkartCartArray(context.state, "fkItems").length,
-        groceryItemCount: extractFlipkartCartArray(context.state, "groceryItems").length,
-        items,
+        pid: target.pid,
+        listingId: target.listingId,
+        quantityRequested: quantity,
+        previousQuantity,
+        cartCount: afterCart.count,
+        item,
+        cart: afterCart,
+      },
+    };
+  }
+
+  async removeFromCart(input: { target: string; account?: string; browserTimeoutSeconds?: number }): Promise<AdapterActionResult> {
+    const { session, path } = await this.ensureActiveSession(input.account);
+    const context = await this.loadFlipkartSessionContext(session);
+    const beforeCart = buildFlipkartCartSnapshot(context.state);
+    const target = await this.resolveFlipkartCartTarget(context, input.target, beforeCart.items, true);
+    const existingItem = findFlipkartCartItem(beforeCart.items, target);
+    const previousQuantity = getFlipkartCartQuantity(existingItem);
+    const title = asString(existingItem?.title) ?? target.title;
+
+    await this.removeFlipkartCartItemInBrowser(session, target, beforeCart.count, input.browserTimeoutSeconds);
+
+    const afterContext = await this.loadFlipkartSessionContext(session);
+    const afterCart = buildFlipkartCartSnapshot(afterContext.state);
+    if (findFlipkartCartItem(afterCart.items, target)) {
+      throw new AutoCliError(
+        "FLIPKART_REMOVE_FROM_CART_NOT_CONFIRMED",
+        `Flipkart still shows ${target.pid} in the cart after the remove action.`,
+        {
+          details: {
+            pid: target.pid,
+            listingId: target.listingId,
+          },
+        },
+      );
+    }
+
+    return {
+      ok: true,
+      platform: this.platform,
+      account: session.account,
+      action: "remove-from-cart",
+      id: target.pid,
+      url: target.url,
+      message: `Removed Flipkart product ${target.pid} from the cart for ${session.account}.`,
+      user: session.user,
+      sessionPath: path,
+      data: {
+        pid: target.pid,
+        listingId: target.listingId,
+        title,
+        previousQuantity,
+        cartCount: afterCart.count,
+        cart: afterCart,
+      },
+    };
+  }
+
+  async updateCart(input: { target: string; quantity: number; account?: string; browserTimeoutSeconds?: number }): Promise<AdapterActionResult> {
+    const quantity = clamp(input.quantity, 1, 10);
+    const { session, path } = await this.ensureActiveSession(input.account);
+    const context = await this.loadFlipkartSessionContext(session);
+    const beforeCart = buildFlipkartCartSnapshot(context.state);
+    const target = await this.resolveFlipkartCartTarget(context, input.target, beforeCart.items, true);
+    const previousItem = findFlipkartCartItem(beforeCart.items, target);
+    const previousQuantity = getFlipkartCartQuantity(previousItem);
+    const title = asString(previousItem?.title) ?? target.title;
+
+    if (previousQuantity !== quantity) {
+      await this.updateFlipkartCartQuantityInBrowser(session, target, quantity, beforeCart.count, input.browserTimeoutSeconds);
+    }
+
+    const afterContext = await this.loadFlipkartSessionContext(session);
+    const afterCart = buildFlipkartCartSnapshot(afterContext.state);
+    const item = findFlipkartCartItem(afterCart.items, target);
+
+    if (!item || getFlipkartCartQuantity(item) !== quantity) {
+      throw new AutoCliError(
+        "FLIPKART_UPDATE_CART_NOT_CONFIRMED",
+        `Flipkart loaded the cart, but AutoCLI could not confirm the final quantity for ${target.pid}.`,
+        {
+          details: {
+            pid: target.pid,
+            listingId: target.listingId,
+            previousQuantity,
+            expectedQuantity: quantity,
+          },
+        },
+      );
+    }
+
+    return {
+      ok: true,
+      platform: this.platform,
+      account: session.account,
+      action: "update-cart",
+      id: target.pid,
+      url: asString(item.url) ?? target.url,
+      message: `Updated the Flipkart cart quantity for ${target.pid} to ${quantity}.`,
+      user: session.user,
+      sessionPath: path,
+      data: {
+        pid: target.pid,
+        listingId: target.listingId,
+        title,
+        quantityRequested: quantity,
+        previousQuantity,
+        cartCount: afterCart.count,
+        item,
+        cart: afterCart,
       },
     };
   }
@@ -406,6 +578,202 @@ export class FlipkartAdapter extends BaseShoppingAdapter {
       url: `${FLIPKART_ORIGIN}/product/p/item?pid=${parsed.pid}`,
     };
   }
+
+  private async mutateFlipkartCart(
+    context: FlipkartSessionContext,
+    target: FlipkartCartTarget,
+    quantity: number,
+    pageType: "ProductPage" | "CartPage",
+  ): Promise<Record<string, unknown>> {
+    const url = new URL("/api/5/cart", context.apiOrigin);
+    const payload = {
+      cartContext: {
+        [target.listingId]: {
+          productId: target.pid,
+          quantity,
+        },
+      },
+      pageType,
+    };
+
+    return context.client.request<Record<string, unknown>>(url.toString(), {
+      method: "POST",
+      responseType: "json",
+      expectedStatus: 200,
+      headers: {
+        ...this.buildFlipkartApiHeaders(context, pageType === "CartPage" ? `${FLIPKART_ORIGIN}/viewcart` : target.url),
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+  }
+
+  private async resolveFlipkartCartTarget(
+    context: FlipkartSessionContext,
+    input: string,
+    currentItems: Array<Record<string, unknown>>,
+    requireExisting = false,
+  ): Promise<FlipkartCartTarget> {
+    const parsed = parseFlipkartCartTarget(input);
+    const current = findFlipkartCartItem(currentItems, parsed);
+    if (current) {
+      const pid = asString(current.pid);
+      const listingId = asString(current.listingId);
+      const url = asString(current.url) ?? parsed.url ?? (pid ? `${FLIPKART_ORIGIN}/product/p/item?pid=${pid}` : undefined);
+      if (pid && listingId && url) {
+        return {
+          pid,
+          listingId,
+          url,
+          title: asString(current.title),
+        };
+      }
+    }
+
+    if (requireExisting) {
+      throw new AutoCliError("FLIPKART_CART_ITEM_NOT_FOUND", `Flipkart cart does not contain ${input.trim()}.`, {
+        details: {
+          target: input,
+        },
+      });
+    }
+
+    const pid = parsed.pid;
+    if (!pid) {
+      throw new AutoCliError("INVALID_TARGET", "Expected a Flipkart product URL or raw PID.", {
+        details: { target: input },
+      });
+    }
+
+    const url = parsed.url ?? `${FLIPKART_ORIGIN}/product/p/item?pid=${pid}`;
+    const html = await this.fetchFlipkartHtml(context.client, url);
+    const listingId = parsed.listingId ?? extractFlipkartListingIdFromHtml(html, pid);
+    if (!listingId) {
+      throw new AutoCliError("FLIPKART_LISTING_NOT_FOUND", `Flipkart did not expose a listing ID for ${pid}.`, {
+        details: {
+          pid,
+          url,
+        },
+      });
+    }
+
+    return {
+      pid,
+      listingId,
+      url,
+      title: normalizeFlipkartTitle(collapseWhitespace(extractMatch(html, /<title[^>]*>([\s\S]*?)<\/title>/i))),
+    };
+  }
+
+  private async runFlipkartBrowserAction<T>(
+    session: PlatformSession,
+    timeoutSeconds: number | undefined,
+    action: (page: PlaywrightPage) => Promise<T>,
+  ): Promise<T> {
+    return runBackgroundBrowserAction({
+      targetUrl: `${FLIPKART_ORIGIN}/viewcart`,
+      timeoutSeconds: timeoutSeconds ?? 60,
+      initialCookies: session.cookieJar.cookies,
+      headless: true,
+      userAgent: FLIPKART_USER_AGENT,
+      locale: "en-US",
+      action: async (page) => {
+        await page.waitForTimeout(2_000);
+        this.assertFlipkartBrowserPageState(await page.locator("body").innerText(), page.url());
+        return action(page);
+      },
+    });
+  }
+
+  private assertFlipkartBrowserPageState(bodyText: string, finalUrl: string): void {
+    if (isFlipkartLoggedOutUrl(finalUrl) || /\bLogin\b[\s\S]*\bSign Up\b/i.test(bodyText)) {
+      throw new AutoCliError(
+        "SESSION_EXPIRED",
+        "Flipkart redirected the browser session to sign-in. Re-import cookies.txt or log into Flipkart once with `autocli login --browser --url https://www.flipkart.com/` so the shared browser profile can be reused.",
+      );
+    }
+  }
+
+  private async updateFlipkartCartQuantityInBrowser(
+    session: PlatformSession,
+    target: FlipkartCartTarget,
+    quantity: number,
+    cartItemCount: number,
+    timeoutSeconds: number | undefined,
+  ): Promise<void> {
+    await this.runFlipkartBrowserAction(session, timeoutSeconds, async (page) => {
+      const item = await this.findFlipkartCartItemElement(page, target, cartItemCount);
+      await item.getByText(/Qty:\s*\d+/).first().click();
+      await page.waitForTimeout(800);
+      const option = item.getByText(new RegExp(`^${quantity}\\s*$`)).last();
+      if (await option.count()) {
+        await option.click({ force: true });
+      } else {
+        const fallback = page.getByText(new RegExp(`^${quantity}\\s*$`)).last();
+        await fallback.click({ force: true });
+      }
+      await page.waitForTimeout(5_000);
+    });
+  }
+
+  private async removeFlipkartCartItemInBrowser(
+    session: PlatformSession,
+    target: FlipkartCartTarget,
+    cartItemCount: number,
+    timeoutSeconds: number | undefined,
+  ): Promise<void> {
+    await this.runFlipkartBrowserAction(session, timeoutSeconds, async (page) => {
+      const item = await this.findFlipkartCartItemElement(page, target, cartItemCount);
+      await item.getByText("Remove", { exact: true }).first().click();
+      await page.waitForTimeout(1_000);
+
+      const removeButtons = page.getByText("Remove", { exact: true });
+      const removeCount = await removeButtons.count();
+      if (removeCount > 1) {
+        await removeButtons.nth(removeCount - 1).click({ force: true });
+      }
+
+      await page.waitForTimeout(4_000);
+    });
+  }
+
+  private async findFlipkartCartItemElement(
+    page: PlaywrightPage,
+    target: FlipkartCartTarget,
+    cartItemCount: number,
+  ): Promise<PlaywrightLocator> {
+    const candidates: PlaywrightLocator[] = [];
+    const byPid = page.locator(`xpath=(//a[contains(@href, "pid=${target.pid}")]/ancestor::div[.//*[contains(normalize-space(.), "Qty:")] and .//*[normalize-space(.)="Remove"]])[1]`);
+    candidates.push(byPid);
+
+    if (target.title && target.title !== target.pid) {
+      candidates.push(
+        page.locator(
+          `xpath=(//*[contains(normalize-space(.), ${toXPathLiteral(target.title)})]/ancestor::div[.//*[contains(normalize-space(.), "Qty:")] and .//*[normalize-space(.)="Remove"]])[1]`,
+        ),
+      );
+    }
+
+    for (const candidate of candidates) {
+      if (await candidate.count()) {
+        return candidate.first();
+      }
+    }
+
+    if (cartItemCount === 1) {
+      const fallback = page.locator('xpath=(//div[.//*[contains(normalize-space(.), "Qty:")] and .//*[normalize-space(.)="Remove"]])[1]');
+      if (await fallback.count()) {
+        return fallback.first();
+      }
+    }
+
+    throw new AutoCliError("FLIPKART_CART_ITEM_NOT_FOUND", `Flipkart could not find ${target.pid} in the visible cart page.`, {
+      details: {
+        pid: target.pid,
+        listingId: target.listingId,
+      },
+    });
+  }
 }
 
 function extractFlipkartSearchResults(html: string): FlipkartSearchResult[] {
@@ -624,10 +992,30 @@ function extractFlipkartCartItems(state: Record<string, unknown>): Array<Record<
     ...(Array.isArray(cart.groceryItems) ? cart.groceryItems : []),
     ...(Array.isArray(cart.items) ? cart.items : []),
   ];
+  const seen = new Set<string>();
+  const items: Array<Record<string, unknown>> = [];
 
-  return combined
-    .map((entry, index) => mapFlipkartCartItem(asRecord(entry), index))
-    .filter((entry): entry is Record<string, unknown> => Object.keys(entry).length > 0);
+  for (const [index, entry] of combined.entries()) {
+    const mapped = mapFlipkartCartItem(asRecord(entry), index);
+    if (Object.keys(mapped).length === 0) {
+      continue;
+    }
+
+    const key =
+      asString(mapped.id) ??
+      asString(mapped.listingId) ??
+      asString(mapped.pid) ??
+      asString(mapped.url);
+    if (key && seen.has(key)) {
+      continue;
+    }
+    if (key) {
+      seen.add(key);
+    }
+    items.push(mapped);
+  }
+
+  return items;
 }
 
 function mapFlipkartCartItem(raw: Record<string, unknown>, index: number): Record<string, unknown> {
@@ -638,8 +1026,15 @@ function mapFlipkartCartItem(raw: Record<string, unknown>, index: number): Recor
   const imageUrl = renderFlipkartImageUrl(asRecord(raw.imageLocation)) ?? renderFlipkartImageUrl(asRecord(basic.imageLocation));
   const quantity = asNumber(raw.quantity) ?? asNumber(raw.qty);
   const price = asNumber(raw.price) ?? asNumber(raw.sellingPrice);
+  const id = asString(raw.id);
+  const listingId = asString(raw.listingId) ?? extractFlipkartListingIdFromUrl(url);
+  const pid =
+    asString(raw.pid) ??
+    asString(raw.productId) ??
+    asString(product.productId) ??
+    extractPidFromFlipkartUrl(url);
 
-  if (!title && !url) {
+  if (!title && !url && !pid && !listingId && !id) {
     return {
       index: index + 1,
       raw,
@@ -647,13 +1042,117 @@ function mapFlipkartCartItem(raw: Record<string, unknown>, index: number): Recor
   }
 
   return {
-    title: title ?? `Item ${index + 1}`,
+    id,
+    listingId,
+    pid,
+    title: title ?? pid ?? listingId ?? `Item ${index + 1}`,
     url,
     imageUrl,
     quantity,
     priceText: typeof price === "number" ? `₹${price}` : undefined,
-    pid: extractPidFromFlipkartUrl(url),
   };
+}
+
+function buildFlipkartCartSnapshot(state: Record<string, unknown>): FlipkartCartSnapshot {
+  const items = extractFlipkartCartItems(state);
+  return {
+    count: items.length,
+    fkItemCount: extractFlipkartCartArray(state, "fkItems").length,
+    groceryItemCount: extractFlipkartCartArray(state, "groceryItems").length,
+    items,
+  };
+}
+
+function parseFlipkartCartTarget(target: string): { pid?: string; listingId?: string; url?: string } {
+  const trimmed = target.trim();
+  if (!trimmed) {
+    throw new AutoCliError("INVALID_TARGET", "Expected a Flipkart product URL, listing ID, or raw PID.", {
+      details: { target },
+    });
+  }
+
+  const pid = trimmed.match(/[?&]pid=([A-Z0-9]{12,18})/i)?.[1]?.toUpperCase();
+  const listingId = trimmed.match(/[?&]lid=([A-Z0-9]{12,40})/i)?.[1]?.toUpperCase();
+  if (pid || listingId) {
+    return {
+      pid,
+      listingId,
+      url: trimmed,
+    };
+  }
+
+  if (/^LST[A-Z0-9]{8,}$/i.test(trimmed)) {
+    return {
+      listingId: trimmed.toUpperCase(),
+    };
+  }
+
+  if (/^[A-Z0-9]{12,18}$/i.test(trimmed)) {
+    return {
+      pid: trimmed.toUpperCase(),
+    };
+  }
+
+  throw new AutoCliError("INVALID_TARGET", "Expected a Flipkart product URL, listing ID, or raw PID.", {
+    details: { target },
+  });
+}
+
+function findFlipkartCartItem(
+  items: Array<Record<string, unknown>>,
+  target: { pid?: string; listingId?: string; url?: string },
+): Record<string, unknown> | undefined {
+  const pid = target.pid?.toUpperCase();
+  const listingId = target.listingId?.toUpperCase();
+  const url = target.url;
+
+  return items.find((item) => {
+    const itemPid = asString(item.pid)?.toUpperCase();
+    const itemListingId = asString(item.listingId)?.toUpperCase();
+    const itemUrl = asString(item.url);
+    return (
+      (pid && itemPid === pid) ||
+      (listingId && itemListingId === listingId) ||
+      (url && itemUrl === url)
+    );
+  });
+}
+
+function getFlipkartCartQuantity(item: Record<string, unknown> | undefined): number {
+  return asNumber(item?.quantity) ?? 0;
+}
+
+function extractFlipkartListingIdFromHtml(html: string, pid: string): string | undefined {
+  const escapedPid = pid.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const paired = html.match(new RegExp(`[?&]lid=([A-Z0-9]{12,40})&pid=${escapedPid}`, "i"))?.[1];
+  if (paired) {
+    return paired.toUpperCase();
+  }
+
+  return html.match(/[?&]lid=([A-Z0-9]{12,40})/i)?.[1]?.toUpperCase();
+}
+
+function extractFlipkartListingIdFromUrl(url: string | undefined): string | undefined {
+  if (!url) {
+    return undefined;
+  }
+
+  return url.match(/[?&]lid=([A-Z0-9]{12,40})/i)?.[1]?.toUpperCase();
+}
+
+function toXPathLiteral(value: string): string {
+  if (!value.includes("'")) {
+    return `'${value}'`;
+  }
+
+  if (!value.includes('"')) {
+    return `"${value}"`;
+  }
+
+  return `concat(${value
+    .split("'")
+    .map((part) => `'${part}'`)
+    .join(`, "'", `)})`;
 }
 
 function mapFlipkartOrder(order: Record<string, unknown>): Record<string, unknown> {
