@@ -2,6 +2,7 @@ import type { Command } from "commander";
 
 import { Logger } from "../../../../logger.js";
 import { printActionResult, resolveCommandContext, runCommandAction } from "../../../../utils/cli.js";
+import { parseBrowserTimeoutSeconds } from "../../../shared/cookie-login.js";
 
 import { xAdapter } from "../adapter.js";
 
@@ -13,9 +14,11 @@ export const xPostCapability: PlatformCapability = {
     const postCommand = command
       .command("post <text>")
       .alias("tweet")
-      .description("Publish a text post on X, optionally with one image, using the latest saved session by default")
+      .description("Publish a text post on X, optionally with one image, using the latest saved session and auto-switching to a browser-backed compose flow when X blocks the request path")
       .option("--image <path>", "Attach an image to the post")
       .option("--account <name>", "Optional override for a specific saved X session")
+      .option("--browser", "Force the post through an invisible browser-backed compose flow instead of trying the request path first")
+      .option("--browser-timeout <seconds>", "Maximum seconds to allow the browser action to complete", parseBrowserTimeoutSeconds)
       .action(async (text, options, cmd) => {
         const ctx = resolveCommandContext(cmd);
         const logger = new Logger(ctx);
@@ -28,6 +31,8 @@ export const xPostCapability: PlatformCapability = {
               account: options.account,
               text,
               imagePath: options.image,
+              browser: Boolean(options.browser),
+              browserTimeoutSeconds: options.browserTimeout as number | undefined,
             }),
           onSuccess: (result) => {
             printActionResult(result, ctx.json);

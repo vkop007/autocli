@@ -60,6 +60,8 @@ export interface TextPostInput {
   account?: string;
   text: string;
   imagePath?: string;
+  browser?: boolean;
+  browserTimeoutSeconds?: number;
 }
 
 export interface LikeInput {

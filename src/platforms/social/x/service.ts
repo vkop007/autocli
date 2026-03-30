@@ -1,9 +1,11 @@
 import { readMediaFile } from "../../../utils/media.js";
+import { runBrowserActionPlan } from "../../../utils/browser-cookie-login.js";
 import { parseXProfileTarget, parseXTarget } from "../../../utils/targets.js";
 import { AutoCliError } from "../../../errors.js";
 import { maybeAutoRefreshSession } from "../../../utils/autorefresh.js";
 import { serializeCookieJar } from "../../../utils/cookie-manager.js";
 import { getPlatformOrigin } from "../../config.js";
+import { normalizeWhitespace } from "../../data/shared/text.js";
 import { BasePlatformAdapter } from "../../shared/base-platform-adapter.js";
 
 import type {
@@ -18,9 +20,12 @@ import type {
   SessionUser,
   TextPostInput,
 } from "../../../types.js";
+import type { Page as PlaywrightPage } from "playwright-core";
 
 const X_ORIGIN = getPlatformOrigin("x");
 const X_HOME = `${X_ORIGIN}/home`;
+const X_COMPOSE_URL = `${X_ORIGIN}/compose/post`;
+const X_BROWSER_USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36";
 const X_VERIFY_CREDENTIALS_ENDPOINTS = [
   "https://api.x.com/1.1/account/verify_credentials.json?include_entities=false&skip_status=true&include_email=false",
   `${X_ORIGIN}/i/api/1.1/account/verify_credentials.json?include_entities=false&skip_status=true&include_email=false`,
@@ -235,40 +240,194 @@ export class XAdapter extends BasePlatformAdapter {
   }
 
   async postText(input: TextPostInput): Promise<AdapterActionResult> {
-    const { session } = await this.prepareSession(input.account);
+    if (input.browser) {
+      return this.browserPostText(input);
+    }
+
+    try {
+      const { session } = await this.prepareSession(input.account);
+      const probe = await this.ensureActiveSession(session);
+      const client = await this.createXClient(session);
+      const bearerToken = await this.resolveBearerToken(session, client, probe.metadata);
+      const mediaId = input.imagePath ? await this.uploadMedia(client, probe.metadata, bearerToken, input.imagePath) : undefined;
+      const response = await this.createTweet(client, session, bearerToken, {
+        tweet_text: input.text,
+        dark_request: false,
+        media: {
+          media_entities: mediaId ? [{ media_id: mediaId, tagged_users: [] as string[] }] : [],
+          possibly_sensitive: false,
+        },
+        semantic_annotation_ids: [] as string[],
+        disallowed_reply_options: null,
+      });
+
+      const tweetId = this.extractTweetId(response);
+      const username = probe.user?.username;
+      const url = username && tweetId ? `${X_ORIGIN}/${username}/status/${tweetId}` : undefined;
+
+      return {
+        ok: true,
+        platform: this.platform,
+        account: session.account,
+        action: "post",
+        message: `X post created for ${session.account}.`,
+        id: tweetId,
+        url,
+        user: probe.user,
+        data: {
+          text: input.text,
+          imagePath: input.imagePath,
+          source: "request",
+        },
+      };
+    } catch (error) {
+      if (error instanceof AutoCliError && error.code === "X_AUTOMATION_BLOCKED") {
+        return this.browserPostText({
+          ...input,
+          browser: true,
+        });
+      }
+
+      throw error;
+    }
+  }
+
+  private async browserPostText(input: TextPostInput): Promise<AdapterActionResult> {
+    const { session, path } = await this.prepareSession(input.account);
     const probe = await this.ensureActiveSession(session);
-    const client = await this.createXClient(session);
-    const bearerToken = await this.resolveBearerToken(session, client, probe.metadata);
-    const mediaId = input.imagePath ? await this.uploadMedia(client, probe.metadata, bearerToken, input.imagePath) : undefined;
-    const response = await this.createTweet(client, session, bearerToken, {
-      tweet_text: input.text,
-      dark_request: false,
-      media: {
-        media_entities: mediaId ? [{ media_id: mediaId, tagged_users: [] as string[] }] : [],
-        possibly_sensitive: false,
+    const username = probe.user?.username ?? session.user?.username;
+    const timeoutSeconds = input.browserTimeoutSeconds ?? 60;
+
+    const result = await runBrowserActionPlan<{
+      tweetId?: string;
+      finalUrl?: string;
+      source: "headless" | "profile" | "shared";
+    }>({
+      targetUrl: X_COMPOSE_URL,
+      timeoutSeconds,
+      initialCookies: session.cookieJar.cookies,
+      headless: true,
+      userAgent: X_BROWSER_USER_AGENT,
+      locale: "en-US",
+      steps: [
+        {
+          source: "headless",
+          shouldContinueOnError: (error) => shouldRetryXBrowserPost(error),
+        },
+        {
+          source: "shared",
+          announceLabel: `Opening shared AutoCLI browser profile for X posting: ${X_COMPOSE_URL}`,
+        },
+      ],
+      action: async (page, source) => {
+        await this.ensureBrowserAuthenticated(page);
+        await this.openComposer(page);
+        await this.fillBrowserComposerText(page, input.text);
+        if (input.imagePath) {
+          await this.attachBrowserComposerImage(page, input.imagePath);
+        }
+
+        const responsePromise = page.waitForResponse(
+          (response) => response.request().method() === "POST" && response.url().includes("/CreateTweet"),
+          { timeout: Math.min(timeoutSeconds * 1_000, 30_000) },
+        ).catch(() => undefined);
+        const submitButton = await this.waitForEnabledBrowserPostButton(page);
+        await submitButton.click();
+        const response = await responsePromise;
+
+        if (!response) {
+          await page.waitForTimeout(1_500);
+          await this.throwIfBrowserBlocked(page);
+          throw new AutoCliError(
+            "X_BROWSER_CREATE_TWEET_TIMEOUT",
+            "X never sent the compose request from the browser-backed post flow. Retry once, or re-login with `autocli social x login --browser` if the problem persists.",
+            {
+              details: {
+                url: page.url(),
+              },
+            },
+          );
+        }
+
+        const payload = (await response.json().catch(() => null)) as XCreateTweetGraphQlResponse | null;
+
+        if (!payload) {
+          throw new AutoCliError("X_BROWSER_ACTION_FAILED", "X submitted the browser post, but AutoCLI could not read the resulting response.");
+        }
+
+        this.throwOnGraphQlErrors(payload, X_CREATE_TWEET_OPERATION);
+        const tweetId = this.extractTweetId(payload);
+        await page.waitForTimeout(1_500);
+        await this.throwIfBrowserBlocked(page);
+        const browserUsername = await this.resolveBrowserUsername(page).catch(() => undefined);
+
+        return {
+          tweetId,
+          finalUrl: this.buildBrowserTweetUrl(username ?? browserUsername, tweetId, page.url()),
+          source,
+        };
       },
-      semantic_annotation_ids: [] as string[],
-      disallowed_reply_options: null,
     });
 
-    const tweetId = this.extractTweetId(response);
-    const username = probe.user?.username;
-    const url = username && tweetId ? `${X_ORIGIN}/${username}/status/${tweetId}` : undefined;
+    await this.persistExistingSession(session, {
+      user: probe.user ?? session.user,
+      status: {
+        state: "active",
+        message: "X browser-backed compose flow succeeded.",
+        lastValidatedAt: new Date().toISOString(),
+      },
+      metadata: {
+        ...(session.metadata ?? {}),
+        ...(probe.metadata ?? {}),
+      },
+    });
 
     return {
       ok: true,
       platform: this.platform,
       account: session.account,
       action: "post",
-      message: `X post created for ${session.account}.`,
-      id: tweetId,
-      url,
+      message: `X post created for ${session.account} through a browser-backed compose flow.`,
+      id: result.tweetId,
+      url: result.finalUrl,
       user: probe.user,
+      sessionPath: path,
       data: {
         text: input.text,
         imagePath: input.imagePath,
+        source: result.source,
       },
     };
+  }
+
+  private async waitForEnabledBrowserPostButton(page: PlaywrightPage) {
+    const deadline = Date.now() + 12_000;
+    while (Date.now() < deadline) {
+      for (const selector of [
+          '[data-testid="tweetButtonInline"]',
+          '[data-testid="tweetButton"]',
+          'button[aria-label="Post"]',
+          'button:has-text("Post")',
+        ] as const) {
+        const locator = page.locator(selector);
+        const count = await locator.count().catch(() => 0);
+        for (let index = 0; index < count; index += 1) {
+          const candidate = locator.nth(index);
+          const visible = await candidate.isVisible().catch(() => false);
+          const enabled = await candidate.isEnabled().catch(() => false);
+          if (visible && enabled) {
+            return candidate;
+          }
+        }
+      }
+      await page.waitForTimeout(250);
+    }
+
+    throw new AutoCliError("X_BROWSER_POST_BUTTON_DISABLED", "X never enabled the browser post button for the composed text.", {
+      details: {
+        url: page.url(),
+      },
+    });
   }
 
   async like(input: LikeInput): Promise<AdapterActionResult> {
@@ -1034,6 +1193,133 @@ export class XAdapter extends BasePlatformAdapter {
     return response.data?.create_tweet?.tweet_results?.result?.rest_id ?? response.data?.create_tweet?.tweet_results?.result?.legacy?.id_str;
   }
 
+  private async ensureBrowserAuthenticated(page: PlaywrightPage): Promise<void> {
+    await page.waitForLoadState("domcontentloaded");
+    await page.waitForTimeout(1_000);
+
+    if (isXLoginUrl(page.url())) {
+      throw new AutoCliError("X_BROWSER_NOT_LOGGED_IN", "The browser session is not logged into X. Run `autocli social x login --browser` first.");
+    }
+
+    const loginInputs = page.locator('input[autocomplete="username"], input[name="text"], input[autocomplete="current-password"]');
+    if ((await loginInputs.count().catch(() => 0)) > 0) {
+      throw new AutoCliError("X_BROWSER_NOT_LOGGED_IN", "The browser session is not logged into X. Run `autocli social x login --browser` first.");
+    }
+
+    await this.throwIfBrowserBlocked(page);
+  }
+
+  private async openComposer(page: PlaywrightPage): Promise<void> {
+    const composerVisible = await this.hasVisibleBrowserLocator(page, [
+      '[data-testid="tweetTextarea_0"]',
+      '[data-testid="tweetTextarea_0"] div[role="textbox"]',
+      'div[role="textbox"][contenteditable="true"]',
+    ]);
+    if (composerVisible) {
+      return;
+    }
+
+    const trigger = await firstVisibleXLocator(page, [
+      '[data-testid="SideNav_NewTweet_Button"]',
+      'a[href="/compose/post"]',
+      'a[href="/compose/tweet"]',
+    ]);
+    await trigger.click();
+    await page.waitForTimeout(800);
+    await firstVisibleXLocator(page, [
+      '[data-testid="tweetTextarea_0"]',
+      '[data-testid="tweetTextarea_0"] div[role="textbox"]',
+      'div[role="textbox"][contenteditable="true"]',
+    ]);
+  }
+
+  private async fillBrowserComposerText(page: PlaywrightPage, text: string): Promise<void> {
+    const composer = await firstVisibleXLocator(page, [
+      '[data-testid="tweetTextarea_0"] div[role="textbox"]',
+      '[data-testid="tweetTextarea_0"]',
+      'div[role="textbox"][contenteditable="true"]',
+    ]);
+    await composer.click();
+    await page.keyboard.press("Meta+A").catch(() => {});
+    await page.keyboard.type(text, { delay: 12 });
+    await page.waitForTimeout(400);
+  }
+
+  private async attachBrowserComposerImage(page: PlaywrightPage, imagePath: string): Promise<void> {
+    const input = page.locator('input[data-testid="fileInput"], input[type="file"]').first();
+    if (!(await input.count().catch(() => 0))) {
+      throw new AutoCliError("X_BROWSER_UPLOAD_INPUT_MISSING", "X did not show an image upload field in the browser composer.");
+    }
+
+    await input.setInputFiles(imagePath);
+    await page.waitForTimeout(1_500);
+  }
+
+  private async throwIfBrowserBlocked(page: PlaywrightPage): Promise<void> {
+    const bodyText = normalizeWhitespace(await page.locator("body").innerText().catch(() => ""));
+    if (!bodyText) {
+      return;
+    }
+
+    const knownPatterns = [
+      /something went wrong/i,
+      /we noticed unusual activity/i,
+      /automated/i,
+      /try again later/i,
+      /your post was not sent/i,
+      /cannot post right now/i,
+    ];
+
+    for (const pattern of knownPatterns) {
+      const match = bodyText.match(pattern);
+      if (match) {
+        throw new AutoCliError("X_BROWSER_ACTION_FAILED", match[0], {
+          details: {
+            url: page.url(),
+          },
+        });
+      }
+    }
+  }
+
+  private async hasVisibleBrowserLocator(page: PlaywrightPage, selectors: readonly string[]): Promise<boolean> {
+    for (const selector of selectors) {
+      const locator = page.locator(selector);
+      const count = await locator.count().catch(() => 0);
+      for (let index = 0; index < count; index += 1) {
+        const candidate = locator.nth(index);
+        if (await candidate.isVisible().catch(() => false)) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
+
+  private buildBrowserTweetUrl(username: string | undefined, tweetId: string | undefined, currentUrl: string): string | undefined {
+    if (currentUrl.includes("/status/")) {
+      return currentUrl;
+    }
+
+    if (username && tweetId) {
+      return `${X_ORIGIN}/${username}/status/${tweetId}`;
+    }
+
+    return undefined;
+  }
+
+  private async resolveBrowserUsername(page: PlaywrightPage): Promise<string | undefined> {
+    const profileLink = page.locator('a[data-testid="AppTabBar_Profile_Link"], a[aria-label*="Profile" i]').first();
+    const href = await profileLink.getAttribute("href").catch(() => null);
+    if (!href) {
+      return undefined;
+    }
+
+    const match = href.match(/^\/([A-Za-z0-9_]+)(?:\/|$)/u);
+    return match?.[1];
+  }
+
   private normalizeSearchLimit(limit?: number): number {
     if (!limit || !Number.isFinite(limit)) {
       return 5;
@@ -1374,4 +1660,36 @@ export class XAdapter extends BasePlatformAdapter {
       details: lastError instanceof Error ? { message: lastError.message } : undefined,
     });
   }
+}
+
+async function firstVisibleXLocator(page: PlaywrightPage, selectors: readonly string[]) {
+  for (const selector of selectors) {
+    const locator = page.locator(selector);
+    const count = await locator.count().catch(() => 0);
+    for (let index = 0; index < count; index += 1) {
+      const candidate = locator.nth(index);
+      if (await candidate.isVisible().catch(() => false)) {
+        return candidate;
+      }
+    }
+  }
+
+  throw new AutoCliError("X_BROWSER_ELEMENT_NOT_FOUND", `Could not find any visible X browser element for selectors: ${selectors.join(", ")}`);
+}
+
+function isXLoginUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return parsed.pathname.startsWith("/i/flow/login") || parsed.pathname === "/login";
+  } catch {
+    return url.includes("/i/flow/login") || url.includes("/login");
+  }
+}
+
+function shouldRetryXBrowserPost(error: unknown): boolean {
+  if (!(error instanceof AutoCliError)) {
+    return false;
+  }
+
+  return ["X_BROWSER_NOT_LOGGED_IN", "X_BROWSER_ACTION_FAILED", "X_BROWSER_ELEMENT_NOT_FOUND"].includes(error.code);
 }
