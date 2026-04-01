@@ -327,60 +327,8 @@ export class GrokService {
       browserTimeoutSeconds?: number;
     },
   ): Promise<GrokImageExecutionResult> {
-    if (input.browser) {
-      return this.executeImageInBrowser(client, input);
-    }
+    return this.executeImageInBrowser(client, input);
 
-    try {
-      return await withGrokTlsSession(client.jar, async (session) => {
-        const parsed = parseGrokConversationStream(
-          await postGrokCreateConversation(session, client.jar, buildGrokImageGenerationPayload(input.prompt, input.model)),
-        );
-        const imageAssets = selectFinalGrokImageAssets(parsed.imageAssets);
-        if (imageAssets.length === 0) {
-          throw new AutoCliError("GROK_IMAGE_GENERATION_FAILED", "Grok did not return any generated images.", {
-            details: {
-              conversationId: parsed.conversationId,
-              responseId: parsed.responseId,
-              outputText: parsed.outputText,
-            },
-          });
-        }
-
-        const downloads = await Promise.all(
-          imageAssets.map(async (asset, index) => {
-            const outputUrl = resolveGrokAssetUrl(asset.assetPath);
-            const outputPath = await downloadGrokAsset(session, client.jar, outputUrl, "images", {
-              prefix: `${parsed.conversationId ?? "grok"}-${asset.imageUuid ?? String(index + 1)}`,
-            });
-            return {
-              outputPath,
-              outputUrl,
-            };
-          }),
-        );
-
-        return {
-          outputText:
-            parsed.outputText && !parsed.outputText.includes("<grok:render")
-              ? parsed.outputText
-              : `Generated ${downloads.length} Grok image${downloads.length === 1 ? "" : "s"}.`,
-          conversationId: parsed.conversationId,
-          responseId: parsed.responseId,
-          model: parsed.model ?? resolveGrokModel(input.model),
-          followUpSuggestions: parsed.followUpSuggestions,
-          outputPaths: downloads.map((download) => download.outputPath),
-          outputUrls: downloads.map((download) => download.outputUrl),
-          imageUuid: imageAssets[0]?.imageUuid,
-        };
-      });
-    } catch (error) {
-      const mapped = mapGrokError(error, "Failed to generate the Grok image.");
-      if (mapped.code === "GROK_ANTI_BOT_BLOCKED") {
-        return this.executeImageInBrowser(client, input);
-      }
-      throw mapped;
-    }
   }
 
   async downloadImages(
@@ -433,91 +381,7 @@ export class GrokService {
       browserTimeoutSeconds?: number;
     },
   ): Promise<GrokVideoExecutionResult> {
-    if (input.browser) {
-      return this.executeVideoInBrowser(client, input);
-    }
-
-    try {
-      return await withGrokTlsSession(client.jar, async (session) => {
-        const imageParsed = parseGrokConversationStream(
-          await postGrokCreateConversation(session, client.jar, buildGrokImageGenerationPayload(input.prompt, input.model)),
-        );
-        const seedImage = selectPrimaryGrokImageAsset(imageParsed.imageAssets);
-        if (!seedImage?.imageUuid) {
-          throw new AutoCliError("GROK_VIDEO_SEED_IMAGE_FAILED", "Grok did not return a usable seed image for video generation.", {
-            details: {
-              conversationId: imageParsed.conversationId,
-              responseId: imageParsed.responseId,
-            },
-          });
-        }
-
-        const seedImageUrl = resolveGrokAssetUrl(seedImage.assetPath);
-        const seedImagePath = await downloadGrokAsset(session, client.jar, seedImageUrl, "images", {
-          prefix: `${imageParsed.conversationId ?? "grok"}-seed-${seedImage.imageUuid}`,
-        });
-
-        const videoParsed = parseGrokConversationStream(
-          await postGrokCreateConversation(
-            session,
-            client.jar,
-            buildGrokVideoPayload({
-              prompt: input.prompt,
-              model: input.model,
-              imageUuid: seedImage.imageUuid,
-              imagePath: seedImage.assetPath,
-            }),
-            {
-              timeoutSeconds: 150,
-            },
-          ),
-        );
-
-        const latestVideoUpdate = selectLatestGrokVideoUpdate(videoParsed.videoUpdates);
-        const outputUrl =
-          (latestVideoUpdate?.videoUrl ? resolveGrokAssetUrl(latestVideoUpdate.videoUrl) : undefined) ??
-          (await pollForGrokVideoUrl(session, client.jar, {
-            conversationId: videoParsed.conversationId,
-            videoId: latestVideoUpdate?.videoId,
-          }));
-
-        const outputPaths = outputUrl
-          ? [
-              await downloadGrokAsset(session, client.jar, outputUrl, "videos", {
-                prefix: `${videoParsed.conversationId ?? "grok"}-${latestVideoUpdate?.videoId ?? "video"}`,
-              }),
-            ]
-          : [];
-
-        const status: GrokVideoExecutionResult["status"] = outputUrl ? "completed" : "processing";
-
-        return {
-          outputText:
-            videoParsed.outputText ||
-            (status === "completed"
-              ? "Generated a Grok video."
-              : "Grok accepted the video generation job, but the final asset URL is still pending."),
-          conversationId: videoParsed.conversationId,
-          responseId: videoParsed.responseId,
-          model: videoParsed.model ?? latestVideoUpdate?.modelName ?? resolveGrokModel(input.model),
-          followUpSuggestions: dedupeValues([...imageParsed.followUpSuggestions, ...videoParsed.followUpSuggestions]),
-          status,
-          outputUrl,
-          outputUrls: outputUrl ? [outputUrl] : [],
-          outputPaths,
-          videoId: latestVideoUpdate?.videoId,
-          progress: latestVideoUpdate?.progress,
-          seedImageUrl,
-          seedImagePath,
-        };
-      });
-    } catch (error) {
-      const mapped = mapGrokError(error, "Failed to generate the Grok video.");
-      if (mapped.code === "GROK_ANTI_BOT_BLOCKED") {
-        return this.executeVideoInBrowser(client, input);
-      }
-      throw mapped;
-    }
+    return this.executeVideoInBrowser(client, input);
   }
 
   async getVideoStatus(
@@ -779,55 +643,54 @@ export class GrokService {
       browserTimeoutSeconds?: number;
     },
   ): Promise<GrokImageExecutionResult> {
-    return await withGrokTlsSession(client.jar, async (session) => {
-      const generated = await this.executeImagineInBrowser(client, {
-        prompt: input.prompt,
-        mode: "image",
-        timeoutSeconds: input.browserTimeoutSeconds,
-      });
-      const outputUrls = resolveBrowserImagineImageUrls(generated);
-      if (outputUrls.length === 0) {
-        throw new AutoCliError("GROK_IMAGE_GENERATION_FAILED", "Grok did not return any generated images.", {
-          details: {
-            outputText: generated.parsed?.outputText,
-            prompt: input.prompt,
-          },
-        });
-      }
-
-      const downloads = await Promise.all(
-        outputUrls.map(async (assetUrl, index) => {
-          const outputPath = isDataUri(assetUrl)
-            ? await writeGrokBrowserAsset(assetUrl, "images", {
-                prefix: `${generated.parsed?.conversationId ?? "grok-image"}-${String(index + 1)}`,
-              })
-            : await downloadGrokAsset(session, client.jar, assetUrl, "images", {
-                prefix: `${generated.parsed?.conversationId ?? "grok-image"}-${String(index + 1)}`,
-              });
-          return {
-            outputPath,
-            outputUrl: assetUrl,
-          };
-        }),
-      );
-      const exposedOutputUrls = downloads
-        .map((download) => download.outputUrl)
-        .filter((outputUrl) => !isDataUri(outputUrl));
-
-      return {
-        outputText:
-          generated.parsed?.outputText && !generated.parsed.outputText.includes("<grok:render")
-            ? generated.parsed.outputText
-            : `Generated ${downloads.length} Grok image${downloads.length === 1 ? "" : "s"}.`,
-        conversationId: generated.conversationId ?? generated.parsed?.conversationId,
-        responseId: generated.parsed?.responseId,
-        model: generated.parsed?.model ?? resolveGrokModel(input.model),
-        followUpSuggestions: generated.parsed?.followUpSuggestions ?? [],
-        outputPaths: downloads.map((download) => download.outputPath),
-        outputUrls: exposedOutputUrls,
-        imageUuid: generated.parsed?.imageAssets[0]?.imageUuid,
-      };
+    const generated = await this.executeImagineInBrowser(client, {
+      prompt: input.prompt,
+      mode: "image",
+      timeoutSeconds: input.browserTimeoutSeconds,
     });
+    const outputUrls = resolveBrowserImagineImageUrls(generated);
+    if (outputUrls.length === 0) {
+      throw new AutoCliError("GROK_IMAGE_GENERATION_FAILED", "Grok did not return any generated images.", {
+        details: {
+          outputText: generated.parsed?.outputText,
+          prompt: input.prompt,
+        },
+      });
+    }
+
+    const downloads = await Promise.all(
+      outputUrls.map(async (assetUrl, index) => {
+        const outputPath = isDataUri(assetUrl)
+          ? await writeGrokBrowserAsset(assetUrl, "images", {
+              prefix: `${generated.parsed?.conversationId ?? "grok-image"}-${String(index + 1)}`,
+            })
+          : await downloadBrowserAccessibleAsset(client, assetUrl, "images", {
+              prefix: `${generated.parsed?.conversationId ?? "grok-image"}-${String(index + 1)}`,
+              referer: GROK_IMAGINE_URL,
+            });
+        return {
+          outputPath,
+          outputUrl: assetUrl,
+        };
+      }),
+    );
+    const exposedOutputUrls = downloads
+      .map((download) => download.outputUrl)
+      .filter((outputUrl) => !isDataUri(outputUrl));
+
+    return {
+      outputText:
+        generated.parsed?.outputText && !generated.parsed.outputText.includes("<grok:render")
+          ? generated.parsed.outputText
+          : `Generated ${downloads.length} Grok image${downloads.length === 1 ? "" : "s"}.`,
+      conversationId: generated.conversationId ?? generated.parsed?.conversationId,
+      responseId: generated.parsed?.responseId,
+      model: generated.parsed?.model ?? resolveGrokModel(input.model),
+      followUpSuggestions: generated.parsed?.followUpSuggestions ?? [],
+      outputPaths: downloads.map((download) => download.outputPath),
+      outputUrls: exposedOutputUrls,
+      imageUuid: generated.parsed?.imageAssets[0]?.imageUuid,
+    };
   }
 
   private async executeVideoInBrowser(
@@ -839,41 +702,40 @@ export class GrokService {
       browserTimeoutSeconds?: number;
     },
   ): Promise<GrokVideoExecutionResult> {
-    return await withGrokTlsSession(client.jar, async (session) => {
-      const generated = await this.executeImagineInBrowser(client, {
-        prompt: input.prompt,
-        mode: "video",
-        timeoutSeconds: input.browserTimeoutSeconds ? Math.max(input.browserTimeoutSeconds, 180) : 180,
-      });
-
-      const latestVideoUpdate = selectLatestGrokVideoUpdate(generated.parsed?.videoUpdates ?? []);
-      const outputUrl = resolveBrowserImagineVideoUrl(generated, latestVideoUpdate);
-      const outputPaths = outputUrl
-        ? [
-            await downloadGrokAsset(session, client.jar, outputUrl, "videos", {
-              prefix: `${generated.parsed?.conversationId ?? "grok-video"}-video`,
-            }),
-          ]
-        : [];
-      const status: GrokVideoExecutionResult["status"] = outputUrl ? "completed" : "processing";
-
-      return {
-        outputText:
-          status === "completed"
-            ? "Generated a Grok video."
-            : "Grok accepted the video generation job, but the final asset URL is still pending.",
-        conversationId: generated.conversationId ?? generated.parsed?.conversationId,
-        responseId: generated.parsed?.responseId,
-        model: generated.parsed?.model ?? latestVideoUpdate?.modelName ?? resolveGrokModel(input.model),
-        followUpSuggestions: generated.parsed?.followUpSuggestions ?? [],
-        status,
-        outputUrl,
-        outputUrls: outputUrl ? [outputUrl] : [],
-        outputPaths,
-        videoId: latestVideoUpdate?.videoId,
-        progress: latestVideoUpdate?.progress,
-      };
+    const generated = await this.executeImagineInBrowser(client, {
+      prompt: input.prompt,
+      mode: "video",
+      timeoutSeconds: input.browserTimeoutSeconds ? Math.max(input.browserTimeoutSeconds, 180) : 180,
     });
+
+    const latestVideoUpdate = selectLatestGrokVideoUpdate(generated.parsed?.videoUpdates ?? []);
+    const outputUrl = resolveBrowserImagineVideoUrl(generated, latestVideoUpdate);
+    const outputPaths = outputUrl
+      ? [
+          await downloadBrowserAccessibleAsset(client, outputUrl, "videos", {
+            prefix: `${generated.parsed?.conversationId ?? "grok-video"}-video`,
+            referer: GROK_IMAGINE_URL,
+          }),
+        ]
+      : [];
+    const status: GrokVideoExecutionResult["status"] = outputUrl ? "completed" : "processing";
+
+    return {
+      outputText:
+        status === "completed"
+          ? "Generated a Grok video."
+          : "Grok accepted the video generation job, but the final asset URL is still pending.",
+      conversationId: generated.conversationId ?? generated.parsed?.conversationId,
+      responseId: generated.parsed?.responseId,
+      model: generated.parsed?.model ?? latestVideoUpdate?.modelName ?? resolveGrokModel(input.model),
+      followUpSuggestions: generated.parsed?.followUpSuggestions ?? [],
+      status,
+      outputUrl,
+      outputUrls: outputUrl ? [outputUrl] : [],
+      outputPaths,
+      videoId: latestVideoUpdate?.videoId,
+      progress: latestVideoUpdate?.progress,
+    };
   }
 
   private async executeConversationInBrowser(
@@ -933,6 +795,7 @@ export class GrokService {
     const initialCookies = (await client.jar.getCookies(GROK_HOME_URL)).map((cookie) => cookie.toJSON());
     const result = await runBrowserActionPlan<{
       assetUrls: string[];
+      collectedAssetUrls: string[];
       pageUrl: string;
       stream?: string;
       cookies: unknown[];
@@ -955,20 +818,26 @@ export class GrokService {
       ],
       action: async (page) => {
         await this.ensureBrowserAuthenticated(page);
+        const assetCollector = createGrokGeneratedAssetCollector(page, input.mode);
         const streamPromise = this.captureBrowserConversationStream(
           page,
           Math.min((input.timeoutSeconds ?? (input.mode === "video" ? 180 : 120)) * 1000, 150_000),
         ).catch(() => undefined);
-        const assetUrls = await this.submitImaginePromptInBrowser(page, input.prompt, input.mode, input.timeoutSeconds);
-        return {
-          assetUrls,
-          pageUrl: page.url(),
-          stream: await waitForOptionalBrowserStream(
-            streamPromise,
-            input.timeoutSeconds ? input.timeoutSeconds * 1000 : (input.mode === "video" ? 120_000 : 150_000),
-          ),
-          cookies: await page.context().cookies(),
-        };
+        try {
+          const assetUrls = await this.submitImaginePromptInBrowser(page, input.prompt, input.mode, input.timeoutSeconds);
+          return {
+            assetUrls,
+            collectedAssetUrls: assetCollector.stop(),
+            pageUrl: page.url(),
+            stream: await waitForOptionalBrowserStream(
+              streamPromise,
+              input.timeoutSeconds ? input.timeoutSeconds * 1000 : (input.mode === "video" ? 120_000 : 150_000),
+            ),
+            cookies: await page.context().cookies(),
+          };
+        } finally {
+          assetCollector.stop();
+        }
       },
     });
 
@@ -976,7 +845,7 @@ export class GrokService {
     const parsed = result.stream ? parseGrokConversationStream(result.stream) : undefined;
     const derivedConversationId = extractGrokImaginePostId(result.pageUrl);
     return {
-      assetUrls: result.assetUrls,
+      assetUrls: dedupeValues([...result.collectedAssetUrls, ...result.assetUrls]),
       conversationId: derivedConversationId ?? parsed?.conversationId,
       parsed,
     };
@@ -1055,7 +924,8 @@ export class GrokService {
             if (!(node instanceof HTMLElement)) {
               return "";
             }
-            const src = node.getAttribute("src") || ("currentSrc" in node ? String((node as HTMLMediaElement).currentSrc || "") : "");
+            const currentSrc = "currentSrc" in node ? String((node as HTMLMediaElement).currentSrc || "") : "";
+            const src = currentSrc || node.getAttribute("src") || "";
             const alt = node.getAttribute("alt") || "";
             if (!src || previousUrls.includes(src)) {
               return "";
@@ -1063,9 +933,15 @@ export class GrokService {
             if (currentMode === "video") {
               return src.includes("/generated/") || src.includes(".mp4") ? src : "";
             }
-            const isGeneratedImage = alt === "Generated image" || src.startsWith("data:image/") || src.includes("/generated/");
+            const naturalWidth = node instanceof HTMLImageElement ? node.naturalWidth || 0 : 0;
+            const naturalHeight = node instanceof HTMLImageElement ? node.naturalHeight || 0 : 0;
+            const isLargeInlineImage = src.startsWith("data:image/") && (naturalWidth >= 512 || naturalHeight >= 512);
+            const isRemoteGeneratedImage = src.includes("/generated/") && !src.includes("preview_image");
+            const isGeneratedImage =
+              isLargeInlineImage ||
+              isRemoteGeneratedImage ||
+              (alt === "Generated image" && (isLargeInlineImage || isRemoteGeneratedImage));
             if (!isGeneratedImage) return "";
-            if (src.startsWith("data:image/") && src.length < 500_000) return "";
             return src;
           },
         ).filter(Boolean);
@@ -1882,6 +1758,32 @@ async function downloadGrokAsset(
   return outputPath;
 }
 
+async function downloadBrowserAccessibleAsset(
+  client: SessionHttpClient,
+  assetUrl: string,
+  kind: "images" | "videos",
+  input: {
+    prefix: string;
+    outputDir?: string;
+    referer?: string;
+  },
+): Promise<string> {
+  const response = await client.requestWithResponse<ArrayBuffer>(assetUrl, {
+    responseType: "arrayBuffer",
+    expectedStatus: 200,
+    headers: {
+      accept: kind === "videos" ? "video/*,*/*;q=0.8" : "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+      referer: input.referer ?? GROK_IMAGINE_URL,
+      "user-agent": GROK_USER_AGENT,
+    },
+  });
+
+  const outputPath = buildGrokAssetOutputPath(kind, input.prefix, assetUrl, input.outputDir);
+  await ensureParentDirectory(outputPath);
+  await writeFile(outputPath, Buffer.from(response.data));
+  return outputPath;
+}
+
 async function writeGrokBrowserAsset(
   source: string,
   kind: "images" | "videos",
@@ -1974,6 +1876,40 @@ function resolveGrokAssetUrl(assetPathOrUrl: string): string {
   return new URL(assetPathOrUrl.replace(/^\/+/u, ""), GROK_ASSET_BASE_URL).toString();
 }
 
+function createGrokGeneratedAssetCollector(
+  page: PlaywrightPage,
+  mode: "image" | "video",
+): { stop: () => string[] } {
+  const assetUrls = new Set<string>();
+  let active = true;
+  const onResponse = (response: { url(): string; status(): number }) => {
+    if (!active || response.status() < 200 || response.status() >= 400) {
+      return;
+    }
+
+    const url = response.url();
+    if (!isBrowserGeneratedAssetUrl(url, mode)) {
+      return;
+    }
+
+    assetUrls.add(url);
+  };
+
+  page.on("response", onResponse);
+
+  return {
+    stop: () => {
+      if (!active) {
+        return Array.from(assetUrls);
+      }
+
+      active = false;
+      page.off("response", onResponse);
+      return Array.from(assetUrls);
+    },
+  };
+}
+
 async function collectImagineAssetUrls(page: PlaywrightPage, mode: "image" | "video"): Promise<string[]> {
   return page.evaluate((currentMode) => {
     const elements = Array.from(document.querySelectorAll(currentMode === "video" ? "video, source" : "img"));
@@ -1983,7 +1919,8 @@ async function collectImagineAssetUrls(page: PlaywrightPage, mode: "image" | "vi
           return "";
         }
 
-        const src = node.getAttribute("src") || ("currentSrc" in node ? String((node as HTMLMediaElement).currentSrc || "") : "");
+        const currentSrc = "currentSrc" in node ? String((node as HTMLMediaElement).currentSrc || "") : "";
+        const src = currentSrc || node.getAttribute("src") || "";
         if (!src) {
           return "";
         }
@@ -1993,12 +1930,15 @@ async function collectImagineAssetUrls(page: PlaywrightPage, mode: "image" | "vi
         }
 
         const alt = node.getAttribute("alt") || "";
-        const isGeneratedImage = alt === "Generated image" || src.startsWith("data:image/") || src.includes("/generated/");
+        const naturalWidth = node instanceof HTMLImageElement ? node.naturalWidth || 0 : 0;
+        const naturalHeight = node instanceof HTMLImageElement ? node.naturalHeight || 0 : 0;
+        const isLargeInlineImage = src.startsWith("data:image/") && (naturalWidth >= 512 || naturalHeight >= 512);
+        const isRemoteGeneratedImage = src.includes("/generated/") && !src.includes("preview_image");
+        const isGeneratedImage =
+          isLargeInlineImage ||
+          isRemoteGeneratedImage ||
+          (alt === "Generated image" && (isLargeInlineImage || isRemoteGeneratedImage));
         if (!isGeneratedImage || alt === "pfp" || alt === "Most recent favorite") {
-          return "";
-        }
-        
-        if (src.startsWith("data:image/") && src.length < 500_000) {
           return "";
         }
 
@@ -2016,21 +1956,61 @@ function selectRecentImagineAssetUrls(assetUrls: readonly string[], mode: "image
     return unique.slice(-1);
   }
 
-  const remote = unique.filter((url) => !isDataUri(url));
-  const candidates = remote.length > 0 ? remote : unique;
+  const remoteFinal = unique.filter((url) => !isDataUri(url) && !isPreviewImagineAssetUrl(url));
+  const inline = unique.filter((url) => isDataUri(url));
+  const remotePreview = unique.filter((url) => !isDataUri(url) && isPreviewImagineAssetUrl(url));
+  const candidates = inline.length > 0 ? inline : remoteFinal.length > 0 ? remoteFinal : remotePreview;
   return candidates.slice(-4);
+}
+
+function isBrowserGeneratedAssetUrl(url: string, mode: "image" | "video"): boolean {
+  try {
+    const parsed = new URL(url);
+    if (parsed.hostname !== "assets.grok.com" || !parsed.pathname.includes("/generated/")) {
+      return false;
+    }
+
+    const path = parsed.pathname.toLowerCase();
+    if (mode === "video") {
+      return path.endsWith(".mp4") || path.endsWith(".mov") || path.endsWith(".webm") || path.includes("generated_video");
+    }
+
+    return (
+      path.endsWith(".jpg") ||
+      path.endsWith(".jpeg") ||
+      path.endsWith(".png") ||
+      path.endsWith(".webp") ||
+      path.includes("generated_image")
+    );
+  } catch {
+    return false;
+  }
+}
+
+function isPreviewImagineAssetUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return parsed.pathname.toLowerCase().includes("preview_image");
+  } catch {
+    return false;
+  }
 }
 
 function resolveBrowserImagineImageUrls(input: {
   assetUrls: readonly string[];
   parsed?: ParsedGrokConversationStream;
 }): string[] {
+  const browserOutputUrls = selectRecentImagineAssetUrls(input.assetUrls, "image");
+  if (browserOutputUrls.length > 0) {
+    return browserOutputUrls;
+  }
+
   const parsedOutputUrls = (input.parsed?.imageAssets ?? []).map((asset) => resolveGrokAssetUrl(asset.assetPath));
   if (parsedOutputUrls.length > 0) {
     return dedupeValues(parsedOutputUrls);
   }
 
-  return selectRecentImagineAssetUrls(input.assetUrls, "image");
+  return [];
 }
 
 function resolveBrowserImagineVideoUrl(
