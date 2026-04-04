@@ -5,9 +5,9 @@ import { linkedinAdapter } from "../adapter.js";
 export const linkedinLoginCapability = createAdapterActionCapability({
   id: "login",
   command: "login",
-  description: "Import cookies and save the LinkedIn session for future headless use",
-  spinnerText: "Importing LinkedIn session...",
-  successMessage: "LinkedIn session imported.",
+  description: "Save the LinkedIn session for future headless use. With no auth flags, AutoCLI opens browser login by default",
+  spinnerText: "Saving LinkedIn session...",
+  successMessage: "LinkedIn session saved.",
   options: createCookieLoginOptions(),
   action: ({ options }) => linkedinAdapter.login(resolveCookieLoginInput(options)),
 });

@@ -5,9 +5,9 @@ import { facebookAdapter } from "../adapter.js";
 export const facebookLoginCapability = createAdapterActionCapability({
   id: "login",
   command: "login",
-  description: "Import cookies and save the Facebook session for future headless use",
-  spinnerText: "Importing Facebook session...",
-  successMessage: "Facebook session imported.",
+  description: "Save the Facebook session for future headless use. With no auth flags, AutoCLI opens browser login by default",
+  spinnerText: "Saving Facebook session...",
+  successMessage: "Facebook session saved.",
   options: createCookieLoginOptions(),
   action: ({ options }) => facebookAdapter.login(resolveCookieLoginInput(options)),
 });

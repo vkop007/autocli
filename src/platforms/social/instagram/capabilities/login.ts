@@ -5,9 +5,9 @@ import { instagramAdapter } from "../adapter.js";
 export const instagramLoginCapability = createAdapterActionCapability({
   id: "login",
   command: "login",
-  description: "Import cookies and save the Instagram session for future headless use",
-  spinnerText: "Importing Instagram session...",
-  successMessage: "Instagram session imported.",
+  description: "Save the Instagram session for future headless use. With no auth flags, AutoCLI opens browser login by default",
+  spinnerText: "Saving Instagram session...",
+  successMessage: "Instagram session saved.",
   options: createCookieLoginOptions(),
   action: ({ options }) => instagramAdapter.login(resolveCookieLoginInput(options)),
 });

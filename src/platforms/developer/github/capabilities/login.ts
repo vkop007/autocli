@@ -9,9 +9,9 @@ export function createGitHubLoginCapability(adapter: GitHubAdapter) {
     id: "login",
     command: "login",
     description: cookieMode
-      ? `Import cookies and save the ${adapter.displayName} web session for future CLI use`
+      ? `Save the ${adapter.displayName} web session for future CLI use. With no auth flags, AutoCLI opens browser login by default`
       : `Save a ${adapter.displayName} token for future API calls`,
-    spinnerText: cookieMode ? `Importing ${adapter.displayName} session...` : `Validating ${adapter.displayName} token...`,
+    spinnerText: cookieMode ? `Saving ${adapter.displayName} session...` : `Validating ${adapter.displayName} token...`,
     successMessage: cookieMode ? `${adapter.displayName} session saved.` : `${adapter.displayName} token saved.`,
     options: cookieMode
       ? createCookieLoginOptions()

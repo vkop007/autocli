@@ -5,9 +5,9 @@ import { youtubeAdapter } from "../adapter.js";
 export const youtubeLoginCapability = createAdapterActionCapability({
   id: "login",
   command: "login",
-  description: "Import cookies and save the YouTube session for future headless use",
-  spinnerText: "Importing YouTube session...",
-  successMessage: "YouTube session imported.",
+  description: "Save the YouTube session for future headless use. With no auth flags, AutoCLI opens browser login by default",
+  spinnerText: "Saving YouTube session...",
+  successMessage: "YouTube session saved.",
   options: createCookieLoginOptions(),
   action: ({ options }) => youtubeAdapter.login(resolveCookieLoginInput(options)),
 });

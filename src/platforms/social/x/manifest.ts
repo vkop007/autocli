@@ -13,6 +13,7 @@ export const xPlatformDefinition: PlatformDefinition = {
   adapter: xAdapter,
   capabilities: xCapabilities,
   examples: [
+    "autocli social x login",
     "autocli social x login --cookies ./x.cookies.json",
     'autocli social x post "Launching AutoCLI"',
     'autocli social x post "Launching AutoCLI" --browser',

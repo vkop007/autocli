@@ -7,8 +7,8 @@ export function createNotionLoginCapability(adapter: NotionAdapter) {
   return createAdapterActionCapability({
     id: "login",
     command: "login",
-    description: "Import cookies and save the Notion web session for future CLI use",
-    spinnerText: "Importing Notion session...",
+    description: "Save the Notion web session for future CLI use. With no auth flags, AutoCLI opens browser login by default",
+    spinnerText: "Saving Notion session...",
     successMessage: "Notion session saved.",
     options: createCookieLoginOptions(),
     action: ({ options }) => adapter.login(resolveCookieLoginInput(options)),

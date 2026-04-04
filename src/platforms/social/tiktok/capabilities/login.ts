@@ -5,9 +5,9 @@ import { tiktokAdapter } from "../adapter.js";
 export const tiktokLoginCapability = createAdapterActionCapability({
   id: "login",
   command: "login",
-  description: "Import cookies and save the TikTok session for future headless use",
-  spinnerText: "Importing TikTok session...",
-  successMessage: "TikTok session imported.",
+  description: "Save the TikTok session for future headless use. With no auth flags, AutoCLI opens browser login by default",
+  spinnerText: "Saving TikTok session...",
+  successMessage: "TikTok session saved.",
   options: createCookieLoginOptions(),
   action: ({ options }) => tiktokAdapter.login(resolveCookieLoginInput(options)),
 });
