@@ -138,6 +138,14 @@ type ConnectedBrowser = {
 type BrowserContextLike = PlaywrightBrowserContext;
 type BrowserPageLike = PlaywrightPage;
 
+export interface BrowserExecutableProbe {
+  available: boolean;
+  path?: string;
+  source: "env" | "system";
+  error?: string;
+  candidates?: string[];
+}
+
 const WEAK_BROWSER_AUTH_COOKIE_NAMES = new Set([
   "_gh_sess",
   "_gitlab_session",
@@ -820,13 +828,24 @@ async function cleanupStaleAutomatedBrowserProcesses(browserProfilePath: string)
   }
 }
 
-async function resolveBrowserExecutable(): Promise<string> {
+export async function probeBrowserExecutable(): Promise<BrowserExecutableProbe> {
   const override = process.env.AUTOCLI_BROWSER_PATH?.trim();
   if (override) {
-    await access(override, constants.X_OK).catch(() => {
-      throw new AutoCliError("BROWSER_NOT_FOUND", `AUTOCLI_BROWSER_PATH points to a browser that is not executable: ${override}`);
-    });
-    return override;
+    try {
+      await access(override, constants.X_OK);
+      return {
+        available: true,
+        path: override,
+        source: "env",
+      };
+    } catch {
+      return {
+        available: false,
+        path: override,
+        source: "env",
+        error: `AUTOCLI_BROWSER_PATH points to a browser that is not executable: ${override}`,
+      };
+    }
   }
 
   const candidates = process.platform === "darwin"
@@ -857,16 +876,31 @@ async function resolveBrowserExecutable(): Promise<string> {
 
     try {
       await access(candidate, constants.X_OK);
-      return candidate;
+      return {
+        available: true,
+        path: candidate,
+        source: "system",
+      };
     } catch {
       continue;
     }
   }
 
-  throw new AutoCliError(
-    "BROWSER_NOT_FOUND",
-    "Could not find a Chrome or Chromium executable. Install Chrome/Chromium or set AUTOCLI_BROWSER_PATH to the browser binary.",
-  );
+  return {
+    available: false,
+    source: "system",
+    candidates,
+    error: "Could not find a Chrome or Chromium executable. Install Chrome/Chromium or set AUTOCLI_BROWSER_PATH to the browser binary.",
+  };
+}
+
+async function resolveBrowserExecutable(): Promise<string> {
+  const probe = await probeBrowserExecutable();
+  if (probe.available && probe.path) {
+    return probe.path;
+  }
+
+  throw new AutoCliError("BROWSER_NOT_FOUND", probe.error ?? "Could not find a Chrome or Chromium executable.");
 }
 
 async function readStorage(page: BrowserPageLike): Promise<{ localStorage: Record<string, string>; sessionStorage: Record<string, string> }> {
