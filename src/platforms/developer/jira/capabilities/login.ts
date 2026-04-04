@@ -7,8 +7,8 @@ export function createJiraLoginCapability(adapter: JiraAdapter) {
   return createAdapterActionCapability({
     id: "login",
     command: "login",
-    description: `Import cookies and save the ${adapter.displayName} web session for future CLI use`,
-    spinnerText: `Importing ${adapter.displayName} session...`,
+    description: `Save the ${adapter.displayName} web session for future CLI use. With no auth flags, AutoCLI opens browser login by default`,
+    spinnerText: `Saving ${adapter.displayName} session...`,
     successMessage: `${adapter.displayName} session saved.`,
     options: createCookieLoginOptions([{ flags: "--site <url>", description: "Jira site URL, like https://your-workspace.atlassian.net" }]),
     action: ({ options }) =>

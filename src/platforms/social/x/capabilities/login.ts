@@ -12,7 +12,7 @@ import type { PlatformCapability } from "../../../../core/runtime/platform-defin
 export const xLoginCapability: PlatformCapability = {
   id: "login",
   register(command: Command, definition) {
-    const loginCommand = command.command("login").description("Import cookies and save the X session for future headless use");
+    const loginCommand = command.command("login").description("Save an X session for future headless use. With no auth flags, AutoCLI opens browser login by default.");
 
     for (const option of createCookieLoginOptions()) {
       if (option.parser) {
@@ -25,10 +25,10 @@ export const xLoginCapability: PlatformCapability = {
     loginCommand.action(async (options, cmd) => {
         const ctx = resolveCommandContext(cmd);
         const logger = new Logger(ctx);
-        const spinner = logger.spinner("Importing X session...");
+        const spinner = logger.spinner("Saving X session...");
         await runCommandAction({
           spinner,
-          successMessage: "X session imported.",
+          successMessage: "X session saved.",
           action: () => xAdapter.login(resolveCookieLoginInput(options as Record<string, unknown>)),
           onSuccess: (result) => {
             printActionResult(normalizeLoginActionResult(result, definition), ctx.json);

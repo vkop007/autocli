@@ -9,9 +9,9 @@ export function createQwenCapabilities(adapter: QwenAdapter): readonly PlatformC
   const loginCapability = createAdapterActionCapability({
     id: "login",
     command: "login",
-    description: "Import cookies and save the Qwen session for future CLI use",
-    spinnerText: "Importing Qwen session...",
-    successMessage: "Qwen session imported.",
+    description: "Save the Qwen session for future CLI use. With no auth flags, AutoCLI opens browser login by default",
+    spinnerText: "Saving Qwen session...",
+    successMessage: "Qwen session saved.",
     options: createCookieLoginOptions([{ flags: "--token <value>", description: "Optional bearer token if the cookie export does not include the token cookie" }]),
     action: ({ options }) =>
       adapter.login({

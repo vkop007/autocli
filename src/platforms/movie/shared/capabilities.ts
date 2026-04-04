@@ -25,9 +25,9 @@ export function createMovieCapabilities(adapter: BaseMovieAdapter): readonly Pla
     createAdapterActionCapability({
       id: "login",
       command: "login",
-      description: `Import cookies and save the ${adapter.displayName} session for future CLI use`,
-      spinnerText: `Importing ${adapter.displayName} session...`,
-      successMessage: `${adapter.displayName} session imported.`,
+      description: `Save the ${adapter.displayName} session for future CLI use. With no auth flags, AutoCLI opens browser login by default`,
+      spinnerText: `Saving ${adapter.displayName} session...`,
+      successMessage: `${adapter.displayName} session saved.`,
       options: createCookieLoginOptions(),
       action: ({ options }) => adapter.login(resolveCookieLoginInput(options)),
     }),

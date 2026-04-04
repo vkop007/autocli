@@ -7,8 +7,8 @@ export function createLinearLoginCapability(adapter: LinearAdapter) {
   return createAdapterActionCapability({
     id: "login",
     command: "login",
-    description: "Import cookies and save the Linear web session for future CLI use",
-    spinnerText: "Importing Linear session...",
+    description: "Save the Linear web session for future CLI use. With no auth flags, AutoCLI opens browser login by default",
+    spinnerText: "Saving Linear session...",
     successMessage: "Linear session saved.",
     options: createCookieLoginOptions(),
     action: ({ options }) => adapter.login(resolveCookieLoginInput(options)),

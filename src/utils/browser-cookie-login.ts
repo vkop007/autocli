@@ -190,39 +190,56 @@ export async function captureBrowserLogin(
 
   let connected: ConnectedBrowser | null = null;
   try {
-    connected = await connectToManagedBrowser(managed.state.cdpUrl);
-    const page = await openOrReusePage(connected.context, startUrl, Math.min(timeoutMs, 15_000));
+    const deadline = Date.now() + timeoutMs;
+    let page: BrowserPageLike | null = null;
+    let announcedFallback = false;
 
     announceBrowserLogin("Complete the sign-in flow in the opened browser window. AutoCLI will save the extracted session automatically once login is detected.");
 
-    const deadline = Date.now() + timeoutMs;
     while (Date.now() < deadline) {
-      const cookies = await connected.context.cookies();
-      const storage = await readStorage(page);
-      if (hasDetectedAuthenticatedState(cookies, authCookieNames, authStorageKeys, expectedDomain, storage)) {
-        return {
-          cookies,
-          finalUrl: page.url(),
-          localStorage: storage.localStorage,
-          sessionStorage: storage.sessionStorage,
-        };
+      if (!connected) {
+        connected = await tryConnectToManagedBrowser(managed.state.cdpUrl, 2_000);
+        if (connected) {
+          page = await openOrReusePage(connected.context, startUrl, Math.min(timeoutMs, 15_000));
+        } else if (!announcedFallback) {
+          announceBrowserLogin(
+            `AutoCLI is still attaching to the opened ${displayName} browser window. You can keep signing in normally. If live attach never succeeds, close the browser window when you are done and AutoCLI will import the saved session from the shared profile.`,
+          );
+          announcedFallback = true;
+        }
       }
 
-      await page.waitForTimeout(1000);
-    }
+      if (connected && page) {
+        const cookies = await connected.context.cookies();
+        const storage = await readStorage(page);
+        if (hasDetectedAuthenticatedState(cookies, authCookieNames, authStorageKeys, expectedDomain, storage)) {
+          return {
+            cookies,
+            finalUrl: page.url(),
+            localStorage: storage.localStorage,
+            sessionStorage: storage.sessionStorage,
+          };
+        }
+      }
 
-    throw new AutoCliError(
-      "BROWSER_LOGIN_TIMEOUT",
-      `Timed out waiting for ${displayName} browser login. Complete the sign-in flow within ${Math.round(timeoutMs / 1000)} seconds and try again.`,
-      {
-        details: {
+      if (!(await isManagedBrowserReachable(managed.state))) {
+        return await extractBrowserLoginFromProfile({
           platform,
           startUrl,
-          timeoutSeconds: Math.round(timeoutMs / 1000),
-          browserProfilePath: managed.state.browserProfilePath,
-        },
-      },
-    );
+          profilePath: managed.state.browserProfilePath,
+        });
+      }
+
+      await sleep(1000);
+    }
+
+    throw buildBrowserLoginTimeoutError({
+      platform,
+      displayName,
+      startUrl,
+      timeoutMs,
+      browserProfilePath: managed.state.browserProfilePath,
+    });
   } catch (error) {
     if (error instanceof AutoCliError) {
       throw error;
@@ -601,9 +618,22 @@ async function ensureManagedBrowser(input: {
 }
 
 async function connectToManagedBrowser(cdpUrl: string): Promise<ConnectedBrowser> {
+  const connected = await tryConnectToManagedBrowser(cdpUrl, 15_000);
+  if (connected) {
+    return connected;
+  }
+
+  throw new AutoCliError("BROWSER_LOGIN_FAILED", "Managed browser started, but AutoCLI could not attach over CDP in time.", {
+    details: {
+      cdpUrl,
+    },
+  });
+}
+
+async function tryConnectToManagedBrowser(cdpUrl: string, timeoutMs: number): Promise<ConnectedBrowser | null> {
   const { chromium } = await import("playwright-core");
 
-  const deadline = Date.now() + 15_000;
+  const deadline = Date.now() + timeoutMs;
   let lastError: unknown = null;
 
   while (Date.now() < deadline) {
@@ -624,12 +654,80 @@ async function connectToManagedBrowser(cdpUrl: string): Promise<ConnectedBrowser
     }
   }
 
-  throw new AutoCliError("BROWSER_LOGIN_FAILED", "Managed browser started, but AutoCLI could not attach over CDP in time.", {
-    cause: lastError,
-    details: {
-      cdpUrl,
-    },
+  if (lastError && process.env.AUTOCLI_VERBOSE_BROWSER_ATTACH === "1") {
+    console.error(lastError);
+  }
+
+  return null;
+}
+
+async function extractBrowserLoginFromProfile(input: {
+  platform: Platform;
+  startUrl: string;
+  profilePath: string;
+}): Promise<BrowserLoginCapture> {
+  const authCookieNames = getPlatformBrowserAuthCookieNames(input.platform);
+  const authStorageKeys = getPlatformBrowserAuthStorageKeys(input.platform);
+  const expectedDomain = getPlatformCookieDomain(input.platform);
+  const { chromium } = await import("playwright-core");
+  const executablePath = await resolveBrowserExecutable();
+  const context = await chromium.launchPersistentContext(input.profilePath, {
+    executablePath,
+    headless: true,
+    args: ["--no-first-run", "--no-default-browser-check"],
   });
+
+  try {
+    const page = context.pages()[0] ?? await context.newPage();
+    await navigatePage(page, input.startUrl, 10_000);
+    await page.waitForTimeout(1_000);
+
+    const cookies = await context.cookies();
+    const storage = await readStorage(page);
+    if (!hasDetectedAuthenticatedState(cookies, authCookieNames, authStorageKeys, expectedDomain, storage)) {
+      throw new AutoCliError(
+        "BROWSER_LOGIN_FAILED",
+        `AutoCLI reopened the saved browser profile, but no authenticated ${getPlatformDisplayName(input.platform)} session was detected after login.`,
+        {
+          details: {
+            platform: input.platform,
+            startUrl: input.startUrl,
+            browserProfilePath: input.profilePath,
+          },
+        },
+      );
+    }
+
+    return {
+      cookies,
+      finalUrl: page.url(),
+      localStorage: storage.localStorage,
+      sessionStorage: storage.sessionStorage,
+    };
+  } finally {
+    await context.close().catch(() => {});
+  }
+}
+
+function buildBrowserLoginTimeoutError(input: {
+  platform: Platform;
+  displayName: string;
+  startUrl: string;
+  timeoutMs: number;
+  browserProfilePath: string;
+}): AutoCliError {
+  return new AutoCliError(
+    "BROWSER_LOGIN_TIMEOUT",
+    `Timed out waiting for ${input.displayName} browser login. Complete the sign-in flow within ${Math.round(input.timeoutMs / 1000)} seconds and try again.`,
+    {
+      details: {
+        platform: input.platform,
+        startUrl: input.startUrl,
+        timeoutSeconds: Math.round(input.timeoutMs / 1000),
+        browserProfilePath: input.browserProfilePath,
+      },
+    },
+  );
 }
 
 async function requireManagedBrowser(input: {
