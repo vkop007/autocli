@@ -21,12 +21,12 @@ const BROWSER_REQUIRED_CODES = new Set([
   "BROWSER_NOT_RUNNING",
 ]);
 
-const normalizedPlatformTokens = getPlatformDefinitions()
-  .map((definition) => ({
-    definition,
-    token: definition.id.toUpperCase().replace(/[^A-Z0-9]+/gu, "_"),
-  }))
-  .sort((left, right) => right.token.length - left.token.length);
+let normalizedPlatformTokensCache:
+  | readonly {
+    definition: ReturnType<typeof getPlatformDefinitions>[number];
+    token: string;
+  }[]
+  | undefined;
 
 export function serializeCliError(error: unknown): SerializedCliError {
   const serialized = errorToJson(error) as SerializedCliError;
@@ -115,7 +115,7 @@ function resolvePlatformId(error: {
     return detailedPlatform;
   }
 
-  for (const candidate of normalizedPlatformTokens) {
+  for (const candidate of getNormalizedPlatformTokens()) {
     if (error.code === candidate.token || error.code.startsWith(`${candidate.token}_`)) {
       return candidate.definition.id;
     }
@@ -131,4 +131,20 @@ function buildProviderLoginCommand(platformId: string): string | undefined {
   }
 
   return `${buildPlatformCommandPrefix(definition)} login`;
+}
+
+function getNormalizedPlatformTokens(): readonly {
+  definition: ReturnType<typeof getPlatformDefinitions>[number];
+  token: string;
+}[] {
+  if (!normalizedPlatformTokensCache) {
+    normalizedPlatformTokensCache = getPlatformDefinitions()
+      .map((definition) => ({
+        definition,
+        token: definition.id.toUpperCase().replace(/[^A-Z0-9]+/gu, "_"),
+      }))
+      .sort((left, right) => right.token.length - left.token.length);
+  }
+
+  return normalizedPlatformTokensCache;
 }

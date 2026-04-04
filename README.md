@@ -282,6 +282,18 @@ bun run link:global
 
 If your shell still says `command not found`, open a new shell or run `hash -r`.
 
+### Skill Doc Sync
+
+Regenerate the provider-specific skill references and sync the installed Codex skill copy in one step:
+
+```bash
+bun run sync:skills
+```
+
+This refreshes the generated files under [`skills/autocli/references/providers`](./skills/autocli/references/providers) and copies the repo skill into your local Codex skill directory (defaults to `~/.codex/skills/autocli` unless `CODEX_HOME` is set).
+
+`npm publish` now runs this automatically through `prepublishOnly`, so release builds regenerate and sync the skill docs before typecheck, tests, and build.
+
 ## Open Source Project Files
 
 - [LICENSE](./LICENSE)
