@@ -62,6 +62,9 @@ describe("doctor summary helpers", () => {
         category: "binary" as const,
         status: "warn" as const,
         message: "missing",
+        details: {
+          installHint: "Install FFmpeg with `brew install ffmpeg`.",
+        },
       },
     ];
 
@@ -79,7 +82,44 @@ describe("doctor summary helpers", () => {
     expect(recommendations).toEqual([
       "Fix the failing AutoCLI directories first so sessions, browser state, and jobs can be saved correctly.",
       "Run `autocli login --browser` or a provider-specific `login` command to save your first reusable account.",
-      "Install the missing local binaries if you want the related editor/document commands to work fully.",
+      "Install FFmpeg with `brew install ffmpeg`.",
+    ]);
+  });
+
+  test("adds browser-specific recommendations when the shared browser is missing", () => {
+    const recommendations = buildDoctorRecommendations(
+      [
+        {
+          id: "browser-executable",
+          category: "browser",
+          status: "warn",
+          message: "missing",
+          details: {
+            installHint: "Install Google Chrome or Chromium, then re-run `autocli doctor`.",
+          },
+        },
+        {
+          id: "shared-browser-profile",
+          category: "browser",
+          status: "warn",
+          message: "not created",
+        },
+      ],
+      {
+        pass: 0,
+        warn: 2,
+        fail: 0,
+        total: 2,
+        records: 1,
+        active: 1,
+        expired: 0,
+        unknown: 0,
+      },
+    );
+
+    expect(recommendations).toEqual([
+      "Install a Chrome/Chromium browser for browser-backed actions. Install Google Chrome or Chromium, then re-run `autocli doctor`.",
+      "Run `autocli login --browser` once to create the shared AutoCLI browser profile before using browser-backed actions.",
     ]);
   });
 });
