@@ -45,7 +45,7 @@ const SAFE_DISCOVERY_COMMANDS = [
   "cart",
 ] as const;
 
-async function main(): Promise<void> {
+export async function generateSkillProviderReferences(): Promise<void> {
   const definitions = [...getPlatformDefinitions()].sort((left, right) => left.id.localeCompare(right.id));
   await rm(providerDir, { recursive: true, force: true });
   await mkdir(providerDir, { recursive: true });
@@ -228,4 +228,6 @@ function formatList(values: readonly string[]): string {
   return values.length > 0 ? values.map((value) => `\`${value}\``).join(", ") : "`none`";
 }
 
-await main();
+if (import.meta.main) {
+  await generateSkillProviderReferences();
+}
