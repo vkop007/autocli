@@ -87,21 +87,6 @@ export function printInstagramUserListResult(result: AdapterActionResult, json: 
   }
 }
 
-export function printInstagramDownloadResult(result: AdapterActionResult, json: boolean): void {
-  if (json) {
-    printJson(result);
-    return;
-  }
-
-  printActionResult(result, false);
-  const files = Array.isArray(result.data?.files) ? result.data.files : [];
-  for (const rawFile of files) {
-    if (typeof rawFile === "string" && rawFile.length > 0) {
-      console.log(`file: ${rawFile}`);
-    }
-  }
-}
-
 export function printInstagramPostsResult(result: AdapterActionResult, json: boolean): void {
   if (json) {
     printJson(result);

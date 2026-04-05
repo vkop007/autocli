@@ -16,7 +16,7 @@ Generated from the real AutoCLI provider definition and command tree.
 
 ## Description
 
-Interact with YouTube using an imported browser session for public lookup, engagement, downloads, and Studio uploads
+Interact with YouTube using an imported browser session for public lookup, engagement, and Studio uploads. Use `autocli tools download` for cross-site media downloads.
 
 ## Notes
 
@@ -58,24 +58,6 @@ Options:
 - `--cookie-json <json>`: Inline JSON cookie array or jar export
 - `--browser`: Open a real browser, wait for manual login, then save the extracted session (default when no cookie flags are provided)
 - `--browser-timeout <seconds>`: Maximum seconds to wait for manual browser login (default: 600)
-
-### `download`
-
-Usage:
-```bash
-autocli social youtube download [options] <target>
-```
-
-Download a YouTube video or audio track using yt-dlp and ffmpeg
-
-Options:
-
-- `--output-dir <path>`: Directory to write downloaded files into
-- `--filename <template>`: yt-dlp output template, for example '%(title)s [%(id)s].%(ext)s'
-- `--audio-only`: Extract audio only instead of video + audio
-- `--audio-format <format>`: Audio format when using --audio-only (default: mp3)
-- `--format <selector>`: Custom yt-dlp format selector
-- `--account <name>`: Optional override for a specific saved YouTube session
 
 ### `upload`
 

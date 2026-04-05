@@ -16,7 +16,7 @@ Generated from the real AutoCLI provider definition and command tree.
 
 ## Description
 
-Interact with Instagram using an imported browser session
+Interact with Instagram using an imported browser session. Use `autocli tools download` for media downloads.
 
 ## Notes
 
@@ -73,21 +73,6 @@ Options:
 - `--caption <text>`: Caption for the post
 - `--account <name>`: Optional override for a specific saved Instagram session
 
-### `download`
-
-Usage:
-```bash
-autocli social instagram download [options] <target>
-```
-
-Download Instagram media by URL, shortcode, or numeric media ID
-
-Options:
-
-- `--output-dir <path>`: Directory to write downloaded files into
-- `--all`: Download every asset in a carousel instead of only the first one
-- `--account <name>`: Optional override for a specific saved Instagram session
-
 ### `search`
 
 Usage:
@@ -131,40 +116,6 @@ Options:
 - `--limit <number>`: Maximum number of story items to return (1-25, default: 5)
 - `--photos-only`: Only return photo stories
 - `--videos-only`: Only return video stories
-- `--account <name>`: Optional override for a specific saved Instagram session
-
-### `storydownload`
-
-Usage:
-```bash
-autocli social instagram storydownload [options] <target>
-```
-
-Download active Instagram stories for a profile URL, @username, username, or numeric user ID
-
-Options:
-
-- `--limit <number>`: Maximum number of story items to download (1-25, default: 5)
-- `--photos-only`: Only download photo stories
-- `--videos-only`: Only download video stories
-- `--output-dir <path>`: Directory to write downloaded story files into
-- `--account <name>`: Optional override for a specific saved Instagram session
-
-### `downloadposts`
-
-Usage:
-```bash
-autocli social instagram downloadposts [options] <target>
-```
-
-Download recent Instagram posts for a profile URL, @username, username, or numeric user ID
-
-Options:
-
-- `--limit <number>`: Maximum number of posts to download (1-25, default: 5)
-- `--type <kind>`: Filter posts by media type: all, photo, video, reel, carousel
-- `--all`: Download every asset in a carousel instead of only the first one
-- `--output-dir <path>`: Directory to write downloaded post files into
 - `--account <name>`: Optional override for a specific saved Instagram session
 
 ### `followers`

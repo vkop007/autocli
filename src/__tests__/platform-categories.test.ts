@@ -158,6 +158,7 @@ describe("platform category routing", () => {
     const toolIds = getPlatformDefinitionsByCategory("tools").map((definition) => definition.id);
     expect(toolIds).toContain("translate");
     expect(toolIds).toContain("dns");
+    expect(toolIds).toContain("download");
     expect(toolIds).toContain("favicon");
     expect(toolIds).toContain("headers");
     expect(toolIds).toContain("http");

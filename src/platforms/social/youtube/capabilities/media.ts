@@ -2,7 +2,6 @@ import { createAdapterActionCapability } from "../../../../core/runtime/capabili
 import {
   printYouTubeCaptionsResult,
   printYouTubeChannelResult,
-  printYouTubeDownloadResult,
   printYouTubeInfoResult,
   printYouTubePlaylistResult,
   printYouTubeSearchResult,
@@ -10,33 +9,6 @@ import {
 } from "../output.js";
 import { parseYouTubeLimitOption } from "../options.js";
 import { youtubeAdapter } from "../adapter.js";
-
-export const youtubeDownloadCapability = createAdapterActionCapability({
-  id: "download",
-  command: "download <target>",
-  description: "Download a YouTube video or audio track using yt-dlp and ffmpeg",
-  spinnerText: "Downloading YouTube media...",
-  successMessage: "YouTube download completed.",
-  options: [
-    { flags: "--output-dir <path>", description: "Directory to write downloaded files into" },
-    { flags: "--filename <template>", description: "yt-dlp output template, for example '%(title)s [%(id)s].%(ext)s'" },
-    { flags: "--audio-only", description: "Extract audio only instead of video + audio" },
-    { flags: "--audio-format <format>", description: "Audio format when using --audio-only (default: mp3)" },
-    { flags: "--format <selector>", description: "Custom yt-dlp format selector" },
-    { flags: "--account <name>", description: "Optional override for a specific saved YouTube session" },
-  ],
-  action: ({ args, options }) =>
-    youtubeAdapter.download({
-      account: options.account as string | undefined,
-      target: String(args[0] ?? ""),
-      outputDir: options.outputDir as string | undefined,
-      filenameTemplate: options.filename as string | undefined,
-      audioOnly: Boolean(options.audioOnly),
-      audioFormat: options.audioFormat as string | undefined,
-      format: options.format as string | undefined,
-    }),
-  onSuccess: printYouTubeDownloadResult,
-});
 
 export const youtubeUploadCapability = createAdapterActionCapability({
   id: "upload",

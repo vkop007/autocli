@@ -127,6 +127,7 @@ Use these files when the main `$autocli` skill already knows the provider and ne
 
 - [Cheat](./cheat.md)
 - [DNS](./dns.md)
+- [Download](./download.md)
 - [Favicon](./favicon.md)
 - [Headers](./headers.md)
 - [HTTP Toolkit](./http.md)
