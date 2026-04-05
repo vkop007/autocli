@@ -17,6 +17,7 @@ export const PLATFORM_NAMES = [
   "digitalocean",
   "json",
   "csv",
+  "download",
   "dns",
   "discordbot",
   "archive",
@@ -244,6 +245,13 @@ export const PLATFORM_CONFIG: Record<PlatformName, PlatformConfig> = {
     origin: "https://datatracker.ietf.org",
     homeUrl: "https://datatracker.ietf.org/doc/html/rfc4180",
     cookieDomain: "ietf.org",
+    authCookieNames: [],
+  },
+  download: {
+    displayName: "Download",
+    origin: "https://github.com/yt-dlp/yt-dlp",
+    homeUrl: "https://github.com/yt-dlp/yt-dlp",
+    cookieDomain: "yt-dlp.github.io",
     authCookieNames: [],
   },
   dns: {

@@ -1,8 +1,6 @@
 import { instagramBatchCapability } from "./batch.js";
 import { instagramLoginCapability } from "./login.js";
 import {
-  instagramDownloadCapability,
-  instagramDownloadPostsCapability,
   instagramFollowersCapability,
   instagramFollowingCapability,
   instagramMediaIdCapability,
@@ -10,7 +8,6 @@ import {
   instagramProfileIdCapability,
   instagramSearchCapability,
   instagramStoriesCapability,
-  instagramStoryDownloadCapability,
 } from "./read.js";
 import { instagramPostCapability } from "./post.js";
 import {
@@ -24,12 +21,9 @@ import {
 export const instagramCapabilities = [
   instagramLoginCapability,
   instagramPostCapability,
-  instagramDownloadCapability,
   instagramSearchCapability,
   instagramPostsCapability,
   instagramStoriesCapability,
-  instagramStoryDownloadCapability,
-  instagramDownloadPostsCapability,
   instagramFollowersCapability,
   instagramFollowingCapability,
   instagramMediaIdCapability,

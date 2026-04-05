@@ -24,6 +24,7 @@ import { documentEditorPlatformDefinition } from "./editor/document/manifest.js"
 import { cryptoPlatformDefinition } from "./finance/crypto/manifest.js";
 import { currencyPlatformDefinition } from "./finance/currency/manifest.js";
 import { stocksPlatformDefinition } from "./finance/stocks/manifest.js";
+import { downloadPlatformDefinition } from "./tools/download/manifest.js";
 import { geoPlatformDefinition } from "./maps/geo/manifest.js";
 import { gifEditorPlatformDefinition } from "./editor/gif/manifest.js";
 import { imageEditorPlatformDefinition } from "./editor/image/manifest.js";
@@ -117,6 +118,7 @@ const definitions: readonly PlatformDefinition[] = [
   confluencePlatformDefinition,
   cryptoPlatformDefinition,
   currencyPlatformDefinition,
+  downloadPlatformDefinition,
   deepSeekPlatformDefinition,
   deezerPlatformDefinition,
   digitalOceanPlatformDefinition,

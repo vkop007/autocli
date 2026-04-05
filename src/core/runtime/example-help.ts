@@ -32,12 +32,34 @@ const SAFE_DISCOVERY_COMMANDS = [
   "capabilities",
 ] as const;
 
+const PLATFORM_CATEGORY_PREFIXES = [
+  "llm",
+  "editor",
+  "finance",
+  "data",
+  "maps",
+  "movie",
+  "news",
+  "music",
+  "social",
+  "shopping",
+  "developer",
+  "devops",
+  "bot",
+  "forum",
+  "tools",
+] as const;
+
 export function prefixCliExample(example: string, examplePrefix: string | undefined): string {
   if (!examplePrefix) {
     return example;
   }
 
   const normalized = example.replace(/^autocli\s+/u, "").trim();
+  if (PLATFORM_CATEGORY_PREFIXES.some((category) => normalized.startsWith(`${category} `))) {
+    return `autocli ${normalized}`;
+  }
+
   const expectedPrefix = `${examplePrefix} `;
   const withoutDuplicatePrefix =
     normalized.startsWith(expectedPrefix) ? normalized.slice(expectedPrefix.length) : normalized;

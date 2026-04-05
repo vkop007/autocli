@@ -2,7 +2,6 @@ import { youtubeLoginCapability } from "./auth.js";
 import {
   youtubeCaptionsCapability,
   youtubeChannelIdCapability,
-  youtubeDownloadCapability,
   youtubePlaylistIdCapability,
   youtubePostCapability,
   youtubeRelatedCapability,
@@ -21,7 +20,6 @@ import {
 
 export const youtubeCapabilities = [
   youtubeLoginCapability,
-  youtubeDownloadCapability,
   youtubeUploadCapability,
   youtubePostCapability,
   youtubeSearchCapability,

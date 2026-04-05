@@ -6,7 +6,6 @@ import { serializeCliError } from "../../../../utils/error-recovery.js";
 import { readBatchTargets } from "../../../../utils/batch.js";
 import { resolveCommandContext } from "../../../../utils/cli.js";
 import { instagramAdapter } from "../adapter.js";
-import { parseInstagramLimitOption, parseInstagramPostTypeOption } from "../options.js";
 
 import type { AdapterActionResult } from "../../../../types.js";
 import type { PlatformCapability } from "../../../../core/runtime/platform-definition.js";
@@ -215,90 +214,5 @@ export const instagramBatchCapability: PlatformCapability = {
         });
       });
 
-    batchCommand
-      .command("download <inputFile>")
-      .description("Download Instagram media for every target in a batch input file")
-      .option("--account <name>", "Optional override for a specific saved Instagram session")
-      .option("--output-dir <path>", "Directory to write downloaded files into")
-      .option("--all", "Download every asset in carousel posts instead of only the first one")
-      .option("--fail-fast", "Stop after the first failed target")
-      .action(async (inputFile, options, cmd) => {
-        const ctx = resolveCommandContext(cmd);
-        await runInstagramBatchCommand({
-          ctx,
-          inputFile,
-          account: options.account,
-          failFast: options.failFast,
-          action: "batch-download",
-          actionLabel: "Instagram batch download",
-          execute: (target) =>
-            instagramAdapter.download({
-              account: options.account,
-              target,
-              outputDir: options.outputDir,
-              all: options.all,
-            }),
-        });
-      });
-
-    batchCommand
-      .command("storydownload <inputFile>")
-      .description("Download Instagram stories for every profile in a batch input file")
-      .option("--account <name>", "Optional override for a specific saved Instagram session")
-      .option("--limit <number>", "Maximum number of story items to download per profile (1-25, default: 5)", parseInstagramLimitOption)
-      .option("--output-dir <path>", "Directory to write downloaded story files into")
-      .option("--photos-only", "Only download photo stories")
-      .option("--videos-only", "Only download video stories")
-      .option("--fail-fast", "Stop after the first failed target")
-      .action(async (inputFile, options, cmd) => {
-        const ctx = resolveCommandContext(cmd);
-        await runInstagramBatchCommand({
-          ctx,
-          inputFile,
-          account: options.account,
-          failFast: options.failFast,
-          action: "batch-storydownload",
-          actionLabel: "Instagram batch story download",
-          execute: (target) =>
-            instagramAdapter.storyDownload({
-              account: options.account,
-              target,
-              limit: options.limit,
-              outputDir: options.outputDir,
-              photosOnly: options.photosOnly,
-              videosOnly: options.videosOnly,
-            }),
-        });
-      });
-
-    batchCommand
-      .command("downloadposts <inputFile>")
-      .description("Download recent Instagram posts for every profile in a batch input file")
-      .option("--account <name>", "Optional override for a specific saved Instagram session")
-      .option("--limit <number>", "Maximum number of posts to download per profile (1-25, default: 5)", parseInstagramLimitOption)
-      .option("--type <kind>", "Filter posts by media type: all, photo, video, reel, carousel", parseInstagramPostTypeOption)
-      .option("--output-dir <path>", "Directory to write downloaded post files into")
-      .option("--all", "Download every asset in carousel posts instead of only the first one")
-      .option("--fail-fast", "Stop after the first failed target")
-      .action(async (inputFile, options, cmd) => {
-        const ctx = resolveCommandContext(cmd);
-        await runInstagramBatchCommand({
-          ctx,
-          inputFile,
-          account: options.account,
-          failFast: options.failFast,
-          action: "batch-downloadposts",
-          actionLabel: "Instagram batch post download",
-          execute: (target) =>
-            instagramAdapter.downloadPosts({
-              account: options.account,
-              target,
-              limit: options.limit,
-              type: options.type,
-              outputDir: options.outputDir,
-              all: options.all,
-            }),
-        });
-      });
   },
 };
