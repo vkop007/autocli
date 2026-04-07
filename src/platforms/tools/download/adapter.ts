@@ -43,6 +43,13 @@ type DownloadAudioInput = DownloadAuthInput & {
   limit?: number;
 };
 
+type DownloadStreamInput = DownloadAuthInput & {
+  url: string;
+  format?: string;
+  quality?: string;
+  audioOnly?: boolean;
+};
+
 type YtDlpFormat = {
   format_id?: string;
   ext?: string;
@@ -60,14 +67,19 @@ type YtDlpInfo = {
   title?: string;
   thumbnail?: string;
   duration?: number;
+  duration_string?: string;
   uploader?: string;
   extractor?: string;
   webpage_url?: string;
   original_url?: string;
+  url?: string;
   playlist_count?: number;
   entries?: YtDlpPlaylistEntry[];
   _type?: string;
   formats?: YtDlpFormat[];
+  requested_downloads?: Array<{
+    url?: string;
+  }>;
 };
 
 type YtDlpPlaylistEntry = {
@@ -309,6 +321,75 @@ export class DownloadToolsAdapter {
     }
   }
 
+  async stream(input: DownloadStreamInput): Promise<AdapterActionResult> {
+    const url = normalizeDownloadUrl(input.url);
+    const format = buildStreamFormatSelector(input);
+
+    await this.requireCommand("yt-dlp", ["--version"], "YTDLP_NOT_FOUND", "yt-dlp is required for tools download stream.");
+
+    const auth = await this.prepareAuth(input);
+
+    try {
+      const { stdout } = await this.runProcess("yt-dlp", [
+        "--no-playlist",
+        "--no-warnings",
+        "--quiet",
+        "--dump-single-json",
+        "--format",
+        format,
+        ...auth.args,
+        url,
+      ]);
+      const info = parseYtDlpInfo(stdout);
+      const streamUrls = extractStreamUrls(info);
+      if (streamUrls.length === 0) {
+        throw new AutoCliError("DOWNLOAD_STREAM_RESOLVE_FAILED", "yt-dlp did not return a playable stream URL.", {
+          details: { url, format },
+        });
+      }
+
+      return {
+        ok: true,
+        platform: this.platform,
+        account: auth.source ?? "public",
+        action: "stream",
+        message: `Resolved stream URL${info.title ? ` for ${info.title}` : ""}.`,
+        id: info.id,
+        url: info.webpage_url ?? info.original_url ?? url,
+        data: {
+          title: info.title ?? null,
+          thumbnail: info.thumbnail ?? null,
+          durationSeconds: info.duration ?? null,
+          durationLabel:
+            typeof info.duration_string === "string" && info.duration_string.trim().length > 0
+              ? info.duration_string.trim()
+              : typeof info.duration === "number"
+                ? formatDuration(info.duration)
+                : null,
+          uploader: info.uploader ?? null,
+          extractor: info.extractor ?? null,
+          streamUrl: streamUrls[0],
+          streamUrls,
+          format,
+          quality: input.audioOnly ? undefined : normalizeQualityLabel(input.quality),
+          audioOnly: Boolean(input.audioOnly),
+          auth: auth.source ? { source: auth.source } : undefined,
+        },
+      };
+    } catch (error) {
+      if (isAutoCliError(error)) {
+        throw error;
+      }
+
+      throw new AutoCliError("DOWNLOAD_STREAM_FAILED", "Failed to resolve a media stream URL with yt-dlp.", {
+        cause: error,
+        details: { url, format },
+      });
+    } finally {
+      await auth.cleanup();
+    }
+  }
+
   private async prepareAuth(input: DownloadAuthInput): Promise<PreparedAuth> {
     const hasCookiesPath = Boolean(input.cookiesPath?.trim());
     const hasSessionPlatform = Boolean(input.sessionPlatform?.trim());
@@ -527,6 +608,28 @@ export function buildVideoFormatSelector(input: {
   return `bestvideo*[height<=${height}]+bestaudio/best`;
 }
 
+export function buildStreamFormatSelector(input: {
+  format?: string;
+  quality?: string;
+  audioOnly?: boolean;
+}): string {
+  const explicitFormat = input.format?.trim();
+  if (explicitFormat) {
+    return explicitFormat;
+  }
+
+  if (input.audioOnly) {
+    return "bestaudio/best";
+  }
+
+  const height = parseQualityHeight(input.quality);
+  if (!height) {
+    return "best";
+  }
+
+  return `best[height<=${height}]/best`;
+}
+
 function parseQualityHeight(value?: string): number | null {
   if (!value) {
     return null;
@@ -563,6 +666,19 @@ function parseYtDlpInfo(stdout: string): YtDlpInfo {
 
 function isPlaylistInfo(info: YtDlpInfo): boolean {
   return info._type === "playlist" || Array.isArray(info.entries);
+}
+
+export function extractStreamUrls(info: Pick<YtDlpInfo, "requested_downloads" | "url">): string[] {
+  const urls = [
+    ...(Array.isArray(info.requested_downloads)
+      ? info.requested_downloads
+          .map((entry) => (typeof entry?.url === "string" ? entry.url.trim() : ""))
+          .filter((value): value is string => value.length > 0)
+      : []),
+    ...(typeof info.url === "string" && info.url.trim().length > 0 ? [info.url.trim()] : []),
+  ];
+
+  return [...new Set(urls)];
 }
 
 function buildFormatLabel(format: YtDlpFormat): string {

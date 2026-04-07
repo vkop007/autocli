@@ -60,6 +60,18 @@ export function printDownloadResult(result: AdapterActionResult, json: boolean):
     console.log(`file: ${data.outputPath}`);
   }
 
+  if (typeof data.streamUrl === "string" && data.streamUrl) {
+    console.log(`stream-url: ${data.streamUrl}`);
+  }
+
+  if (Array.isArray(data.streamUrls) && data.streamUrls.length > 1) {
+    for (const streamUrl of data.streamUrls as string[]) {
+      if (streamUrl !== data.streamUrl) {
+        console.log(`stream-url: ${streamUrl}`);
+      }
+    }
+  }
+
   if (Array.isArray(data.outputPaths) && data.outputPaths.length > 1) {
     for (const outputPath of data.outputPaths as string[]) {
       console.log(`file: ${outputPath}`);
