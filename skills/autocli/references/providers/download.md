@@ -25,8 +25,8 @@ Download media from most URLs supported by yt-dlp, with optional saved-session c
 ## Fast Start
 
 - `autocli tools download info https://www.youtube.com/watch?v=dQw4w9WgXcQ`
+- `autocli tools download stream https://www.youtube.com/watch?v=dQw4w9WgXcQ`
 - `autocli tools download info 'https://www.youtube.com/playlist?list=PLFgquLnL59alCl_2TQvOiD5Vgm1hCaGSI' --playlist --limit 5`
-- `autocli tools download video https://www.youtube.com/watch?v=dQw4w9WgXcQ --quality 720p`
 - `autocli tools download capabilities --json`
 
 ## Default Command
@@ -57,6 +57,24 @@ Options:
 - `--account <name>`: Saved AutoCLI session account to use with --platform
 - `--playlist`: Allow playlist or multi-item URLs instead of forcing a single item
 - `--limit <number>`: Maximum playlist items to inspect or download (1-100)
+
+### `stream`
+
+Usage:
+```bash
+autocli tools download stream [options] <url>
+```
+
+Resolve a direct media stream URL instead of downloading the file
+
+Options:
+
+- `--cookies <path>`: Path to cookies.txt or a yt-dlp-compatible cookies file
+- `--platform <provider>`: Reuse a saved AutoCLI session for this provider as yt-dlp cookies
+- `--account <name>`: Saved AutoCLI session account to use with --platform
+- `--quality <resolution>`: Preferred max resolution for a single-file video stream, for example 720p or 1080
+- `--format <selector>`: Custom yt-dlp format selector
+- `--audio`: Resolve an audio stream URL instead of a video stream URL
 
 ### `video`
 

@@ -1,7 +1,15 @@
 import { describe, expect, test } from "bun:test";
 import { join, resolve } from "node:path";
 
-import { buildVideoFormatSelector, normalizeDownloadUrl, resolveDownloadOutputDir, summarizeDownloadFormats, summarizePlaylistEntries } from "../adapter.js";
+import {
+  buildStreamFormatSelector,
+  buildVideoFormatSelector,
+  extractStreamUrls,
+  normalizeDownloadUrl,
+  resolveDownloadOutputDir,
+  summarizeDownloadFormats,
+  summarizePlaylistEntries,
+} from "../adapter.js";
 
 describe("download tools adapter helpers", () => {
   test("normalizes valid media URLs", () => {
@@ -15,6 +23,13 @@ describe("download tools adapter helpers", () => {
 
   test("prefers an explicit custom format selector", () => {
     expect(buildVideoFormatSelector({ format: "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]" })).toBe("bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]");
+  });
+
+  test("builds a single-stream selector for stream mode", () => {
+    expect(buildStreamFormatSelector({})).toBe("best");
+    expect(buildStreamFormatSelector({ quality: "720p" })).toBe("best[height<=720]/best");
+    expect(buildStreamFormatSelector({ audioOnly: true })).toBe("bestaudio/best");
+    expect(buildStreamFormatSelector({ format: "18" })).toBe("18");
   });
 
   test("summarizes the best visible format per resolution", () => {
@@ -41,5 +56,20 @@ describe("download tools adapter helpers", () => {
 
   test("uses a single downloads folder by default", () => {
     expect(resolveDownloadOutputDir()).toBe(resolve(join(process.cwd(), "downloads")));
+  });
+
+  test("extracts unique stream URLs from requested downloads and fallback url", () => {
+    expect(extractStreamUrls({
+      requested_downloads: [
+        { url: "https://cdn.example.com/v1.mp4" },
+        { url: "https://cdn.example.com/v1.mp4" },
+        { url: "https://cdn.example.com/a1.m4a" },
+      ],
+      url: "https://cdn.example.com/fallback.mp4",
+    })).toEqual([
+      "https://cdn.example.com/v1.mp4",
+      "https://cdn.example.com/a1.m4a",
+      "https://cdn.example.com/fallback.mp4",
+    ]);
   });
 });

@@ -14,6 +14,7 @@ import type { PlatformCommandBuildOptions, PlatformDefinition } from "../../../c
 
 const EXAMPLES = [
   "autocli tools download info https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+  "autocli tools download stream https://www.youtube.com/watch?v=dQw4w9WgXcQ",
   "autocli tools download info 'https://www.youtube.com/playlist?list=PLFgquLnL59alCl_2TQvOiD5Vgm1hCaGSI' --playlist --limit 5",
   "autocli tools download video https://www.youtube.com/watch?v=dQw4w9WgXcQ --quality 720p",
   "autocli tools download video 'https://www.youtube.com/playlist?list=PLFgquLnL59alCl_2TQvOiD5Vgm1hCaGSI' --playlist --limit 3",
@@ -27,11 +28,34 @@ function buildDownloadCommand(options: PlatformCommandBuildOptions = {}): Comman
   const command = new Command("download").description("Download media from most sites supported by yt-dlp, with optional AutoCLI session cookies");
 
   command.addCommand(buildInfoCommand());
+  command.addCommand(buildStreamCommand());
   command.addCommand(buildVideoCommand());
   command.addCommand(buildAudioCommand());
   command.addCommand(buildBatchCommand());
   command.addHelpText("afterAll", buildExamplesHelpText(EXAMPLES, options));
 
+  return command;
+}
+
+function buildStreamCommand(): Command {
+  const command = new Command("stream").description("Resolve a direct media stream URL instead of downloading the file");
+  command.argument("<url>", "Media URL to resolve");
+  addAuthOptions(command);
+  command.option("--quality <resolution>", "Preferred max resolution for a single-file video stream, for example 720p or 1080");
+  command.option("--format <selector>", "Custom yt-dlp format selector");
+  command.option("--audio", "Resolve an audio stream URL instead of a video stream URL");
+  command.action(async (url: string, input: DownloadCommandOptions, cmd: Command) => {
+    await runDownloadAction(cmd, "Resolving stream URL...", "Stream URL resolved.", () =>
+      downloadToolsAdapter.stream({
+        url,
+        cookiesPath: input.cookies,
+        sessionPlatform: input.platform,
+        account: input.account,
+        quality: input.quality,
+        format: input.format,
+        audioOnly: Boolean(input.audio),
+      }));
+  });
   return command;
 }
 
@@ -308,6 +332,7 @@ type DownloadCommandOptions = {
   format?: string;
   quality?: string;
   audioFormat?: string;
+  audio?: boolean;
   mode?: DownloadBatchMode;
   failFast?: boolean;
   playlist?: boolean;
