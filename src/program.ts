@@ -77,15 +77,14 @@ export function assertCategoryOnlyInvocation(argv: readonly string[]): void {
     return;
   }
 
-  const helpSuffix = suggestion.isHelpRequest ? " --help" : " ...";
   throw new AutoCliError(
     "CATEGORY_COMMAND_REQUIRED",
-    `Top-level provider commands are disabled. "${suggestion.command}" lives under "${suggestion.category}". Use "autocli ${suggestion.category} ${suggestion.command}${helpSuffix}" instead.`,
+    `Top-level provider commands are disabled. "${suggestion.command}" lives under "${suggestion.category}". Use "${suggestion.suggestedCommand}" instead.`,
     {
       details: {
         command: suggestion.command,
         category: suggestion.category,
-        suggestedCommand: `autocli ${suggestion.category} ${suggestion.command}${suggestion.isHelpRequest ? " --help" : ""}`,
+        suggestedCommand: suggestion.suggestedCommand,
       },
     },
   );
@@ -95,6 +94,7 @@ function findLegacyDirectProviderInvocation(argv: readonly string[]): {
   command: string;
   category: string;
   isHelpRequest: boolean;
+  suggestedCommand: string;
 } | undefined {
   const positionals = argv.filter((token) => !token.startsWith("-"));
   if (positionals.length === 0) {
@@ -117,5 +117,32 @@ function findLegacyDirectProviderInvocation(argv: readonly string[]): {
     command: candidate,
     category: definition.category,
     isHelpRequest,
+    suggestedCommand: buildSuggestedCategoryCommand(argv, definition.category, definition.id, candidate, isHelpRequest),
   };
+}
+
+function buildSuggestedCategoryCommand(
+  argv: readonly string[],
+  category: string,
+  providerId: string,
+  typedProvider: string,
+  isHelpRequest: boolean,
+): string {
+  if (isHelpRequest) {
+    const tail = argv.slice(1).filter((token, index) => !(index === 0 && token === typedProvider));
+    return ["autocli", category, providerId, ...tail, "--help"].join(" ").trim();
+  }
+
+  const providerIndex = argv.findIndex((token) => token === typedProvider);
+  if (providerIndex < 0) {
+    return `autocli ${category} ${providerId}`;
+  }
+
+  return [
+    "autocli",
+    ...argv.slice(0, providerIndex),
+    category,
+    providerId,
+    ...argv.slice(providerIndex + 1),
+  ].join(" ").trim();
 }

@@ -8,6 +8,7 @@ describe("root program routing", () => {
     const program = createProgram();
     expect(program.commands.map((command) => command.name())).toEqual([
       "login",
+      "search",
       "status",
       "doctor",
       "sessions",
@@ -37,7 +38,8 @@ describe("root program routing", () => {
     } catch (error) {
       expect(error).toBeInstanceOf(AutoCliError);
       expect((error as AutoCliError).code).toBe("CATEGORY_COMMAND_REQUIRED");
-      expect((error as AutoCliError).message).toContain('autocli llm chatgpt ...');
+      expect((error as AutoCliError).message).toContain('autocli llm chatgpt text Hello');
+      expect((error as AutoCliError).details?.suggestedCommand).toBe("autocli llm chatgpt text Hello");
     }
   });
 
@@ -51,8 +53,19 @@ describe("root program routing", () => {
     }
   });
 
+  test("preserves trailing arguments when redirecting direct providers", () => {
+    try {
+      assertCategoryOnlyInvocation(["github", "me", "--json"]);
+      throw new Error("Expected direct provider invocation to be redirected.");
+    } catch (error) {
+      expect(error).toBeInstanceOf(AutoCliError);
+      expect((error as AutoCliError).details?.suggestedCommand).toBe("autocli developer github me --json");
+    }
+  });
+
   test("allows category-based invocations", () => {
     expect(() => assertCategoryOnlyInvocation(["login", "--browser"])).not.toThrow();
+    expect(() => assertCategoryOnlyInvocation(["search", "github"])).not.toThrow();
     expect(() => assertCategoryOnlyInvocation(["llm", "chatgpt", "text", "Hello"])).not.toThrow();
     expect(() => assertCategoryOnlyInvocation(["editor", "image", "info", "./photo.png"])).not.toThrow();
     expect(() => assertCategoryOnlyInvocation(["finance", "stocks", "AAPL"])).not.toThrow();
