@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import {
+  instagramMediaIdToShortcode,
   parseAmazonProductTarget,
   parseFacebookTarget,
   parseFlipkartProductTarget,
@@ -144,6 +145,12 @@ describe("parseInstagramTarget", () => {
       shortcode: "DWO6J1_gNoN",
       url: "https://www.instagram.com/p/DWO6J1_gNoN/",
     });
+  });
+});
+
+describe("instagramMediaIdToShortcode", () => {
+  test("round-trips a canonical Instagram media id into its shortcode", () => {
+    expect(instagramMediaIdToShortcode("3859277693849754125")).toBe("DWO6J1_gNoN");
   });
 });
 

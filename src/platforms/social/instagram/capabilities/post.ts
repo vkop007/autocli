@@ -4,7 +4,7 @@ import { instagramAdapter } from "../adapter.js";
 export const instagramPostCapability = createAdapterActionCapability({
   id: "post",
   command: "post <mediaPath>",
-  description: "Publish an Instagram post with media and an optional caption using the latest saved session by default",
+  description: "Publish an Instagram image post with an optional caption using the latest saved session by default",
   spinnerText: "Creating Instagram post...",
   successMessage: "Instagram post created.",
   options: [

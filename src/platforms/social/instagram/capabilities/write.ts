@@ -1,4 +1,5 @@
 import { createAdapterActionCapability } from "../../../../core/runtime/capability-helpers.js";
+import { parseBrowserTimeoutSeconds } from "../../../shared/cookie-login.js";
 import { instagramAdapter } from "../adapter.js";
 
 export const instagramLikeCapability = createAdapterActionCapability({
@@ -41,6 +42,57 @@ export const instagramCommentCapability = createAdapterActionCapability({
       account: options.account as string | undefined,
       target: String(args[0] ?? ""),
       text: String(args[1] ?? ""),
+    }),
+});
+
+export const instagramDeleteCapability = createAdapterActionCapability({
+  id: "delete",
+  command: "delete <target>",
+  aliases: ["remove"],
+  description: "Delete your own Instagram post by URL, shortcode, or numeric media ID through a browser-backed action flow",
+  spinnerText: "Deleting Instagram post...",
+  successMessage: "Instagram post deleted.",
+  options: [
+    { flags: "--account <name>", description: "Optional override for a specific saved Instagram session" },
+    { flags: "--browser", description: "Force the delete through the shared AutoCLI browser profile instead of the invisible browser-backed path" },
+    {
+      flags: "--browser-timeout <seconds>",
+      description: "Maximum seconds to allow the browser action to complete",
+      parser: parseBrowserTimeoutSeconds,
+    },
+  ],
+  action: ({ args, options }) =>
+    instagramAdapter.deletePost({
+      account: options.account as string | undefined,
+      target: String(args[0] ?? ""),
+      browser: Boolean(options.browser),
+      browserTimeoutSeconds: options.browserTimeout as number | undefined,
+    }),
+});
+
+export const instagramDeleteCommentCapability = createAdapterActionCapability({
+  id: "delete-comment",
+  command: "delete-comment <target> <commentId>",
+  aliases: ["remove-comment"],
+  description: "Delete your own Instagram comment by post target and numeric comment ID through a browser-backed action flow",
+  spinnerText: "Deleting Instagram comment...",
+  successMessage: "Instagram comment deleted.",
+  options: [
+    { flags: "--account <name>", description: "Optional override for a specific saved Instagram session" },
+    { flags: "--browser", description: "Force the delete through the shared AutoCLI browser profile instead of the invisible browser-backed path" },
+    {
+      flags: "--browser-timeout <seconds>",
+      description: "Maximum seconds to allow the browser action to complete",
+      parser: parseBrowserTimeoutSeconds,
+    },
+  ],
+  action: ({ args, options }) =>
+    instagramAdapter.deleteComment({
+      account: options.account as string | undefined,
+      target: String(args[0] ?? ""),
+      commentId: String(args[1] ?? ""),
+      browser: Boolean(options.browser),
+      browserTimeoutSeconds: options.browserTimeout as number | undefined,
     }),
 });
 

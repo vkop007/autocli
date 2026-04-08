@@ -3,10 +3,14 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 
 import { AutoCliError } from "../../../errors.js";
+import {
+  runFirstClassBrowserAction,
+  withBrowserActionMetadata,
+} from "../../../core/runtime/browser-action-runtime.js";
 import { maybeAutoRefreshSession } from "../../../utils/autorefresh.js";
 import { serializeCookieJar } from "../../../utils/cookie-manager.js";
 import { readMediaFile } from "../../../utils/media.js";
-import { parseInstagramProfileTarget, parseInstagramTarget } from "../../../utils/targets.js";
+import { instagramMediaIdToShortcode, parseInstagramProfileTarget, parseInstagramTarget } from "../../../utils/targets.js";
 import { getPlatformHomeUrl, getPlatformOrigin } from "../../config.js";
 import { BasePlatformAdapter } from "../../shared/base-platform-adapter.js";
 
@@ -22,6 +26,7 @@ import type {
   SessionUser,
   TextPostInput,
 } from "../../../types.js";
+import type { Locator as PlaywrightLocator, Page as PlaywrightPage } from "playwright-core";
 
 const INSTAGRAM_ORIGIN = getPlatformOrigin("instagram");
 const INSTAGRAM_HOME = getPlatformHomeUrl("instagram");
@@ -61,6 +66,13 @@ interface InstagramMutationResponse {
   };
   previous_following?: boolean;
   error?: string | null;
+}
+
+interface InstagramCommentMutationResponse {
+  id?: string | number;
+  pk?: string | number;
+  text?: string;
+  status?: string;
 }
 
 interface InstagramSearchResponse {
@@ -300,10 +312,42 @@ export class InstagramAdapter extends BasePlatformAdapter {
     });
   }
 
+  async statusAction(account?: string): Promise<AdapterActionResult> {
+    const status = await this.getStatus(account);
+    return {
+      ok: true,
+      platform: this.platform,
+      account: status.account,
+      action: "status",
+      message: `Instagram session is ${status.status}.`,
+      user: status.user,
+      sessionPath: status.sessionPath,
+      data: {
+        connected: status.connected,
+        status: status.status,
+        details: status.message,
+        lastValidatedAt: status.lastValidatedAt,
+      },
+    };
+  }
+
   async postMedia(input: PostMediaInput): Promise<AdapterActionResult> {
     const { session } = await this.prepareSession(input.account);
     const probe = await this.ensureActiveSession(session);
     const media = await readMediaFile(input.mediaPath);
+    if (!media.mimeType.startsWith("image/")) {
+      throw new AutoCliError(
+        "UNSUPPORTED_ACTION",
+        "Instagram post currently supports image uploads only. Video and reel publishing are not implemented yet.",
+        {
+          details: {
+            mediaPath: input.mediaPath,
+            mimeType: media.mimeType,
+          },
+        },
+      );
+    }
+
     const client = await this.createInstagramClient(session);
     const uploadId = `${Date.now()}`;
     const entityName = `${uploadId}_0_${randomUUID()}`;
@@ -849,7 +893,7 @@ export class InstagramAdapter extends BasePlatformAdapter {
     const client = await this.createInstagramClient(session);
     const target = parseInstagramTarget(input.target);
 
-    await this.tryRequestChain(
+    const response = await this.tryRequestChain<InstagramCommentMutationResponse>(
       [
         async () =>
           client.request(`${INSTAGRAM_ORIGIN}/web/comments/${target.mediaId}/add/`, {
@@ -878,6 +922,7 @@ export class InstagramAdapter extends BasePlatformAdapter {
       ],
       "Failed to comment on the Instagram post.",
     );
+    const commentId = extractInstagramCommentId(response);
 
     return {
       ok: true,
@@ -885,12 +930,259 @@ export class InstagramAdapter extends BasePlatformAdapter {
       account: session.account,
       action: "comment",
       message: `Instagram comment sent for ${session.account}.`,
-      id: target.mediaId,
+      id: commentId ?? target.mediaId,
       user: probe.user,
       data: {
         text: input.text,
+        commentId,
+        targetMediaId: target.mediaId,
       },
     };
+  }
+
+  async deletePost(input: LikeInput & { browser?: boolean; browserTimeoutSeconds?: number }): Promise<AdapterActionResult> {
+    const loaded = await this.loadSession(input.account);
+    const session = loaded.session;
+    const path = loaded.path;
+    const target = this.resolveInstagramPermalink(input.target);
+    const targetUrl = target.url;
+
+    const timeoutSeconds = input.browserTimeoutSeconds ?? 90;
+    const steps = input.browser
+      ? [{
+          source: "shared" as const,
+          announceLabel: `Opening shared AutoCLI browser profile for Instagram deletion: ${targetUrl}`,
+        }]
+      : [
+          { source: "headless" as const, shouldContinueOnError: () => true },
+          {
+            source: "shared" as const,
+            announceLabel: `Opening shared AutoCLI browser profile for Instagram deletion: ${targetUrl}`,
+          },
+        ];
+
+    const execution = await runFirstClassBrowserAction<{
+      finalUrl?: string;
+      source: "headless" | "profile" | "shared";
+    }>({
+      platform: this.platform,
+      action: "delete",
+      actionLabel: "delete",
+      targetUrl,
+      timeoutSeconds,
+      initialCookies: session.cookieJar.cookies,
+      headless: true,
+      userAgent: INSTAGRAM_USER_AGENT,
+      locale: "en-US",
+      mode: "required",
+      steps,
+      actionFn: async (page, source) => {
+        await page.goto(targetUrl, {
+          waitUntil: "domcontentloaded",
+        });
+        await page.waitForTimeout(1_500);
+        await this.ensureInstagramBrowserAuthenticated(page);
+        if (!page.url().includes(target.shortcode)) {
+          await page.goto(targetUrl, {
+            waitUntil: "domcontentloaded",
+          });
+          await page.waitForTimeout(1_500);
+        }
+        await this.waitForInstagramPostPage(page, target.shortcode, targetUrl);
+        await this.openInstagramPostActionMenu(page);
+
+        const deleteAction = await firstVisibleInstagramLocator(page, [
+          'div[role="button"]:has-text("Delete")',
+          'button:has-text("Delete")',
+        ]);
+        await clickInstagramLocator(deleteAction);
+        await page.waitForTimeout(400);
+
+        const confirmButton = await this.waitForInstagramDeleteConfirmButton(page);
+        await clickInstagramLocator(confirmButton);
+        await this.waitForInstagramPostRemoval(page, targetUrl);
+
+        return {
+          finalUrl: page.url(),
+          source,
+        };
+      },
+    });
+
+    return withBrowserActionMetadata({
+      ok: true,
+      platform: this.platform,
+      account: session.account,
+      action: "delete",
+      message: `Instagram post deleted for ${session.account} through a browser-backed flow.`,
+      id: target.mediaId,
+      url: execution.value.finalUrl ?? targetUrl,
+      user: session.user,
+      sessionPath: path,
+      data: {
+        target: target.mediaId,
+        shortcode: target.shortcode,
+      },
+    }, execution);
+  }
+
+  async deleteComment(input: {
+    account?: string;
+    target: string;
+    commentId: string;
+    browser?: boolean;
+    browserTimeoutSeconds?: number;
+  }): Promise<AdapterActionResult> {
+    const loaded = await this.loadSession(input.account);
+    const session = loaded.session;
+    const path = loaded.path;
+    const target = this.resolveInstagramPermalink(input.target);
+    const commentId = normalizeInstagramCommentId(input.commentId);
+    const timeoutSeconds = input.browserTimeoutSeconds ?? 90;
+    const steps = input.browser
+      ? [{
+          source: "shared" as const,
+          announceLabel: `Opening shared AutoCLI browser profile for Instagram comment deletion: ${target.url}`,
+        }]
+      : [
+          { source: "headless" as const, shouldContinueOnError: () => true },
+          {
+            source: "shared" as const,
+            announceLabel: `Opening shared AutoCLI browser profile for Instagram comment deletion: ${target.url}`,
+          },
+        ];
+
+    const execution = await runFirstClassBrowserAction<{
+      endpoint?: string;
+      finalUrl?: string;
+      source: "headless" | "profile" | "shared";
+    }>({
+      platform: this.platform,
+      action: "delete-comment",
+      actionLabel: "delete comment",
+      targetUrl: target.url,
+      timeoutSeconds,
+      initialCookies: session.cookieJar.cookies,
+      headless: true,
+      userAgent: INSTAGRAM_USER_AGENT,
+      locale: "en-US",
+      mode: "required",
+      steps,
+      actionFn: async (page, source) => {
+        await page.goto(target.url, {
+          waitUntil: "domcontentloaded",
+        });
+        await page.waitForTimeout(1_500);
+        await this.ensureInstagramBrowserAuthenticated(page);
+        if (!page.url().includes(target.shortcode)) {
+          await page.goto(target.url, {
+            waitUntil: "domcontentloaded",
+          });
+          await page.waitForTimeout(1_500);
+        }
+        await this.waitForInstagramPostPage(page, target.shortcode, target.url);
+
+        const response = await page.evaluate(
+          async ({ mediaId, commentId, appId }) => {
+            const csrfMatch = document.cookie.match(/(?:^|;\\s*)csrftoken=([^;]+)/u);
+            const csrfToken = csrfMatch?.[1] ? decodeURIComponent(csrfMatch[1]) : "";
+            const headers = {
+              accept: "*/*",
+              "content-type": "application/x-www-form-urlencoded",
+              "x-asbd-id": "129477",
+              "x-csrftoken": csrfToken,
+              "x-ig-app-id": appId,
+              "x-requested-with": "XMLHttpRequest",
+            };
+            const attempts: Array<Record<string, string | number | boolean>> = [];
+
+            for (const endpoint of [
+              `/web/comments/${mediaId}/delete/${commentId}/`,
+              `/api/v1/web/comments/${mediaId}/delete/${commentId}/`,
+            ]) {
+              try {
+                const result = await fetch(endpoint, {
+                  method: "POST",
+                  credentials: "include",
+                  headers,
+                  body: "",
+                });
+                const body = await result.text();
+                let status = "";
+                try {
+                  const parsed = JSON.parse(body) as { status?: unknown };
+                  status = typeof parsed.status === "string" ? parsed.status : "";
+                } catch {
+                  status = "";
+                }
+
+                attempts.push({
+                  endpoint,
+                  httpStatus: result.status,
+                  ok: result.ok,
+                  status,
+                });
+                if (result.ok && (!status || status === "ok")) {
+                  return {
+                    ok: true,
+                    endpoint,
+                    httpStatus: result.status,
+                  };
+                }
+              } catch (error) {
+                attempts.push({
+                  endpoint,
+                  error: error instanceof Error ? error.message : String(error),
+                });
+              }
+            }
+
+            return {
+              ok: false,
+              attempts,
+            };
+          },
+          {
+            mediaId: target.mediaId,
+            commentId,
+            appId: INSTAGRAM_APP_ID,
+          },
+        );
+
+        if (!response.ok) {
+          throw new AutoCliError("PLATFORM_REQUEST_FAILED", "Failed to delete the Instagram comment.", {
+            details: {
+              mediaId: target.mediaId,
+              commentId,
+              attempts: response.attempts,
+            },
+          });
+        }
+
+        return {
+          endpoint: response.endpoint,
+          finalUrl: page.url(),
+          source,
+        };
+      },
+    });
+
+    return withBrowserActionMetadata({
+      ok: true,
+      platform: this.platform,
+      account: session.account,
+      action: "delete-comment",
+      message: `Instagram comment deleted for ${session.account} through a browser-backed flow.`,
+      id: commentId,
+      url: execution.value.finalUrl ?? target.url,
+      user: session.user,
+      sessionPath: path,
+      data: {
+        targetMediaId: target.mediaId,
+        commentId,
+        endpoint: execution.value.endpoint,
+      },
+    }, execution);
   }
 
   async search(input: {
@@ -1618,6 +1910,162 @@ export class InstagramAdapter extends BasePlatformAdapter {
     return response?.data?.user ?? response?.user;
   }
 
+  private async fetchInstagramMediaById(
+    client: Awaited<ReturnType<InstagramAdapter["createInstagramClient"]>>,
+    metadata: Record<string, unknown> | undefined,
+    mediaId: string,
+  ): Promise<InstagramMediaPayload> {
+    const response = await client.request<InstagramMediaInfoResponse>(
+      `${INSTAGRAM_ORIGIN}/api/v1/media/${encodeURIComponent(mediaId)}/info/`,
+      {
+        expectedStatus: 200,
+        headers: await this.buildInstagramHeaders(client, metadata),
+      },
+    );
+
+    const media = response.items?.[0];
+    if (!media?.id && !media?.pk) {
+      throw new AutoCliError("INSTAGRAM_MEDIA_NOT_FOUND", "Instagram could not find that media item.", {
+        details: {
+          mediaId,
+        },
+      });
+    }
+
+    return media;
+  }
+
+  private resolveInstagramPermalink(target: string): {
+    mediaId: string;
+    shortcode: string;
+    url: string;
+  } {
+    const parsed = parseInstagramTarget(target);
+    const shortcode = parsed.shortcode ?? instagramMediaIdToShortcode(parsed.mediaId);
+    return {
+      mediaId: parsed.mediaId,
+      shortcode,
+      url: parsed.url ?? `${INSTAGRAM_ORIGIN}/p/${shortcode}/`,
+    };
+  }
+
+  private async ensureInstagramBrowserAuthenticated(page: PlaywrightPage): Promise<void> {
+    await page.waitForLoadState("domcontentloaded");
+    await page.waitForTimeout(750);
+
+    const bodyText = (await page.locator("body").innerText().catch(() => "")).replace(/\s+/g, " ").trim();
+    if (/use another profile/i.test(bodyText) && /\bcontinue\b/i.test(bodyText)) {
+      const continueButton = await firstVisibleInstagramLocator(page, [
+        'div[role="button"]:has-text("Continue")',
+        'button:has-text("Continue")',
+      ]).catch(() => undefined);
+      if (continueButton) {
+        await clickInstagramLocator(continueButton);
+        await page.waitForLoadState("domcontentloaded");
+        await page.waitForTimeout(1_500);
+      }
+    }
+
+    if (page.url().includes("/accounts/login")) {
+      throw new AutoCliError(
+        "INSTAGRAM_BROWSER_NOT_LOGGED_IN",
+        "The browser session is not logged into Instagram. Re-login with `autocli social instagram login --browser` first.",
+      );
+    }
+
+    const loginInputs = await page.locator('input[name="username"], input[name="password"]').count().catch(() => 0);
+    if (loginInputs > 0) {
+      throw new AutoCliError(
+        "INSTAGRAM_BROWSER_NOT_LOGGED_IN",
+        "The browser session is not logged into Instagram. Re-login with `autocli social instagram login --browser` first.",
+      );
+    }
+  }
+
+  private async waitForInstagramPostPage(page: PlaywrightPage, shortcode: string | undefined, targetUrl: string): Promise<void> {
+    const deadline = Date.now() + 20_000;
+    while (Date.now() < deadline) {
+      const url = page.url();
+      if (!shortcode || url.includes(`/p/${shortcode}/`) || url.includes(`/reel/${shortcode}/`) || url.includes(`/tv/${shortcode}/`)) {
+        const menuButton = await firstVisibleInstagramLocator(page, [
+          '[aria-label="More options"]',
+          'svg[aria-label="More options"]',
+        ]).catch(() => undefined);
+        if (menuButton) {
+          return;
+        }
+      }
+
+      await page.waitForTimeout(250);
+    }
+
+    throw new AutoCliError("INSTAGRAM_POST_NOT_FOUND", "Instagram never exposed the requested post in the browser flow.", {
+      details: {
+        targetUrl,
+        shortcode,
+        finalUrl: page.url(),
+      },
+    });
+  }
+
+  private async openInstagramPostActionMenu(page: PlaywrightPage): Promise<void> {
+    const button = await firstVisibleInstagramLocator(page, [
+      '[aria-label="More options"]',
+      'button[aria-label="More options"]',
+      'svg[aria-label="More options"]',
+    ]);
+    await clickInstagramLocator(button);
+    await page.waitForTimeout(400);
+  }
+
+  private async waitForInstagramDeleteConfirmButton(page: PlaywrightPage): Promise<PlaywrightLocator> {
+    const deadline = Date.now() + 15_000;
+    while (Date.now() < deadline) {
+      const dialog = page.locator('div[role="dialog"]').last();
+      if (await dialog.isVisible().catch(() => false)) {
+        const button = await firstVisibleInstagramLocatorWithin(dialog, [
+          'div[role="button"]:has-text("Delete")',
+          'button:has-text("Delete")',
+        ]).catch(() => undefined);
+        if (button) {
+          return button;
+        }
+      }
+
+      await page.waitForTimeout(250);
+    }
+
+    throw new AutoCliError("INSTAGRAM_DELETE_CONFIRM_NOT_FOUND", "Instagram never exposed the delete confirmation button.", {
+      details: {
+        url: page.url(),
+      },
+    });
+  }
+
+  private async waitForInstagramPostRemoval(page: PlaywrightPage, targetUrl: string): Promise<void> {
+    const deadline = Date.now() + 20_000;
+    while (Date.now() < deadline) {
+      const currentUrl = page.url();
+      const bodyText = (await page.locator("body").innerText().catch(() => "")).replace(/\s+/g, " ").trim();
+      if (currentUrl !== targetUrl) {
+        return;
+      }
+
+      if (/page isn't available|sorry, this page isn't available|content unavailable/i.test(bodyText)) {
+        return;
+      }
+
+      await page.waitForTimeout(500);
+    }
+
+    throw new AutoCliError("INSTAGRAM_DELETE_TIMEOUT", "Instagram never confirmed that the post was deleted.", {
+      details: {
+        targetUrl,
+        finalUrl: page.url(),
+      },
+    });
+  }
+
   private async prepareSession(account?: string): Promise<{ session: PlatformSession; path: string }> {
     const loaded = await this.loadSession(account);
     return {
@@ -1687,6 +2135,68 @@ export class InstagramAdapter extends BasePlatformAdapter {
     throw new AutoCliError("PLATFORM_REQUEST_FAILED", fallbackMessage, {
       cause: lastError,
       details: lastError instanceof Error ? { message: lastError.message } : undefined,
+    });
+  }
+}
+
+export function normalizeInstagramCommentId(commentId: string): string {
+  const normalized = commentId.trim();
+  if (!/^\d+$/u.test(normalized)) {
+    throw new AutoCliError("INVALID_COMMENT_ID", "Expected a numeric Instagram comment ID.", {
+      details: {
+        commentId,
+      },
+    });
+  }
+
+  return normalized;
+}
+
+export function extractInstagramCommentId(response: InstagramCommentMutationResponse | null | undefined): string | undefined {
+  const value = response?.id ?? response?.pk;
+  return typeof value === "string" || typeof value === "number" ? String(value) : undefined;
+}
+
+async function firstVisibleInstagramLocator(page: PlaywrightPage, selectors: readonly string[]) {
+  for (const selector of selectors) {
+    const locator = page.locator(selector);
+    const count = await locator.count().catch(() => 0);
+    for (let index = 0; index < count; index += 1) {
+      const candidate = locator.nth(index);
+      if (await candidate.isVisible().catch(() => false)) {
+        return candidate;
+      }
+    }
+  }
+
+  throw new AutoCliError("INSTAGRAM_BROWSER_ELEMENT_NOT_FOUND", `Could not find any visible Instagram element for selectors: ${selectors.join(", ")}`);
+}
+
+async function firstVisibleInstagramLocatorWithin(root: PlaywrightLocator, selectors: readonly string[]) {
+  for (const selector of selectors) {
+    const locator = root.locator(selector);
+    const count = await locator.count().catch(() => 0);
+    for (let index = 0; index < count; index += 1) {
+      const candidate = locator.nth(index);
+      if (await candidate.isVisible().catch(() => false)) {
+        return candidate;
+      }
+    }
+  }
+
+  throw new AutoCliError("INSTAGRAM_BROWSER_ELEMENT_NOT_FOUND", `Could not find any visible Instagram element for selectors: ${selectors.join(", ")}`);
+}
+
+async function clickInstagramLocator(locator: PlaywrightLocator): Promise<void> {
+  try {
+    await locator.click({
+      timeout: 5_000,
+    });
+    return;
+  } catch {
+    await locator.click({
+      force: true,
+      timeout: 5_000,
     });
   }
 }

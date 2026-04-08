@@ -11,3 +11,13 @@ export const instagramLoginCapability = createAdapterActionCapability({
   options: createCookieLoginOptions(),
   action: ({ options }) => instagramAdapter.login(resolveCookieLoginInput(options)),
 });
+
+export const instagramStatusCapability = createAdapterActionCapability({
+  id: "status",
+  command: "status",
+  description: "Show the saved Instagram session status",
+  spinnerText: "Checking Instagram session...",
+  successMessage: "Instagram session checked.",
+  options: [{ flags: "--account <name>", description: "Optional override for a specific saved Instagram session" }],
+  action: ({ options }) => instagramAdapter.statusAction(options.account as string | undefined),
+});
