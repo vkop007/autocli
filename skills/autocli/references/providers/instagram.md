@@ -11,7 +11,7 @@ Generated from the real AutoCLI provider definition and command tree.
 - Discovery: `supported`
 - Mutation: `supported`
 - Browser login: `supported`
-- Browser fallback: `unsupported`
+- Browser fallback: `supported`
 - Async jobs: `unsupported`
 
 ## Description
@@ -20,13 +20,13 @@ Interact with Instagram using an imported browser session. Use `autocli tools do
 
 ## Notes
 
-- none
+- Reads and image/comment writes are browserless; post and comment deletion can fall back to browser-backed flows when Instagram's web APIs get flaky.
 
 ## Fast Start
 
 - `autocli social instagram login`
 - `autocli social instagram login --cookies ./instagram.cookies.txt`
-- `autocli social instagram search "blackpink"`
+- `autocli social instagram status`
 - `autocli social instagram capabilities --json`
 
 ## Default Command
@@ -59,6 +59,19 @@ Options:
 - `--browser`: Open a real browser, wait for manual login, then save the extracted session (default when no cookie flags are provided)
 - `--browser-timeout <seconds>`: Maximum seconds to wait for manual browser login (default: 600)
 
+### `status`
+
+Usage:
+```bash
+autocli social instagram status [options]
+```
+
+Show the saved Instagram session status
+
+Options:
+
+- `--account <name>`: Optional override for a specific saved Instagram session
+
 ### `post`
 
 Usage:
@@ -66,7 +79,7 @@ Usage:
 autocli social instagram post [options] <mediaPath>
 ```
 
-Publish an Instagram post with media and an optional caption using the latest saved session by default
+Publish an Instagram image post with an optional caption using the latest saved session by default
 
 Options:
 
@@ -216,6 +229,40 @@ Comment on an Instagram post by URL, shortcode, or numeric media ID using the la
 Options:
 
 - `--account <name>`: Optional override for a specific saved Instagram session
+
+### `delete`
+
+Usage:
+```bash
+autocli social instagram delete [options] <target>
+```
+
+Aliases: `remove`
+
+Delete your own Instagram post by URL, shortcode, or numeric media ID through a browser-backed action flow
+
+Options:
+
+- `--account <name>`: Optional override for a specific saved Instagram session
+- `--browser`: Force the delete through the shared AutoCLI browser profile instead of the invisible browser-backed path
+- `--browser-timeout <seconds>`: Maximum seconds to allow the browser action to complete
+
+### `delete-comment`
+
+Usage:
+```bash
+autocli social instagram delete-comment [options] <target> <commentId>
+```
+
+Aliases: `remove-comment`
+
+Delete your own Instagram comment by post target and numeric comment ID through a browser-backed action flow
+
+Options:
+
+- `--account <name>`: Optional override for a specific saved Instagram session
+- `--browser`: Force the delete through the shared AutoCLI browser profile instead of the invisible browser-backed path
+- `--browser-timeout <seconds>`: Maximum seconds to allow the browser action to complete
 
 ### `follow`
 

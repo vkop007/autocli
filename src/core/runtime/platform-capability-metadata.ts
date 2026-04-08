@@ -230,7 +230,9 @@ const PROVIDER_OVERRIDES: Partial<Record<PlatformDefinition["id"], PlatformCapab
   instagram: {
     mutation: "supported",
     browserLogin: "supported",
+    browserFallback: "supported",
     stability: "partial",
+    notes: ["Reads and image/comment writes are browserless; post and comment deletion can fall back to browser-backed flows when Instagram's web APIs get flaky."],
   },
   facebook: {
     mutation: "partial",

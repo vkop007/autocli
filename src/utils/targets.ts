@@ -720,6 +720,29 @@ export function instagramShortcodeToMediaId(shortcode: string): string {
   return value.toString();
 }
 
+export function instagramMediaIdToShortcode(mediaId: string): string {
+  const normalized = mediaId.trim();
+  if (!/^\d+$/u.test(normalized)) {
+    throw new AutoCliError("INVALID_TARGET", "Expected a numeric Instagram media ID.", {
+      details: { mediaId },
+    });
+  }
+
+  let value = BigInt(normalized);
+  if (value === 0n) {
+    return INSTAGRAM_SHORTCODE_ALPHABET[0] ?? "A";
+  }
+
+  let shortcode = "";
+  while (value > 0n) {
+    const remainder = Number(value % 64n);
+    shortcode = `${INSTAGRAM_SHORTCODE_ALPHABET[remainder]}${shortcode}`;
+    value /= 64n;
+  }
+
+  return shortcode;
+}
+
 function buildSpotifyTarget(
   target: string,
   type: SpotifyEntityType,

@@ -1,5 +1,5 @@
 import { instagramBatchCapability } from "./batch.js";
-import { instagramLoginCapability } from "./login.js";
+import { instagramLoginCapability, instagramStatusCapability } from "./login.js";
 import {
   instagramFollowersCapability,
   instagramFollowingCapability,
@@ -12,6 +12,8 @@ import {
 import { instagramPostCapability } from "./post.js";
 import {
   instagramCommentCapability,
+  instagramDeleteCapability,
+  instagramDeleteCommentCapability,
   instagramFollowCapability,
   instagramLikeCapability,
   instagramUnfollowCapability,
@@ -20,6 +22,7 @@ import {
 
 export const instagramCapabilities = [
   instagramLoginCapability,
+  instagramStatusCapability,
   instagramPostCapability,
   instagramSearchCapability,
   instagramPostsCapability,
@@ -31,6 +34,8 @@ export const instagramCapabilities = [
   instagramLikeCapability,
   instagramUnlikeCapability,
   instagramCommentCapability,
+  instagramDeleteCapability,
+  instagramDeleteCommentCapability,
   instagramFollowCapability,
   instagramUnfollowCapability,
   instagramBatchCapability,
