@@ -64,4 +64,19 @@ describe("error recovery guidance", () => {
 
     expect(recovery.nextCommand).toBe("autocli social x login --browser-timeout 300");
   });
+
+  test("surfaces next-command guidance for missing category invocations", () => {
+    const serialized = serializeCliError(
+      new AutoCliError("CATEGORY_COMMAND_REQUIRED", 'Top-level provider commands are disabled.', {
+        details: {
+          command: "github",
+          category: "developer",
+          suggestedCommand: "autocli developer github me",
+        },
+      }),
+    );
+
+    expect(serialized.error.nextCommand).toBe("autocli developer github me");
+    expect(serialized.error.hint).toContain("full category path");
+  });
 });

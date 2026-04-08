@@ -61,6 +61,14 @@ export function resolveErrorRecovery(error: unknown): {
     };
   }
 
+  if (error.code === "CATEGORY_COMMAND_REQUIRED") {
+    const suggestedCommand = typeof error.details?.suggestedCommand === "string" ? error.details.suggestedCommand : undefined;
+    return {
+      hint: "Provider commands live under categories. Retry with the full category path, or use `autocli search <query>` if you are unsure.",
+      nextCommand: suggestedCommand,
+    };
+  }
+
   if (BROWSER_REQUIRED_CODES.has(error.code)) {
     return {
       hint: "This action needs a live shared browser session for the provider before it can continue.",
