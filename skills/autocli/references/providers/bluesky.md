@@ -6,27 +6,27 @@ Generated from the real AutoCLI provider definition and command tree.
 - Category: `social`
 - Command prefix: `autocli social bluesky`
 - Aliases: none
-- Auth: `none`
+- Auth: `none`, `session`
 - Stability: `stable`
 - Discovery: `supported`
-- Mutation: `unsupported`
+- Mutation: `supported`
 - Browser login: `unsupported`
 - Browser fallback: `unsupported`
 - Async jobs: `unsupported`
 
 ## Description
 
-Search public Bluesky profiles, inspect profiles, feeds, and threads through the public appview API
+Search public Bluesky profiles through the public appview API, then use app-password login for account reads and text interactions
 
 ## Notes
 
-- none
+- Public reads stay available without auth. App-password login enables saved-session `me`, `post`, `comment`, and `like` commands without browser automation.
 
 ## Fast Start
 
+- `autocli social bluesky login --handle alice.bsky.social --app-password xxxx-xxxx-xxxx-xxxx`
+- `autocli social bluesky me`
 - `autocli social bluesky search "karpathy"`
-- `autocli social bluesky profile karpathy.bsky.social`
-- `autocli social bluesky posts karpathy.bsky.social --limit 5`
 - `autocli social bluesky capabilities --json`
 
 ## Default Command
@@ -40,6 +40,50 @@ No root-only options.
 
 
 ## Commands
+
+### `login`
+
+Usage:
+```bash
+autocli social bluesky login [options]
+```
+
+Save a Bluesky session using a handle and app password
+
+Options:
+
+- `--handle <value>`: Bluesky handle to log in with
+- `--app-password <value>`: Bluesky app password
+- `--service <url>`: Optional ATProto service or PDS URL (default: https://bsky.social)
+- `--account <name>`: Optional saved session name to use instead of the detected handle
+
+### `status`
+
+Usage:
+```bash
+autocli social bluesky status [options]
+```
+
+Show the saved Bluesky session status
+
+Options:
+
+- `--account <name>`: Optional saved Bluesky session name to inspect
+
+### `me`
+
+Usage:
+```bash
+autocli social bluesky me [options]
+```
+
+Aliases: `account`
+
+Load the current Bluesky account profile from the saved session
+
+Options:
+
+- `--account <name>`: Optional saved Bluesky session name to use
 
 ### `search`
 
@@ -96,6 +140,47 @@ Load a public Bluesky thread by URL or at:// post URI
 Options:
 
 - `--limit <number>`: Maximum replies to return (default: 5)
+
+### `post`
+
+Usage:
+```bash
+autocli social bluesky post [options] <text...>
+```
+
+Create a text Bluesky post from the saved session
+
+Options:
+
+- `--account <name>`: Optional saved Bluesky session name to use
+
+### `comment`
+
+Usage:
+```bash
+autocli social bluesky comment [options] <target> <text...>
+```
+
+Aliases: `reply`
+
+Reply to a Bluesky post URL or at:// URI
+
+Options:
+
+- `--account <name>`: Optional saved Bluesky session name to use
+
+### `like`
+
+Usage:
+```bash
+autocli social bluesky like [options] <target>
+```
+
+Like a Bluesky post URL or at:// URI
+
+Options:
+
+- `--account <name>`: Optional saved Bluesky session name to use
 
 ### `capabilities`
 
