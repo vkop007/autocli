@@ -270,9 +270,10 @@ const PROVIDER_OVERRIDES: Partial<Record<PlatformDefinition["id"], PlatformCapab
     notes: ["Studio uploads are browser-backed. Watch-page likes, dislikes, comments, and subscriptions still use request tokens from the saved session."],
   },
   bluesky: {
-    mutation: "unsupported",
+    mutation: "supported",
     browserLogin: "unsupported",
     stability: "stable",
+    notes: ["Public reads stay available without auth. App-password login enables saved-session `me`, `post`, `comment`, and `like` commands without browser automation."],
   },
   mastodon: {
     mutation: "unsupported",
