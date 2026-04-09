@@ -22,6 +22,7 @@ import {
   getPlatformHomeUrl,
 } from "../platforms/config.js";
 import type { Platform } from "../types.js";
+import { BROWSER_NODE_REEXEC_ERROR_CODE } from "./node-browser-reexec.js";
 import type {
   Browser as PlaywrightBrowser,
   BrowserContext as PlaywrightBrowserContext,
@@ -127,6 +128,18 @@ type ManagedBrowserState = {
 type ManagedBrowserHandle = {
   state: ManagedBrowserState;
   launchedFresh: boolean;
+};
+
+type ManagedBrowserVersionInfo = {
+  browser?: string;
+  userAgent?: string;
+  webSocketDebuggerUrl?: string;
+};
+
+type ManagedBrowserProcessCandidate = {
+  pid: number;
+  port: number;
+  executablePath: string;
 };
 
 const execFileAsync = promisify(execFile);
@@ -567,6 +580,13 @@ async function ensureManagedBrowser(input: {
   announceLabel: string;
   profile?: string;
 }): Promise<ManagedBrowserHandle> {
+  if (process.versions.bun && process.env.AUTOCLI_NODE_BROWSER_REEXEC !== "1") {
+    throw new AutoCliError(
+      BROWSER_NODE_REEXEC_ERROR_CODE,
+      "Shared-browser actions need the Node runtime because Bun cannot reliably attach to Chrome over CDP on this machine.",
+    );
+  }
+
   const profile = input.profile ?? DEFAULT_BROWSER_PROFILE;
   await ensureBrowserDirectory(profile);
   const browserProfilePath = getBrowserProfileDir(profile);
@@ -580,7 +600,17 @@ async function ensureManagedBrowser(input: {
     };
   }
 
+  const discovered = await discoverManagedBrowserState(profile, browserProfilePath);
+  if (discovered) {
+    announceBrowserLogin(input.announceLabel);
+    return {
+      state: discovered,
+      launchedFresh: false,
+    };
+  }
+
   await cleanupStaleAutomatedBrowserProcesses(browserProfilePath);
+  await cleanupStaleBrowserProfileArtifacts(browserProfilePath);
 
   const executablePath = await resolveBrowserExecutable();
   const port = await getAvailablePort();
@@ -639,8 +669,9 @@ async function tryConnectToManagedBrowser(cdpUrl: string, timeoutMs: number): Pr
 
   while (Date.now() < deadline) {
     try {
-      const browser = await chromium.connectOverCDP(cdpUrl, {
-        timeout: 3_000,
+      const versionInfo = await readManagedBrowserVersionInfo(cdpUrl);
+      const browser = await chromium.connectOverCDP(resolveManagedBrowserConnectEndpoint(cdpUrl, versionInfo), {
+        timeout: Math.max(1_000, Math.min(5_000, deadline - Date.now())),
       });
       const context = browser.contexts()[0];
       if (!context) {
@@ -735,26 +766,139 @@ async function requireManagedBrowser(input: {
   announceLabel: string;
   profile?: string;
 }): Promise<ManagedBrowserHandle> {
-  const profile = input.profile ?? DEFAULT_BROWSER_PROFILE;
-  const existing = await readManagedBrowserState(profile);
-  if (!existing || !(await isManagedBrowserReachable(existing))) {
+  if (process.versions.bun && process.env.AUTOCLI_NODE_BROWSER_REEXEC !== "1") {
     throw new AutoCliError(
-      "BROWSER_NOT_RUNNING",
-      "No shared AutoCLI browser profile is running. Start it first with `autocli login --browser` and keep that browser window open.",
-      {
-        details: {
-          profile,
-          browserProfilePath: getBrowserProfileDir(profile),
-        },
-      },
+      BROWSER_NODE_REEXEC_ERROR_CODE,
+      "Shared-browser actions need the Node runtime because Bun cannot reliably attach to Chrome over CDP on this machine.",
     );
   }
 
-  announceBrowserLogin(input.announceLabel);
-  return {
-    state: existing,
-    launchedFresh: false,
-  };
+  const profile = input.profile ?? DEFAULT_BROWSER_PROFILE;
+  const existing = await readManagedBrowserState(profile);
+  if (existing && await isManagedBrowserReachable(existing)) {
+    announceBrowserLogin(input.announceLabel);
+    return {
+      state: existing,
+      launchedFresh: false,
+    };
+  }
+
+  const browserProfilePath = getBrowserProfileDir(profile);
+  const discovered = await discoverManagedBrowserState(profile, browserProfilePath);
+  if (discovered) {
+    announceBrowserLogin(input.announceLabel);
+    return {
+      state: discovered,
+      launchedFresh: false,
+    };
+  }
+
+  throw new AutoCliError(
+    "BROWSER_NOT_RUNNING",
+    "No shared AutoCLI browser profile is running. Start it first with `autocli login --browser` and keep that browser window open.",
+    {
+      details: {
+        profile,
+        browserProfilePath,
+      },
+    },
+  );
+}
+
+export function extractManagedBrowserProcessCandidates(
+  psOutput: string,
+  browserProfilePath: string,
+): ManagedBrowserProcessCandidate[] {
+  const candidates: ManagedBrowserProcessCandidate[] = [];
+  const seen = new Set<string>();
+
+  for (const line of psOutput.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || !trimmed.includes(browserProfilePath) || !trimmed.includes("--remote-debugging-port=")) {
+      continue;
+    }
+
+    if (trimmed.includes("--type=")) {
+      continue;
+    }
+
+    const pidMatch = trimmed.match(/^(\d+)\s+/u);
+    const portMatch = trimmed.match(/--remote-debugging-port=(\d+)/u);
+    if (!pidMatch || !portMatch) {
+      continue;
+    }
+
+    const pid = Number.parseInt(pidMatch[1] ?? "", 10);
+    const port = Number.parseInt(portMatch[1] ?? "", 10);
+    if (!Number.isFinite(pid) || pid <= 0 || !Number.isFinite(port) || port <= 0) {
+      continue;
+    }
+
+    const command = trimmed.slice(pidMatch[0].length).trim();
+    const argsStart = command.indexOf(" --");
+    const executablePath = (argsStart === -1 ? command : command.slice(0, argsStart)).trim();
+    if (!executablePath) {
+      continue;
+    }
+
+    const key = `${pid}:${port}`;
+    if (seen.has(key)) {
+      continue;
+    }
+
+    seen.add(key);
+    candidates.push({
+      pid,
+      port,
+      executablePath,
+    });
+  }
+
+  return candidates;
+}
+
+async function discoverManagedBrowserState(
+  profile: string,
+  browserProfilePath: string,
+): Promise<ManagedBrowserState | null> {
+  if (process.platform === "win32") {
+    return null;
+  }
+
+  try {
+    const { stdout } = await execFileAsync("ps", ["-ax", "-o", "pid=", "-o", "command="], {
+      maxBuffer: 1024 * 1024,
+    });
+
+    const candidates = extractManagedBrowserProcessCandidates(stdout, browserProfilePath);
+    for (const candidate of candidates) {
+      const state: ManagedBrowserState = {
+        pid: candidate.pid,
+        port: candidate.port,
+        cdpUrl: `http://127.0.0.1:${candidate.port}`,
+        browserProfilePath,
+        executablePath: candidate.executablePath,
+        startedAt: new Date().toISOString(),
+      };
+
+      if (!(await isManagedBrowserReachable(state))) {
+        continue;
+      }
+
+      await writeManagedBrowserState(profile, state);
+      return state;
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
+async function cleanupStaleBrowserProfileArtifacts(browserProfilePath: string): Promise<void> {
+  for (const entry of ["SingletonCookie", "SingletonLock", "SingletonSocket", "RunningChromeVersion"]) {
+    await unlink(path.join(browserProfilePath, entry)).catch(() => {});
+  }
 }
 
 async function openOrReusePage(context: BrowserContextLike, startUrl: string, timeoutMs = 15_000): Promise<BrowserPageLike> {
@@ -789,6 +933,7 @@ async function navigatePage(page: BrowserPageLike, url: string, timeoutMs = 15_0
 
 async function waitForManagedBrowserReady(state: ManagedBrowserState): Promise<void> {
   const deadline = Date.now() + 15_000;
+  let lastError: unknown = null;
 
   while (Date.now() < deadline) {
     if (!(await isManagedBrowserReachable(state))) {
@@ -796,16 +941,24 @@ async function waitForManagedBrowserReady(state: ManagedBrowserState): Promise<v
       continue;
     }
 
-    return;
+    const connected = await tryConnectToManagedBrowser(state.cdpUrl, Math.min(2_500, Math.max(1_000, deadline - Date.now())));
+    if (connected) {
+      await connected.browser.close().catch(() => {});
+      return;
+    }
+
+    lastError = new AutoCliError("BROWSER_LOGIN_FAILED", "The managed browser responded on its debugging port, but Playwright still could not attach.");
+    await sleep(250);
   }
 
   throw new AutoCliError(
     "BROWSER_LOGIN_FAILED",
-    "Chrome launched, but AutoCLI could not connect to the shared browser profile in time.",
+    "Chrome launched, but AutoCLI could not attach to the shared browser profile in time.",
     {
       details: {
         cdpUrl: state.cdpUrl,
         browserProfilePath: state.browserProfilePath,
+        ...(lastError instanceof Error ? { lastError: lastError.message } : {}),
       },
     },
   );
@@ -830,12 +983,8 @@ async function isManagedBrowserReachable(state: ManagedBrowserState): Promise<bo
     return false;
   }
 
-  try {
-    const response = await fetch(`${state.cdpUrl}/json/version`);
-    return response.ok;
-  } catch {
-    return false;
-  }
+  const versionInfo = await readManagedBrowserVersionInfo(state.cdpUrl);
+  return Boolean(versionInfo);
 }
 
 async function readManagedBrowserState(profile: string): Promise<ManagedBrowserState | null> {
@@ -878,8 +1027,45 @@ async function closeManagedBrowser(state: ManagedBrowserState): Promise<void> {
     }
   }
 
-  const statePath = getBrowserStatePath();
+  const statePath = path.join(state.browserProfilePath, "state.json");
   await unlink(statePath).catch(() => {});
+}
+
+async function readManagedBrowserVersionInfo(cdpUrl: string): Promise<ManagedBrowserVersionInfo | null> {
+  try {
+    const response = await fetch(`${cdpUrl}/json/version`);
+    if (!response.ok) {
+      return null;
+    }
+
+    const parsed = await response.json().catch(() => null) as unknown;
+    const info = parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? parsed as Record<string, unknown>
+      : null;
+    if (!info) {
+      return null;
+    }
+
+    return {
+      browser: typeof info.Browser === "string" ? info.Browser : undefined,
+      userAgent: typeof info["User-Agent"] === "string" ? info["User-Agent"] : undefined,
+      webSocketDebuggerUrl: typeof info.webSocketDebuggerUrl === "string" ? info.webSocketDebuggerUrl : undefined,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function resolveManagedBrowserConnectEndpoint(
+  cdpUrl: string,
+  versionInfo?: ManagedBrowserVersionInfo | null,
+): string {
+  const wsUrl = versionInfo?.webSocketDebuggerUrl?.trim();
+  if (wsUrl && /^wss?:\/\//u.test(wsUrl)) {
+    return wsUrl;
+  }
+
+  return cdpUrl;
 }
 
 async function cleanupStaleAutomatedBrowserProcesses(browserProfilePath: string): Promise<void> {
@@ -898,7 +1084,11 @@ async function cleanupStaleAutomatedBrowserProcesses(browserProfilePath: string)
         continue;
       }
 
-      if (!trimmed.includes("--enable-automation") && !trimmed.includes("--remote-debugging-pipe")) {
+      if (
+        !trimmed.includes("--enable-automation") &&
+        !trimmed.includes("--remote-debugging-pipe") &&
+        !trimmed.includes("--remote-debugging-port=")
+      ) {
         continue;
       }
 

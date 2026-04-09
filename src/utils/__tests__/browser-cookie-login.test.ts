@@ -1,6 +1,11 @@
 import { describe, expect, it } from "bun:test";
 
-import { hasDetectedAuthenticatedState, normalizePlaywrightCookie } from "../browser-cookie-login.js";
+import {
+  extractManagedBrowserProcessCandidates,
+  hasDetectedAuthenticatedState,
+  normalizePlaywrightCookie,
+  resolveManagedBrowserConnectEndpoint,
+} from "../browser-cookie-login.js";
 
 describe("browser cookie login detection", () => {
   it("does not treat GitHub bootstrap cookies as a successful login", () => {
@@ -101,5 +106,40 @@ describe("browser cookie login detection", () => {
       path: "/",
       secure: true,
     });
+  });
+
+  it("prefers Chrome's websocket debugger URL when connecting to the shared browser", () => {
+    const endpoint = resolveManagedBrowserConnectEndpoint("http://127.0.0.1:9222", {
+      webSocketDebuggerUrl: "ws://127.0.0.1:9222/devtools/browser/abc123",
+    });
+
+    expect(endpoint).toBe("ws://127.0.0.1:9222/devtools/browser/abc123");
+  });
+
+  it("falls back to the plain CDP endpoint when Chrome does not report a websocket debugger URL", () => {
+    const endpoint = resolveManagedBrowserConnectEndpoint("http://127.0.0.1:9222", {
+      browser: "Chrome/146.0.0.0",
+    });
+
+    expect(endpoint).toBe("http://127.0.0.1:9222");
+  });
+
+  it("extracts reusable managed-browser processes and skips helper processes", () => {
+    const candidates = extractManagedBrowserProcessCandidates(
+      `
+15424 /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --user-data-dir=/Users/vk/.autocli/browser/default --remote-debugging-port=50345 --no-first-run
+15483 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/146.0.7680.178/Helpers/Google Chrome Helper --type=gpu-process --user-data-dir=/Users/vk/.autocli/browser/default --remote-debugging-port=50345
+33601 /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --user-data-dir=/var/folders/tmp/autocli-cdp --remote-debugging-port=51232 --no-first-run
+      `,
+      "/Users/vk/.autocli/browser/default",
+    );
+
+    expect(candidates).toEqual([
+      {
+        pid: 15424,
+        port: 50345,
+        executablePath: "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+      },
+    ]);
   });
 });
