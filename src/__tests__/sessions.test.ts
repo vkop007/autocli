@@ -27,6 +27,16 @@ describe("sessions command helpers", () => {
               user: {
                 username: "vk",
               },
+              metadata: {
+                bearerToken: "secret-token",
+                auth: {
+                  team: "Acme",
+                  Authorization: "Bearer secret-token",
+                },
+                autoRefresh: {
+                  importantCookiesPresent: ["auth_token", "ct0"],
+                },
+              },
             },
             path: "/tmp/github-work.json",
           },
@@ -49,7 +59,16 @@ describe("sessions command helpers", () => {
         updatedAt: "2026-01-02T00:00:00.000Z",
         lastValidatedAt: "2026-01-02T00:00:00.000Z",
         path: "/tmp/github-work.json",
-        metadata: undefined,
+        metadata: {
+          bearerToken: "[redacted]",
+          auth: {
+            team: "Acme",
+            Authorization: "[redacted]",
+          },
+          autoRefresh: {
+            importantCookiesPresent: ["auth_token", "ct0"],
+          },
+        },
       },
     ]);
   });

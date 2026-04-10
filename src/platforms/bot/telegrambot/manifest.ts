@@ -1,4 +1,5 @@
 import type { PlatformDefinition } from "../../../core/runtime/platform-definition.js";
+import { telegrambotAdapter } from "./adapter.js";
 import { telegrambotCapabilities } from "./capabilities/index.js";
 
 export const telegrambotPlatformDefinition: PlatformDefinition = {
@@ -8,6 +9,7 @@ export const telegrambotPlatformDefinition: PlatformDefinition = {
   description: "Interact with Telegram Bot API using a saved bot token",
   aliases: ["telegram"],
   authStrategies: ["botToken"],
+  adapter: telegrambotAdapter,
   capabilities: telegrambotCapabilities,
   examples: [
     "autocli telegrambot login --token 123456:ABCDEF --name alerts-bot",
