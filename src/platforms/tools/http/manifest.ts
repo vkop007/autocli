@@ -20,7 +20,7 @@ const EXAMPLES = [
   "autocli tools http github request GET /settings/profile",
   "autocli tools http github download /settings/profile --output ./tmp/github-profile.html",
   "autocli tools http github graphql '{ viewer { login } }' --path /api/graphql",
-  "autocli tools http officialgxdyt.atlassian.net request GET /rest/api/3/myself --platform jira",
+  "autocli tools http your-workspace.atlassian.net request GET /rest/api/3/myself --platform jira",
   "autocli tools http github request POST /session --json-body '{\"ok\":true}' --browser",
 ] as const;
 

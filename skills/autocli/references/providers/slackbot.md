@@ -24,7 +24,7 @@ Interact with Slack using a saved bot token
 
 ## Fast Start
 
-- `autocli bot slackbot login --token xoxb-123 --name alerts-bot`
+- `autocli bot slackbot login --token slack-bot-token-example --name alerts-bot`
 - `autocli bot slackbot me`
 - `autocli bot slackbot me --bot alerts-bot`
 - `autocli bot slackbot capabilities --json`

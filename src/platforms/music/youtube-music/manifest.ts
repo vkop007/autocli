@@ -14,7 +14,7 @@ export const youtubeMusicPlatformDefinition: PlatformDefinition = {
   capabilities: youtubeMusicCapabilities,
   examples: [
     "autocli youtube-music login",
-    "autocli youtube-music login --cookies ./cookiestest/youtube.json",
+    "autocli youtube-music login --cookies ./youtube.cookies.json",
     "autocli youtube-music play HZbsLxL7GeM",
     "autocli youtube-music pause",
     "autocli youtube-music next",

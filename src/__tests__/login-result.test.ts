@@ -12,9 +12,9 @@ describe("login result normalization", () => {
       {
         ok: true,
         platform: "github",
-        account: "vkop007",
+        account: "example-user",
         action: "login",
-        message: "Saved GitHub web session for vkop007.",
+        message: "Saved GitHub web session for example-user.",
         data: {
           status: "active",
         },
@@ -31,6 +31,7 @@ describe("login result normalization", () => {
       recommendedNextCommand: "autocli developer github me --json",
       nextCommands: [
         "autocli developer github me --json",
+        "autocli developer github status --json",
         "autocli developer github capabilities --json",
       ],
     });
