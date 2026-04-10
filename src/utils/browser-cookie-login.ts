@@ -69,6 +69,16 @@ export interface BrowserNetworkCapture {
   launchedFresh: boolean;
 }
 
+type SharedBrowserBootstrapDetector = {
+  id: "google";
+  displayName: string;
+  expectedDomain: string;
+  authCookieNames: readonly string[];
+  readyCookieNames: readonly string[];
+  authStorageKeys: readonly string[];
+  loggedOutUrlPatterns: readonly RegExp[];
+};
+
 export interface SharedBrowserActionInput<T> {
   targetUrl: string;
   timeoutSeconds?: number;
@@ -293,6 +303,9 @@ export async function openSharedBrowserProfile(
   browserProfilePath: string;
   startUrl: string;
   timedOut: boolean;
+  detected: boolean;
+  detector?: string;
+  finalUrl?: string;
 }> {
   const startUrl = input.browserUrl?.trim() || "https://accounts.google.com/";
   const timeoutMs = Math.max(1, input.timeoutSeconds ?? 600) * 1000;
@@ -303,13 +316,89 @@ export async function openSharedBrowserProfile(
   });
 
   announceBrowserLogin("Sign into Google or any other identity provider you want AutoCLI to reuse later. Close the browser window when you are done.");
+  const detector = resolveSharedBrowserBootstrapDetector(startUrl);
+  if (!detector) {
+    const finished = await waitForManagedBrowserCloseOrTimeout(managed.state, timeoutMs);
+    return {
+      browserProfilePath: managed.state.browserProfilePath,
+      startUrl,
+      timedOut: !finished,
+      detected: false,
+    };
+  }
 
-  const finished = await waitForManagedBrowserCloseOrTimeout(managed.state, timeoutMs);
-  return {
-    browserProfilePath: managed.state.browserProfilePath,
-    startUrl,
-    timedOut: !finished,
-  };
+  let connected: ConnectedBrowser | null = null;
+  let closedManagedBrowser = false;
+  let lastFinalUrl: string | undefined;
+
+  try {
+    const deadline = Date.now() + timeoutMs;
+    let page: BrowserPageLike | null = null;
+
+    while (Date.now() < deadline) {
+      if (!connected) {
+        connected = await tryConnectToManagedBrowser(managed.state.cdpUrl, 2_000);
+        if (connected) {
+          page = await openOrReusePage(connected.context, startUrl, Math.min(timeoutMs, 15_000));
+        }
+      }
+
+      if (connected && page) {
+        const cookies = await connected.context.cookies();
+        const storage = await readStorage(page);
+        lastFinalUrl = page.url();
+        if (hasDetectedSharedBrowserBootstrap(detector, {
+          finalUrl: lastFinalUrl,
+          cookies,
+          storage,
+        })) {
+          if (managed.launchedFresh) {
+            await closeManagedBrowser(managed.state).catch(() => {});
+            closedManagedBrowser = true;
+          }
+
+          return {
+            browserProfilePath: managed.state.browserProfilePath,
+            startUrl,
+            timedOut: false,
+            detected: true,
+            detector: detector.id,
+            finalUrl: lastFinalUrl,
+          };
+        }
+      }
+
+      if (!(await isManagedBrowserReachable(managed.state))) {
+        return {
+          browserProfilePath: managed.state.browserProfilePath,
+          startUrl,
+          timedOut: false,
+          detected: false,
+          finalUrl: lastFinalUrl,
+        };
+      }
+
+      await sleep(1000);
+    }
+
+    return {
+      browserProfilePath: managed.state.browserProfilePath,
+      startUrl,
+      timedOut: true,
+      detected: false,
+      finalUrl: lastFinalUrl,
+    };
+  } finally {
+    if (connected) {
+      await connected.browser.close().catch(() => {});
+    }
+    if (managed.launchedFresh && !closedManagedBrowser) {
+      const stillRunning = await isManagedBrowserReachable(managed.state);
+      if (!stillRunning) {
+        await clearManagedBrowserState(DEFAULT_BROWSER_PROFILE).catch(() => {});
+      }
+    }
+  }
 }
 
 export async function inspectSharedBrowserTarget(input: {
@@ -582,6 +671,70 @@ export function hasDetectedAuthenticatedState(
   return false;
 }
 
+export function resolveSharedBrowserBootstrapDetector(startUrl: string): SharedBrowserBootstrapDetector | null {
+  try {
+    const url = new URL(startUrl);
+    const hostname = url.hostname.toLowerCase();
+    if (
+      hostname === "accounts.google.com" ||
+      hostname === "myaccount.google.com" ||
+      hostname === "google.com" ||
+      hostname.endsWith(".google.com")
+    ) {
+      return {
+        id: "google",
+        displayName: "Google",
+        expectedDomain: "google.com",
+        authCookieNames: [
+          "SID",
+          "HSID",
+          "SSID",
+          "APISID",
+          "SAPISID",
+          "__Secure-1PSID",
+          "__Secure-3PSID",
+        ],
+        readyCookieNames: ["SID", "HSID"],
+        authStorageKeys: [],
+        loggedOutUrlPatterns: [
+          /accounts\.google\.com\/(?:signin|servicelogin|interactivelogin|logout)/iu,
+          /accounts\.google\.com\/v3\/signin/iu,
+          /accounts\.google\.com\/v3\/challenge/iu,
+        ],
+      };
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
+export function hasDetectedSharedBrowserBootstrap(
+  detector: SharedBrowserBootstrapDetector,
+  input: {
+    finalUrl: string;
+    cookies: unknown[];
+    storage: {
+      localStorage: Record<string, string>;
+      sessionStorage: Record<string, string>;
+    };
+  },
+): boolean {
+  if (detector.loggedOutUrlPatterns.some((pattern) => pattern.test(input.finalUrl))) {
+    return false;
+  }
+
+  return hasDetectedAuthenticatedState(
+    input.cookies,
+    detector.authCookieNames,
+    detector.authStorageKeys,
+    detector.expectedDomain,
+    input.storage,
+    detector.readyCookieNames,
+  );
+}
+
 async function ensureManagedBrowser(input: {
   browserUrl: string;
   announceLabel: string;
@@ -599,19 +752,25 @@ async function ensureManagedBrowser(input: {
   const browserProfilePath = getBrowserProfileDir(profile);
 
   const existing = await readManagedBrowserState(profile);
-  if (existing && await isManagedBrowserReachable(existing)) {
+  const reusableExisting = await prepareReusableManagedBrowserState(profile, existing, {
+    terminateOnFailure: true,
+  });
+  if (reusableExisting) {
     announceBrowserLogin(input.announceLabel);
     return {
-      state: existing,
+      state: reusableExisting,
       launchedFresh: false,
     };
   }
 
   const discovered = await discoverManagedBrowserState(profile, browserProfilePath);
-  if (discovered) {
+  const reusableDiscovered = await prepareReusableManagedBrowserState(profile, discovered, {
+    terminateOnFailure: true,
+  });
+  if (reusableDiscovered) {
     announceBrowserLogin(input.announceLabel);
     return {
-      state: discovered,
+      state: reusableDiscovered,
       launchedFresh: false,
     };
   }
@@ -646,8 +805,15 @@ async function ensureManagedBrowser(input: {
     startedAt: new Date().toISOString(),
   };
 
-  await waitForManagedBrowserReady(state);
-  await writeManagedBrowserState(profile, state);
+  try {
+    await waitForManagedBrowserReady(state);
+    await writeManagedBrowserState(profile, state);
+  } catch (error) {
+    await closeManagedBrowser(state).catch(() => {});
+    await cleanupStaleAutomatedBrowserProcesses(browserProfilePath);
+    await cleanupStaleBrowserProfileArtifacts(browserProfilePath);
+    throw error;
+  }
   announceBrowserLogin(input.announceLabel);
   return {
     state,
@@ -783,27 +949,33 @@ async function requireManagedBrowser(input: {
 
   const profile = input.profile ?? DEFAULT_BROWSER_PROFILE;
   const existing = await readManagedBrowserState(profile);
-  if (existing && await isManagedBrowserReachable(existing)) {
+  const reusableExisting = await prepareReusableManagedBrowserState(profile, existing, {
+    terminateOnFailure: false,
+  });
+  if (reusableExisting) {
     announceBrowserLogin(input.announceLabel);
     return {
-      state: existing,
+      state: reusableExisting,
       launchedFresh: false,
     };
   }
 
   const browserProfilePath = getBrowserProfileDir(profile);
   const discovered = await discoverManagedBrowserState(profile, browserProfilePath);
-  if (discovered) {
+  const reusableDiscovered = await prepareReusableManagedBrowserState(profile, discovered, {
+    terminateOnFailure: false,
+  });
+  if (reusableDiscovered) {
     announceBrowserLogin(input.announceLabel);
     return {
-      state: discovered,
+      state: reusableDiscovered,
       launchedFresh: false,
     };
   }
 
   throw new AutoCliError(
     "BROWSER_NOT_RUNNING",
-    "No shared AutoCLI browser profile is running. Start it first with `autocli login --browser` and keep that browser window open.",
+    "No usable shared AutoCLI browser profile is running. Start it first with `autocli login --browser` and keep that browser window open.",
     {
       details: {
         profile,
@@ -903,6 +1075,39 @@ async function discoverManagedBrowserState(
   return null;
 }
 
+async function prepareReusableManagedBrowserState(
+  profile: string,
+  state: ManagedBrowserState | null,
+  input: {
+    terminateOnFailure: boolean;
+  },
+): Promise<ManagedBrowserState | null> {
+  if (!state) {
+    return null;
+  }
+
+  if (!(await isManagedBrowserReachable(state))) {
+    await clearManagedBrowserState(profile);
+    return null;
+  }
+
+  try {
+    await waitForManagedBrowserReady(state, {
+      timeoutMs: input.terminateOnFailure ? 5_000 : 3_000,
+    });
+    await writeManagedBrowserState(profile, state);
+    return state;
+  } catch {
+    await clearManagedBrowserState(profile);
+    if (input.terminateOnFailure) {
+      await closeManagedBrowser(state).catch(() => {});
+      await cleanupStaleAutomatedBrowserProcesses(state.browserProfilePath);
+      await cleanupStaleBrowserProfileArtifacts(state.browserProfilePath);
+    }
+    return null;
+  }
+}
+
 async function cleanupStaleBrowserProfileArtifacts(browserProfilePath: string): Promise<void> {
   for (const entry of ["SingletonCookie", "SingletonLock", "SingletonSocket", "RunningChromeVersion"]) {
     await unlink(path.join(browserProfilePath, entry)).catch(() => {});
@@ -939,8 +1144,13 @@ async function navigatePage(page: BrowserPageLike, url: string, timeoutMs = 15_0
   }
 }
 
-async function waitForManagedBrowserReady(state: ManagedBrowserState): Promise<void> {
-  const deadline = Date.now() + 15_000;
+async function waitForManagedBrowserReady(
+  state: ManagedBrowserState,
+  input: {
+    timeoutMs?: number;
+  } = {},
+): Promise<void> {
+  const deadline = Date.now() + (input.timeoutMs ?? 15_000);
   let lastError: unknown = null;
 
   while (Date.now() < deadline) {
@@ -1015,6 +1225,10 @@ async function readManagedBrowserState(profile: string): Promise<ManagedBrowserS
   }
 
   return null;
+}
+
+async function clearManagedBrowserState(profile: string): Promise<void> {
+  await unlink(getBrowserStatePath(profile)).catch(() => {});
 }
 
 async function writeManagedBrowserState(profile: string, state: ManagedBrowserState): Promise<void> {

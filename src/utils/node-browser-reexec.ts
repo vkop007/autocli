@@ -3,6 +3,7 @@ import { constants } from "node:fs";
 import { access } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
+import { ensureCacheDirectory, getCachePath } from "../config.js";
 import { AutoCliError } from "../errors.js";
 
 export const BROWSER_NODE_REEXEC_ERROR_CODE = "BROWSER_NODE_REEXEC_REQUIRED";
@@ -15,6 +16,10 @@ export function resolveNodeCliEntrypoint(moduleUrl: string): string {
   return fileURLToPath(new URL("../dist/index.js", moduleUrl));
 }
 
+export function buildNodeBrowserReexecArgs(entrypoint: string, argv: readonly string[], localStorageFile: string): string[] {
+  return [`--localstorage-file=${localStorageFile}`, entrypoint, ...argv.slice(2)];
+}
+
 export async function reexecBrowserCommandInNode(moduleUrl: string, argv: readonly string[]): Promise<number> {
   if (!process.versions.bun) {
     throw new AutoCliError("NODE_REEXEC_UNNEEDED", "Browser runtime re-exec is only needed when AutoCLI is running under Bun.");
@@ -22,8 +27,13 @@ export async function reexecBrowserCommandInNode(moduleUrl: string, argv: readon
 
   const entrypoint = resolveNodeCliEntrypoint(moduleUrl);
   await ensureNodeEntrypointExists(moduleUrl, entrypoint);
+  await ensureCacheDirectory();
+  const localStorageFile = getCachePath("node-localstorage.json");
 
-  return spawnAndWait(process.env.AUTOCLI_NODE_PATH?.trim() || "node", [entrypoint, ...argv.slice(2)], {
+  return spawnAndWait(
+    process.env.AUTOCLI_NODE_PATH?.trim() || "node",
+    buildNodeBrowserReexecArgs(entrypoint, argv, localStorageFile),
+    {
     stdio: "inherit",
     env: {
       ...process.env,

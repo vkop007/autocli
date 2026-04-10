@@ -2,8 +2,10 @@ import { describe, expect, it } from "bun:test";
 
 import {
   extractManagedBrowserProcessCandidates,
+  hasDetectedSharedBrowserBootstrap,
   hasDetectedAuthenticatedState,
   normalizePlaywrightCookie,
+  resolveSharedBrowserBootstrapDetector,
   resolveManagedBrowserConnectEndpoint,
 } from "../browser-cookie-login.js";
 
@@ -173,5 +175,54 @@ describe("browser cookie login detection", () => {
         executablePath: "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
       },
     ]);
+  });
+
+  it("detects Google bootstrap targets for shared browser login", () => {
+    const detector = resolveSharedBrowserBootstrapDetector("https://accounts.google.com/");
+
+    expect(detector).toEqual(
+      expect.objectContaining({
+        id: "google",
+        expectedDomain: "google.com",
+      }),
+    );
+  });
+
+  it("detects a completed Google shared-browser login once strong auth cookies are present", () => {
+    const detector = resolveSharedBrowserBootstrapDetector("https://accounts.google.com/");
+    expect(detector).toBeDefined();
+
+    const detected = hasDetectedSharedBrowserBootstrap(detector!, {
+      finalUrl: "https://myaccount.google.com/",
+      cookies: [
+        { name: "SID", value: "sid-value", domain: ".google.com" },
+        { name: "HSID", value: "hsid-value", domain: ".google.com" },
+      ],
+      storage: {
+        localStorage: {},
+        sessionStorage: {},
+      },
+    });
+
+    expect(detected).toBe(true);
+  });
+
+  it("does not treat an in-progress Google sign-in page as a completed shared-browser login", () => {
+    const detector = resolveSharedBrowserBootstrapDetector("https://accounts.google.com/");
+    expect(detector).toBeDefined();
+
+    const detected = hasDetectedSharedBrowserBootstrap(detector!, {
+      finalUrl: "https://accounts.google.com/v3/signin/identifier?continue=https://mail.google.com/",
+      cookies: [
+        { name: "SID", value: "sid-value", domain: ".google.com" },
+        { name: "HSID", value: "hsid-value", domain: ".google.com" },
+      ],
+      storage: {
+        localStorage: {},
+        sessionStorage: {},
+      },
+    });
+
+    expect(detected).toBe(false);
   });
 });

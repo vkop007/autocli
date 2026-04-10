@@ -42,14 +42,19 @@ Examples:
         browserProfilePath: result.browserProfilePath,
         startUrl: result.startUrl,
         timedOut: result.timedOut,
+        detected: result.detected,
+        detector: result.detector,
+        finalUrl: result.finalUrl,
         nextSteps: [
           "autocli developer github login --browser",
           "autocli social reddit login --browser",
           "autocli llm chatgpt login --browser",
         ],
-        message: result.timedOut
-          ? `Shared AutoCLI browser profile stayed open for the full timeout. Profile remains saved at ${getBrowserProfileDir()}.`
-          : `Shared AutoCLI browser profile is ready for reuse at ${result.browserProfilePath}.`,
+        message: result.detected
+          ? `Shared AutoCLI browser profile auto-detected a ready ${result.detector ?? "browser"} login and saved it at ${result.browserProfilePath}.`
+          : result.timedOut
+            ? `Shared AutoCLI browser profile stayed open for the full timeout. Profile remains saved at ${getBrowserProfileDir()}.`
+            : `Shared AutoCLI browser profile is ready for reuse at ${result.browserProfilePath}.`,
       };
 
       if (ctx.json) {
@@ -60,6 +65,9 @@ Examples:
       console.log(payload.message);
       console.log(`profile: ${payload.browserProfilePath}`);
       console.log(`url: ${payload.startUrl}`);
+      if (payload.detected && payload.finalUrl) {
+        console.log(`detected-url: ${payload.finalUrl}`);
+      }
       console.log(`next: ${payload.nextSteps[0]}`);
     });
 }
