@@ -3,14 +3,12 @@ import { ConnectionStore } from "../../../core/auth/connection-store.js";
 import { AutoCliError, toError } from "../../../errors.js";
 import { promptForInput } from "../../../utils/terminal-prompt.js";
 import { printTerminalQr } from "../../../utils/terminal-qr.js";
-import { Api, TelegramClient } from "telegram";
-import { StringSession } from "telegram/sessions/index.js";
 
 import type { AdapterActionResult, AdapterStatusResult, SessionStatus, SessionUser } from "../../../types.js";
 import type { ConnectionRecord } from "../../../core/auth/auth-types.js";
+import type { Api, TelegramClient } from "telegram";
 
 const PLATFORM = "telegram" as const;
-const DISPLAY_NAME = "Telegram";
 const DEFAULT_LIMIT = 20;
 
 interface TelegramStoredMetadata {
@@ -46,6 +44,17 @@ interface TelegramSendInput extends TelegramTargetInput {
   text: string;
 }
 
+type TelegramClientInstance = TelegramClient;
+type TelegramUserLike = Api.TypeUser | Api.User | undefined | null;
+type TelegramMessageLike = Api.Message | undefined | null;
+type TelegramRuntime = {
+  Api: typeof import("telegram").Api;
+  TelegramClient: typeof import("telegram").TelegramClient;
+  StringSession: typeof import("telegram/sessions/index.js").StringSession;
+};
+
+let telegramRuntimePromise: Promise<TelegramRuntime> | null = null;
+
 export class TelegramSocialService {
   private readonly connectionStore = new ConnectionStore();
 
@@ -53,6 +62,7 @@ export class TelegramSocialService {
     const apiId = parseApiId(input.apiId);
     const apiHash = requireNonEmpty(input.apiHash, "TELEGRAM_API_HASH_REQUIRED", "Telegram login requires --api-hash.");
     const initialSession = input.sessionString?.trim() ?? "";
+    const { TelegramClient, StringSession } = await loadTelegramRuntime();
     const client = new TelegramClient(new StringSession(initialSession), apiId, apiHash, {
       connectionRetries: 3,
       useWSS: true,
@@ -61,7 +71,7 @@ export class TelegramSocialService {
     try {
       await client.connect();
 
-      let user: Api.TypeUser;
+      let user: TelegramUserLike;
       if (initialSession.length > 0) {
         const authorized = await client.checkAuthorization();
         if (!authorized) {
@@ -297,7 +307,7 @@ export class TelegramSocialService {
     account: string;
     connection: ConnectionRecord;
     metadata: TelegramStoredMetadata;
-    client: TelegramClient;
+    client: TelegramClientInstance;
   }> {
     const loaded = await this.connectionStore.loadSessionConnection(PLATFORM, account);
     const metadata = parseTelegramMetadata(loaded.connection);
@@ -323,7 +333,8 @@ export class TelegramSocialService {
     };
   }
 
-  private async connectStoredClient(metadata: TelegramStoredMetadata): Promise<TelegramClient> {
+  private async connectStoredClient(metadata: TelegramStoredMetadata): Promise<TelegramClientInstance> {
+    const { TelegramClient, StringSession } = await loadTelegramRuntime();
     const client = new TelegramClient(new StringSession(metadata.sessionString), metadata.apiId, metadata.apiHash, {
       connectionRetries: 3,
       useWSS: true,
@@ -336,7 +347,7 @@ export class TelegramSocialService {
   private async persistRefreshedSession(
     connection: ConnectionRecord,
     metadata: TelegramStoredMetadata,
-    client: TelegramClient,
+    client: TelegramClientInstance,
     user: SessionUser | undefined,
     message: string,
   ): Promise<void> {
@@ -450,17 +461,23 @@ function normalizeLimit(value?: number): number {
   return Math.max(1, Math.min(100, Math.trunc(value)));
 }
 
-function normalizeTelegramUser(user: Api.TypeUser | Api.User | undefined | null): SessionUser {
-  if (!user || !(user instanceof Api.User)) {
+function normalizeTelegramUser(user: TelegramUserLike): SessionUser {
+  if (!user || typeof user !== "object") {
     return {};
   }
 
-  const name = [user.firstName, user.lastName].filter(Boolean).join(" ").trim();
+  const source = user as unknown as {
+    id?: { toString(): string } | number | string;
+    username?: string;
+    firstName?: string;
+    lastName?: string;
+  };
+  const name = [source.firstName, source.lastName].filter(Boolean).join(" ").trim();
   return {
-    id: user.id ? String(user.id) : undefined,
-    username: user.username ?? undefined,
-    displayName: name.length > 0 ? name : user.username ?? undefined,
-    profileUrl: user.username ? `https://t.me/${user.username}` : undefined,
+    id: source.id ? String(source.id) : undefined,
+    username: source.username ?? undefined,
+    displayName: name.length > 0 ? name : source.username ?? undefined,
+    profileUrl: source.username ? `https://t.me/${source.username}` : undefined,
   };
 }
 
@@ -484,7 +501,7 @@ function normalizeTelegramDialog(dialog: unknown): Record<string, unknown> {
   };
 }
 
-function normalizeTelegramMessage(message: Api.Message | undefined | null): Record<string, unknown> {
+function normalizeTelegramMessage(message: TelegramMessageLike): Record<string, unknown> {
   if (!message) {
     return {};
   }
@@ -542,7 +559,7 @@ function pickString(...values: unknown[]): string | undefined {
   return undefined;
 }
 
-async function safelyDisconnectTelegram(client: TelegramClient): Promise<void> {
+async function safelyDisconnectTelegram(client: TelegramClientInstance): Promise<void> {
   try {
     await client.disconnect();
   } catch {
@@ -550,7 +567,7 @@ async function safelyDisconnectTelegram(client: TelegramClient): Promise<void> {
   }
 }
 
-function extractTelegramSessionString(client: TelegramClient): string {
+function extractTelegramSessionString(client: TelegramClientInstance): string {
   const session = client.session as unknown;
   if (session && typeof session === "object" && "save" in session && typeof session.save === "function") {
     const value = session.save();
@@ -580,6 +597,21 @@ function normalizeTelegramDate(value: unknown): string | undefined {
   }
 
   return undefined;
+}
+
+async function loadTelegramRuntime(): Promise<TelegramRuntime> {
+  if (!telegramRuntimePromise) {
+    telegramRuntimePromise = Promise.all([
+      import("telegram"),
+      import("telegram/sessions/index.js"),
+    ]).then(([telegram, sessions]) => ({
+      Api: telegram.Api,
+      TelegramClient: telegram.TelegramClient,
+      StringSession: sessions.StringSession,
+    }));
+  }
+
+  return telegramRuntimePromise;
 }
 
 export const telegramSocialService = new TelegramSocialService();
