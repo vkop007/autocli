@@ -1,6 +1,7 @@
 import { Command } from "commander";
 
 import { slackbotCapabilities } from "./capabilities/index.js";
+import { slackbotClient } from "./client.js";
 
 import type { PlatformCommandBuildOptions, PlatformDefinition } from "../../../core/runtime/platform-definition.js";
 
@@ -39,6 +40,7 @@ export const slackbotPlatformDefinition: PlatformDefinition = {
   description: "Interact with Slack using a saved bot token",
   aliases: ["slack"],
   authStrategies: ["botToken"],
+  adapter: slackbotClient,
   buildCommand: createSlackbotCommand,
   examples: [
     "autocli slackbot login --token slack-bot-token-example --name alerts-bot",

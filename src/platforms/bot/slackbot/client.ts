@@ -1,4 +1,4 @@
-import type { SessionUser } from "../../../types.js";
+import type { AdapterStatusResult, SessionUser } from "../../../types.js";
 import { ConnectionStore } from "../../../core/auth/connection-store.js";
 import { readUploadFile } from "../../../utils/file-source.js";
 
@@ -19,6 +19,9 @@ export interface SlackbotClientOptions {
 }
 
 export class SlackbotClient {
+  readonly platform = "slackbot" as const;
+  readonly displayName = "Slack Bot";
+
   private readonly connectionStore: Pick<ConnectionStore, "saveBotTokenConnection" | "loadBotTokenConnection">;
   private readonly fetchImpl: typeof fetch;
 
@@ -90,19 +93,20 @@ export class SlackbotClient {
     });
   }
 
-  async status(input: { account?: string }): Promise<SlackbotActionResult> {
-    const { account, path, auth: tokenAuth, connection } = await this.loadConnection(input.account);
+  async getStatus(account?: string): Promise<AdapterStatusResult> {
+    const { account: resolvedAccount, path, auth: tokenAuth, connection } = await this.loadConnection(account);
     const validatedAt = new Date().toISOString();
 
     try {
       const auth = await this.inspectToken(tokenAuth.token);
       const statusMessage = this.describeAuth(auth, "Authenticated");
+      const user = this.toSessionUser(auth);
       await this.connectionStore.saveBotTokenConnection({
         platform: "slackbot",
-        account,
+        account: resolvedAccount,
         provider: "slack",
         token: tokenAuth.token,
-        user: this.toSessionUser(auth),
+        user,
         status: {
           state: "active",
           message: statusMessage,
@@ -114,25 +118,21 @@ export class SlackbotClient {
         },
       });
 
-      return this.actionResult({
-        account,
-        action: "status",
-        message: "Slack Bot connection is active.",
+      return {
+        platform: "slackbot",
+        account: resolvedAccount,
         sessionPath: path,
-        user: this.toSessionUser(auth),
-        data: {
-          connected: true,
-          status: "active",
-          details: statusMessage,
-          lastValidatedAt: validatedAt,
-          auth,
-        },
-      });
+        connected: true,
+        status: "active",
+        message: statusMessage,
+        user,
+        lastValidatedAt: validatedAt,
+      };
     } catch (error) {
       const details = error instanceof Error && error.message.trim().length > 0 ? error.message : "Slack bot token could not be validated.";
       await this.connectionStore.saveBotTokenConnection({
         platform: "slackbot",
-        account,
+        account: resolvedAccount,
         provider: "slack",
         token: tokenAuth.token,
         user: connection.user,
@@ -145,20 +145,34 @@ export class SlackbotClient {
         metadata: connection.metadata,
       });
 
-      return this.actionResult({
-        account,
-        action: "status",
-        message: "Slack Bot connection is expired.",
+      return {
+        platform: "slackbot",
+        account: resolvedAccount,
         sessionPath: path,
+        connected: false,
+        status: "expired",
+        message: details,
         user: connection.user,
-        data: {
-          connected: false,
-          status: "expired",
-          details,
-          lastValidatedAt: validatedAt,
-        },
-      });
+        lastValidatedAt: validatedAt,
+      };
     }
+  }
+
+  async status(input: { account?: string }): Promise<SlackbotActionResult> {
+    const status = await this.getStatus(input.account);
+    return this.actionResult({
+      account: status.account,
+      action: "status",
+      message: `Slack Bot connection is ${status.status}.`,
+      sessionPath: status.sessionPath,
+      user: status.user,
+      data: {
+        connected: status.connected,
+        status: status.status,
+        details: status.message,
+        lastValidatedAt: status.lastValidatedAt,
+      },
+    });
   }
 
   async listChannels(input: { account?: string }): Promise<SlackbotChannelsResult> {

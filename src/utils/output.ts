@@ -12,6 +12,7 @@ export function printStatusTable(
     platform: string;
     account: string;
     status: string;
+    basis?: string;
     user?: string;
     message?: string;
   }>,
@@ -25,6 +26,7 @@ export function printStatusTable(
     platform: Math.max(...rows.map((row) => row.platform.length), "platform".length),
     account: Math.max(...rows.map((row) => row.account.length), "account".length),
     status: Math.max(...rows.map((row) => row.status.length), "status".length),
+    basis: Math.max(...rows.map((row) => (row.basis ?? "-").length), "basis".length),
     user: Math.max(...rows.map((row) => (row.user ?? "-").length), "user".length),
   };
 
@@ -32,6 +34,7 @@ export function printStatusTable(
     "platform".padEnd(widths.platform),
     "account".padEnd(widths.account),
     "status".padEnd(widths.status),
+    "basis".padEnd(widths.basis),
     "user".padEnd(widths.user),
     "message",
   ].join("  ");
@@ -42,6 +45,7 @@ export function printStatusTable(
       "-".repeat(widths.platform),
       "-".repeat(widths.account),
       "-".repeat(widths.status),
+      "-".repeat(widths.basis),
       "-".repeat(widths.user),
       "-".repeat(20),
     ].join("  "),
@@ -53,6 +57,7 @@ export function printStatusTable(
         row.platform.padEnd(widths.platform),
         row.account.padEnd(widths.account),
         padAnsi(colorizeStatus(row.status), widths.status),
+        (row.basis ?? "-").padEnd(widths.basis),
         (row.user ?? "-").padEnd(widths.user),
         row.message ?? "",
       ].join("  "),

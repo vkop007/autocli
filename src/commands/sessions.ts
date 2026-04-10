@@ -37,6 +37,8 @@ type SessionSummary = {
   byAuth: Record<ConnectionRecord["auth"]["kind"], number>;
 };
 
+const REDACTED_METADATA_VALUE = "[redacted]";
+
 export function createSessionsCommand(): Command {
   const command = new Command("sessions")
     .description("Inspect and manage saved cookie sessions and token connections")
@@ -246,8 +248,52 @@ function toSessionEntry(connection: ConnectionRecord, path: string): SessionEntr
     updatedAt: connection.updatedAt,
     lastValidatedAt: connection.status.lastValidatedAt,
     path,
-    metadata: connection.metadata,
+    metadata: sanitizeSessionMetadata(connection.metadata),
   };
+}
+
+function sanitizeSessionMetadata(metadata: Record<string, unknown> | undefined): Record<string, unknown> | undefined {
+  if (!metadata) {
+    return undefined;
+  }
+
+  return sanitizeMetadataValue(metadata) as Record<string, unknown>;
+}
+
+function sanitizeMetadataValue(value: unknown, currentKey?: string): unknown {
+  if (currentKey && isSensitiveMetadataKey(currentKey)) {
+    return REDACTED_METADATA_VALUE;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((entry) => sanitizeMetadataValue(entry, currentKey));
+  }
+
+  if (!value || typeof value !== "object") {
+    return value;
+  }
+
+  return Object.fromEntries(
+    Object.entries(value).map(([key, nested]) => [key, sanitizeMetadataValue(nested, key)]),
+  );
+}
+
+function isSensitiveMetadataKey(key: string): boolean {
+  const normalized = key.replace(/[^a-z0-9]/giu, "").toLowerCase();
+
+  if (normalized === "authorization" || normalized === "cookie" || normalized === "cookies" || normalized === "cookiejar") {
+    return true;
+  }
+
+  if (normalized.includes("password") || normalized.includes("secret") || normalized.includes("apikey") || normalized.includes("sessionstring")) {
+    return true;
+  }
+
+  if (normalized === "auth") {
+    return false;
+  }
+
+  return normalized.endsWith("token") || normalized.endsWith("jwt") || normalized.endsWith("sessionid") || normalized === "csrftoken";
 }
 
 function filterSessionEntries(
