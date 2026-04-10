@@ -23,21 +23,21 @@ describe("node browser re-exec helpers", () => {
   });
 
   it("resolves the bundled Node CLI entrypoint next to the project root", () => {
-    const entrypoint = resolveNodeCliEntrypoint("file:///Users/vk/dev/autocli/src/index.ts");
+    const entrypoint = resolveNodeCliEntrypoint("file:///Users/example/dev/autocli/src/index.ts");
 
-    expect(entrypoint).toBe("/Users/vk/dev/autocli/dist/index.js");
+    expect(entrypoint).toBe("/Users/example/dev/autocli/dist/index.js");
   });
 
   it("adds a valid localStorage file when re-execing browser actions under Node", () => {
     const args = buildNodeBrowserReexecArgs(
-      "/Users/vk/dev/autocli/dist/index.js",
-      ["/Users/vk/.bun/bin/bun", "src/index.ts", "login", "--browser"],
-      "/Users/vk/.autocli/cache/node-localstorage.json",
+      "/Users/example/dev/autocli/dist/index.js",
+      ["/Users/example/.bun/bin/bun", "src/index.ts", "login", "--browser"],
+      "/Users/example/.autocli/cache/node-localstorage.json",
     );
 
     expect(args).toEqual([
-      "--localstorage-file=/Users/vk/.autocli/cache/node-localstorage.json",
-      "/Users/vk/dev/autocli/dist/index.js",
+      "--localstorage-file=/Users/example/.autocli/cache/node-localstorage.json",
+      "/Users/example/dev/autocli/dist/index.js",
       "login",
       "--browser",
     ]);

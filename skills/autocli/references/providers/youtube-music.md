@@ -25,7 +25,7 @@ Interact with YouTube Music using an imported browser session
 ## Fast Start
 
 - `autocli music youtube-music login`
-- `autocli music youtube-music login --cookies ./cookiestest/youtube.json`
+- `autocli music youtube-music login --cookies ./youtube.cookies.json`
 - `autocli music youtube-music play HZbsLxL7GeM`
 - `autocli music youtube-music capabilities --json`
 

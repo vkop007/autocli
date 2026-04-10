@@ -25,7 +25,7 @@ Interact with YouTube using an imported browser session for public lookup, engag
 ## Fast Start
 
 - `autocli social youtube login`
-- `autocli social youtube login --cookies ./cookiestest/youtube.json`
+- `autocli social youtube login --cookies ./youtube.cookies.json`
 - `autocli social youtube status`
 - `autocli social youtube capabilities --json`
 

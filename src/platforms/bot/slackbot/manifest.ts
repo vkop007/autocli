@@ -13,7 +13,7 @@ export function createSlackbotCommand(options: PlatformCommandBuildOptions = {})
     "afterAll",
     `
 Examples:
-  ${prefix} login --token xoxb-123 --name alerts-bot
+  ${prefix} login --token slack-bot-token-example --name alerts-bot
   ${prefix} me
   ${prefix} me --bot alerts-bot
   ${prefix} channels
@@ -41,7 +41,7 @@ export const slackbotPlatformDefinition: PlatformDefinition = {
   authStrategies: ["botToken"],
   buildCommand: createSlackbotCommand,
   examples: [
-    "autocli slackbot login --token xoxb-123 --name alerts-bot",
+    "autocli slackbot login --token slack-bot-token-example --name alerts-bot",
     "autocli slackbot me",
     "autocli slackbot me --bot alerts-bot",
     "autocli slackbot channels",

@@ -8,14 +8,14 @@ describe("http toolkit helpers", () => {
   });
 
   test("prefers Confluence when the URL path lives under /wiki", () => {
-    expect(rankHttpPlatformCandidates("officialgxdyt.atlassian.net", "https://officialgxdyt.atlassian.net/wiki/spaces/ENG")).toEqual([
+    expect(rankHttpPlatformCandidates("your-workspace.atlassian.net", "https://your-workspace.atlassian.net/wiki/spaces/ENG")).toEqual([
       "confluence",
       "jira",
     ]);
   });
 
   test("prefers Jira when the URL path looks like an issue or Jira REST call", () => {
-    expect(rankHttpPlatformCandidates("officialgxdyt.atlassian.net", "https://officialgxdyt.atlassian.net/rest/api/3/myself")).toEqual([
+    expect(rankHttpPlatformCandidates("your-workspace.atlassian.net", "https://your-workspace.atlassian.net/rest/api/3/myself")).toEqual([
       "jira",
       "confluence",
     ]);

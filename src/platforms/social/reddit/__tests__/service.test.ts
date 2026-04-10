@@ -25,7 +25,7 @@ describe("reddit service", () => {
                       id: "1abc123",
                       title: "AutoCLI launch",
                       selftext: "Shipping Reddit support.",
-                      author: "vkop007",
+                      author: "example_author",
                       subreddit: "programming",
                       subreddit_name_prefixed: "r/programming",
                       permalink: "/r/programming/comments/1abc123/autocli_launch/",
@@ -87,7 +87,7 @@ describe("reddit service", () => {
     expect(result.data?.thread).toMatchObject({
       id: "1abc123",
       title: "AutoCLI launch",
-      username: "vkop007",
+      username: "example_author",
     });
     expect(result.data?.replies).toEqual([
       expect.objectContaining({

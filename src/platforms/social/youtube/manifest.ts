@@ -14,7 +14,7 @@ export const youtubePlatformDefinition: PlatformDefinition = {
   capabilities: youtubeCapabilities,
   examples: [
     "autocli social youtube login",
-    "autocli social youtube login --cookies ./cookiestest/youtube.json",
+    "autocli social youtube login --cookies ./youtube.cookies.json",
     "autocli social youtube status",
     "autocli social youtube post \"Shipping a new video soon\"",
     "autocli social youtube post \"Sneak peek\" --image ./cover.png",

@@ -37,7 +37,7 @@ function createFetchMock(
   return { fetchImpl, calls };
 }
 
-function createConnectionStoreMock(token = "xoxb-test-token") {
+function createConnectionStoreMock(token = "slack-bot-token-example") {
   const saveCalls: Array<Record<string, unknown>> = [];
   const loadCalls: Array<Record<string, unknown>> = [];
   const connection = {
@@ -134,7 +134,7 @@ describe("SlackbotClient", () => {
     });
 
     const result = await client.login({
-      token: "xoxb-login-token",
+      token: "slack-bot-login-example",
       account: "ops",
     });
 
@@ -142,7 +142,7 @@ describe("SlackbotClient", () => {
     expect(connectionStore.saveCalls[0]).toMatchObject({
       platform: "slackbot",
       account: "ops",
-      token: "xoxb-login-token",
+      token: "slack-bot-login-example",
       status: {
         state: "active",
       },
