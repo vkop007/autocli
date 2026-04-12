@@ -47,6 +47,7 @@ type AudioNormalizeInput = {
 
 type AudioMergeInput = {
   inputPaths: string[];
+  crossfade?: number | string;
   output?: string;
 };
 
@@ -101,6 +102,9 @@ type AudioSplitInput = {
   inputPath: string;
   every?: number | string;
   outputDir?: string;
+  bySilence?: boolean;
+  silenceThreshold?: string;
+  silenceDuration?: number | string;
 };
 
 type AudioMixInput = {
@@ -113,6 +117,33 @@ type AudioMixInput = {
 type AudioSpeedInput = {
   inputPath: string;
   rate?: number | string;
+  output?: string;
+};
+
+type AudioEqInput = {
+  inputPath: string;
+  bass?: number | string;
+  treble?: number | string;
+  output?: string;
+};
+
+type AudioActionInput = {
+  inputPath: string;
+  output?: string;
+};
+
+type AudioResampleInput = {
+  inputPath: string;
+  rate?: number | string;
+  output?: string;
+};
+
+type AudioTagInput = {
+  inputPath: string;
+  title?: string;
+  artist?: string;
+  album?: string;
+  year?: string;
   output?: string;
 };
 
@@ -312,13 +343,28 @@ export class AudioEditorAdapter {
       extension: format,
     });
 
-    const filterComplex = [
-      ...inputPaths.map(
-        (_path, index) =>
-          `[${index}:a]aformat=sample_fmts=fltp:channel_layouts=stereo,aresample=44100[a${index}]`,
-      ),
-      `${inputPaths.map((_path, index) => `[a${index}]`).join("")}concat=n=${inputPaths.length}:v=0:a=1[aout]`,
-    ].join(";");
+    const crossfade = toNumber(input.crossfade) ?? 0;
+    let filterComplex = "";
+    
+    if (crossfade > 0) {
+      const parts = inputPaths.map((_path, index) => `[${index}:a]aformat=sample_fmts=fltp:channel_layouts=stereo,aresample=44100[norm${index}]`);
+      let prev = "[norm0]";
+      const fades = [];
+      for (let i = 1; i < inputPaths.length; i++) {
+        const out = inputPaths.length - 1 === i ? "[aout]" : `[cross${i}]`;
+        fades.push(`${prev}[norm${i}]acrossfade=d=${crossfade}${out}`);
+        prev = `[cross${i}]`;
+      }
+      filterComplex = [...parts, ...fades].join(";");
+    } else {
+      filterComplex = [
+        ...inputPaths.map(
+          (_path, index) =>
+            `[${index}:a]aformat=sample_fmts=fltp:channel_layouts=stereo,aresample=44100[a${index}]`,
+        ),
+        `${inputPaths.map((_path, index) => `[a${index}]`).join("")}concat=n=${inputPaths.length}:v=0:a=1[aout]`,
+      ].join(";");
+    }
 
     await runAudioCommand([
       ...inputPaths.flatMap((inputPath) => ["-i", inputPath]),
@@ -340,6 +386,7 @@ export class AudioEditorAdapter {
         inputCount: inputPaths.length,
         outputPath,
         format,
+        crossfadeSeconds: crossfade,
       },
     });
   }
@@ -725,14 +772,63 @@ export class AudioEditorAdapter {
     const format = resolvePreferredAudioFormat(input.inputPath);
 
     const { parse, join, resolve } = await import("node:path");
+    const { mkdir } = await import("node:fs/promises");
     
-    let outputPathTemplate: string;
+    let outputDirTemplate: string;
     if (input.outputDir) {
-      outputPathTemplate = join(resolve(input.outputDir), `segment_%03d.${format}`);
+      outputDirTemplate = resolve(input.outputDir);
     } else {
       const parsed = parse(await assertLocalInputFile(input.inputPath));
-      outputPathTemplate = join(parsed.dir, `${parsed.name}_split`, `segment_%03d.${format}`);
+      outputDirTemplate = join(parsed.dir, `${parsed.name}_split`);
     }
+
+    if (input.bySilence) {
+        const detectResult = await this.silenceDetect({
+           inputPath: input.inputPath,
+           threshold: input.silenceThreshold,
+           duration: input.silenceDuration,
+        });
+
+        const segments = detectResult.data.segments as Array<{ startSeconds: number; endSeconds: number | null }>;
+        if (!segments || segments.length === 0) {
+             throw new AutoCliError("EDITOR_COMMAND_FAILED", "No silence segments found to split by.", { details: { inputPath: input.inputPath } });
+        }
+
+        const cuts: Array<{ start: number, end: number | null }> = [];
+        let cursor = 0;
+        for (const silence of segments) {
+           cuts.push({ start: cursor, end: silence.startSeconds });
+           cursor = silence.endSeconds ?? silence.startSeconds;
+        }
+        cuts.push({ start: cursor, end: null });
+        
+        let i = 0;
+        await mkdir(outputDirTemplate, { recursive: true });
+        for (const cut of cuts) {
+            const outPath = join(outputDirTemplate, `segment_${String(i).padStart(3, '0')}.${format}`);
+            const args = [];
+            args.push("-ss", `${cut.start}`);
+            if (cut.end !== null) {
+                args.push("-to", `${cut.end}`);
+            }
+            args.push("-i", "{input}", "-vn", "-c:a", chooseAudioCodec(format), ...buildAudioBitrateArgs(format, 192), "{output}");
+            
+            await runFfmpegEdit({ inputPath: input.inputPath, outputPath: outPath, args });
+            i++;
+        }
+
+        return this.buildResult({
+          action: "split",
+          message: `Split audio into ${cuts.length} segments based on silence.`,
+          data: {
+             inputPath: input.inputPath,
+             outputDir: outputDirTemplate,
+             segmentCount: cuts.length,
+          }
+        });
+    }
+
+    const outputPathTemplate = join(outputDirTemplate, `segment_%03d.${format}`);
 
     await runFfmpegEdit({
       inputPath: input.inputPath,
@@ -843,6 +939,117 @@ export class AudioEditorAdapter {
         format,
         rate,
       },
+    });
+  }
+
+  async eq(input: AudioEqInput): Promise<AdapterActionResult> {
+    const bass = toNumber(input.bass) ?? 0;
+    const treble = toNumber(input.treble) ?? 0;
+    const format = resolvePreferredAudioFormat(input.inputPath);
+    const outputPath = resolveEditorOutputPath({
+      inputPath: input.inputPath,
+      output: input.output,
+      suffix: "eq",
+      extension: format,
+    });
+
+    const filters = [];
+    if (bass !== 0) filters.push(`bass=g=${bass}`);
+    if (treble !== 0) filters.push(`treble=g=${treble}`);
+    if (filters.length === 0) {
+      throw new AutoCliError("EDITOR_INVALID_ARGUMENT", "Eq needs at least a non-zero bass or treble adjustment.");
+    }
+
+    const resolvedOutput = await runFfmpegEdit({
+      inputPath: input.inputPath,
+      outputPath,
+      args: ["-i", "{input}", "-vn", "-af", filters.join(","), "-c:a", chooseAudioCodec(format), ...buildAudioBitrateArgs(format, 192), "{output}"],
+    });
+
+    return this.buildResult({
+      action: "eq",
+      message: `Equalized audio and saved to ${resolvedOutput}.`,
+      data: { inputPath: input.inputPath, outputPath: resolvedOutput, format, bass, treble },
+    });
+  }
+
+  async reverse(input: AudioActionInput): Promise<AdapterActionResult> {
+    const format = resolvePreferredAudioFormat(input.inputPath);
+    const outputPath = resolveEditorOutputPath({
+      inputPath: input.inputPath, output: input.output, suffix: "reversed", extension: format,
+    });
+    const resolvedOutput = await runFfmpegEdit({
+      inputPath: input.inputPath, outputPath,
+      args: ["-i", "{input}", "-vn", "-af", "areverse", "-c:a", chooseAudioCodec(format), ...buildAudioBitrateArgs(format, 192), "{output}"],
+    });
+    return this.buildResult({
+      action: "reverse", message: `Reversed audio and saved to ${resolvedOutput}.`,
+      data: { inputPath: input.inputPath, outputPath: resolvedOutput, format },
+    });
+  }
+
+  async mono(input: AudioActionInput): Promise<AdapterActionResult> {
+    const format = resolvePreferredAudioFormat(input.inputPath);
+    const outputPath = resolveEditorOutputPath({
+      inputPath: input.inputPath, output: input.output, suffix: "mono", extension: format,
+    });
+    const resolvedOutput = await runFfmpegEdit({
+      inputPath: input.inputPath, outputPath,
+      args: ["-i", "{input}", "-vn", "-ac", "1", "-c:a", chooseAudioCodec(format), ...buildAudioBitrateArgs(format, 192), "{output}"],
+    });
+    return this.buildResult({
+      action: "mono", message: `Converted to mono and saved to ${resolvedOutput}.`,
+      data: { inputPath: input.inputPath, outputPath: resolvedOutput, format },
+    });
+  }
+
+  async stereo(input: AudioActionInput): Promise<AdapterActionResult> {
+    const format = resolvePreferredAudioFormat(input.inputPath);
+    const outputPath = resolveEditorOutputPath({
+      inputPath: input.inputPath, output: input.output, suffix: "stereo", extension: format,
+    });
+    const resolvedOutput = await runFfmpegEdit({
+      inputPath: input.inputPath, outputPath,
+      args: ["-i", "{input}", "-vn", "-ac", "2", "-c:a", chooseAudioCodec(format), ...buildAudioBitrateArgs(format, 192), "{output}"],
+    });
+    return this.buildResult({
+      action: "stereo", message: `Converted to stereo and saved to ${resolvedOutput}.`,
+      data: { inputPath: input.inputPath, outputPath: resolvedOutput, format },
+    });
+  }
+
+  async resample(input: AudioResampleInput): Promise<AdapterActionResult> {
+    const rate = toNumber(input.rate) ?? 44100;
+    const format = resolvePreferredAudioFormat(input.inputPath);
+    const outputPath = resolveEditorOutputPath({
+      inputPath: input.inputPath, output: input.output, suffix: "resample", extension: format,
+    });
+    const resolvedOutput = await runFfmpegEdit({
+      inputPath: input.inputPath, outputPath,
+      args: ["-i", "{input}", "-vn", "-ar", `${rate}`, "-c:a", chooseAudioCodec(format), ...buildAudioBitrateArgs(format, 192), "{output}"],
+    });
+    return this.buildResult({
+      action: "resample", message: `Resampled audio to ${rate}Hz and saved to ${resolvedOutput}.`,
+      data: { inputPath: input.inputPath, outputPath: resolvedOutput, format, sampleRate: rate },
+    });
+  }
+
+  async tag(input: AudioTagInput): Promise<AdapterActionResult> {
+    const format = resolvePreferredAudioFormat(input.inputPath);
+    const outputPath = resolveEditorOutputPath({
+      inputPath: input.inputPath, output: input.output, suffix: "tagged", extension: format,
+    });
+    const args = ["-i", "{input}", "-vn", "-c", "copy"];
+    if (input.title) args.push("-metadata", `title=${input.title}`);
+    if (input.artist) args.push("-metadata", `artist=${input.artist}`);
+    if (input.album) args.push("-metadata", `album=${input.album}`);
+    if (input.year) args.push("-metadata", `date=${input.year}`);
+    args.push("{output}");
+
+    const resolvedOutput = await runFfmpegEdit({ inputPath: input.inputPath, outputPath, args });
+    return this.buildResult({
+      action: "tag", message: `Tagged audio and saved to ${resolvedOutput}.`,
+      data: { inputPath: input.inputPath, outputPath: resolvedOutput, format, title: input.title, artist: input.artist, album: input.album, year: input.year },
     });
   }
 
