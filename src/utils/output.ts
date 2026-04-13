@@ -123,6 +123,64 @@ export function printSessionsTable(
   }
 }
 
+export function printActionLogTable(
+  rows: Array<{
+    time: string;
+    command: string;
+    status: "success" | "failed";
+    provider?: string;
+    account?: string;
+    message: string;
+  }>,
+): void {
+  if (rows.length === 0) {
+    console.log(pc.dim("No action logs found."));
+    return;
+  }
+
+  const widths = {
+    time: Math.max(...rows.map((row) => row.time.length), "time".length),
+    command: Math.max(...rows.map((row) => row.command.length), "command".length),
+    status: Math.max(...rows.map((row) => row.status.length), "status".length),
+    provider: Math.max(...rows.map((row) => (row.provider ?? "-").length), "provider".length),
+    account: Math.max(...rows.map((row) => (row.account ?? "-").length), "account".length),
+  };
+
+  const header = [
+    "time".padEnd(widths.time),
+    "command".padEnd(widths.command),
+    "status".padEnd(widths.status),
+    "provider".padEnd(widths.provider),
+    "account".padEnd(widths.account),
+    "message",
+  ].join("  ");
+
+  console.log(pc.bold(header));
+  console.log(
+    [
+      "-".repeat(widths.time),
+      "-".repeat(widths.command),
+      "-".repeat(widths.status),
+      "-".repeat(widths.provider),
+      "-".repeat(widths.account),
+      "-".repeat(20),
+    ].join("  "),
+  );
+
+  for (const row of rows) {
+    console.log(
+      [
+        row.time.padEnd(widths.time),
+        row.command.padEnd(widths.command),
+        padAnsi(colorizeActionLogStatus(row.status), widths.status),
+        (row.provider ?? "-").padEnd(widths.provider),
+        (row.account ?? "-").padEnd(widths.account),
+        row.message,
+      ].join("  "),
+    );
+  }
+}
+
 export function printSessionRepairTable(
   rows: Array<{
     platform: string;
@@ -221,6 +279,17 @@ function colorizeDoctorStatus(status: "pass" | "warn" | "fail"): string {
       return pc.yellow(status);
     case "fail":
       return pc.red(status);
+  }
+}
+
+function colorizeActionLogStatus(status: "success" | "failed"): string {
+  switch (status) {
+    case "success":
+      return pc.green(status);
+    case "failed":
+      return pc.red(status);
+    default:
+      return status;
   }
 }
 

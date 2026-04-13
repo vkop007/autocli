@@ -10,6 +10,8 @@ export const CONNECTIONS_DIR = join(AUTOCLI_DIR, "connections");
 export const JOBS_DIR = join(AUTOCLI_DIR, "jobs");
 export const CACHE_DIR = join(AUTOCLI_DIR, "cache");
 export const BROWSER_DIR = join(AUTOCLI_DIR, "browser");
+export const LOGS_DIR = join(AUTOCLI_DIR, "logs");
+export const ACTION_LOG_PATH = join(LOGS_DIR, "actions.jsonl");
 export const SESSION_FILE_VERSION = 1 as const;
 export const DEFAULT_ACCOUNT_NAME = "default";
 export const DEFAULT_BROWSER_PROFILE = "default";
@@ -98,6 +100,10 @@ export async function ensureBrowserDirectory(profile?: string): Promise<void> {
   }
 
   await ensureDirectory(BROWSER_DIR);
+}
+
+export async function ensureLogDirectory(): Promise<void> {
+  await ensureDirectory(LOGS_DIR);
 }
 
 export async function ensureParentDirectory(filePath: string): Promise<void> {

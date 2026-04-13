@@ -13,6 +13,7 @@ import { createLoginCommand } from "./login.js";
 import { createLogoutCommand } from "./logout.js";
 import { createSessionsCommand } from "./sessions.js";
 import { createStatusCommand } from "./status.js";
+import { createLogsCommand } from "./logs.js";
 
 import type { PlatformCategory, PlatformDefinition } from "../core/runtime/platform-definition.js";
 import type { Argument, Option } from "commander";
@@ -79,6 +80,16 @@ const ROOT_SEARCH_COMMANDS: readonly RootSearchCommand[] = [
       "autocli sessions repair x --browser",
       "autocli sessions show x default",
       "autocli sessions remove spotify default",
+    ],
+  },
+  {
+    builder: createLogsCommand,
+    examples: [
+      "autocli logs",
+      "autocli logs --provider x",
+      "autocli logs --status failed --since 1h",
+      "autocli logs show 123e4567-e89b-12d3-a456-426614174000",
+      "autocli logs clear",
     ],
   },
 ] as const;
