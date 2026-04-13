@@ -87,6 +87,7 @@ export interface CommentInput {
 export interface CommandContext {
   json: boolean;
   verbose: boolean;
+  commandPath?: string;
 }
 
 export interface AdapterActionResult {

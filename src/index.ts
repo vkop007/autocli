@@ -6,10 +6,12 @@ import { AutoCliError } from "./errors.js";
 import { assertCategoryOnlyInvocation, createProgram } from "./program.js";
 import { printJson } from "./utils/output.js";
 import { serializeCliError } from "./utils/error-recovery.js";
+import { appendActionLog, buildActionLogCommandLabel, inferSafeCommandPath, markActionLogCaptured, wasActionLogCaptured } from "./utils/action-log.js";
 import { isBrowserNodeReexecRequired, reexecBrowserCommandInNode } from "./utils/node-browser-reexec.js";
 
 async function main(): Promise<void> {
   const program = createProgram();
+  const startedAt = new Date();
 
   try {
     assertCategoryOnlyInvocation(process.argv.slice(2));
@@ -28,8 +30,36 @@ async function main(): Promise<void> {
       error = reexecError;
     }
 
-    const wantsJson = process.argv.includes("--json");
     const serialized = serializeCliError(error);
+    if (!wasActionLogCaptured(error)) {
+      const finishedAt = new Date();
+      const platform = readErrorDetail(error, "platform");
+      const action = readErrorDetail(error, "action");
+      const account = readErrorDetail(error, "account");
+      const commandPath = inferSafeCommandPath(process.argv.slice(2));
+      await appendActionLog({
+        startedAt: startedAt.toISOString(),
+        finishedAt: finishedAt.toISOString(),
+        durationMs: finishedAt.getTime() - startedAt.getTime(),
+        status: "failed",
+        command: buildActionLogCommandLabel({
+          platform,
+          action,
+          commandPath,
+        }),
+        commandPath,
+        ...(platform ? { platform } : {}),
+        ...(account ? { account } : {}),
+        ...(action ? { action } : {}),
+        message: serialized.error.message,
+        errorCode: serialized.error.code,
+        ...(serialized.error.nextCommand ? { nextCommand: serialized.error.nextCommand } : {}),
+        ...(serialized.error.hint ? { hint: serialized.error.hint } : {}),
+      }).catch(() => undefined);
+      markActionLogCaptured(error);
+    }
+
+    const wantsJson = process.argv.includes("--json");
     if (wantsJson) {
       printJson(serialized);
       process.exitCode = 1;
@@ -49,3 +79,12 @@ async function main(): Promise<void> {
 }
 
 await main();
+
+function readErrorDetail(error: unknown, key: "platform" | "action" | "account"): string | undefined {
+  if (!(error instanceof AutoCliError)) {
+    return undefined;
+  }
+
+  const value = error.details?.[key];
+  return typeof value === "string" && value.length > 0 ? value : undefined;
+}

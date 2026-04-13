@@ -2,14 +2,21 @@ import type { Command } from "commander";
 import type { Ora } from "ora";
 
 import type { AdapterActionResult, CommandContext } from "../types.js";
+import { errorToJson, isAutoCliError } from "../errors.js";
 import { printJson } from "./output.js";
 import { setInteractiveProgressHandler } from "./interactive-progress.js";
+import { appendActionLog, buildActionLogCommandLabel, markActionLogCaptured } from "./action-log.js";
+
+let currentCommandPath: string | undefined;
 
 export function resolveCommandContext(command: Command): CommandContext {
   const options = command.optsWithGlobals<{ json?: boolean; verbose?: boolean }>();
+  const commandPath = buildCommanderCommandPath(command);
+  currentCommandPath = commandPath;
   return {
     json: Boolean(options.json),
     verbose: Boolean(options.verbose),
+    commandPath,
   };
 }
 
@@ -72,7 +79,11 @@ export async function runCommandAction<T>(input: {
   successMessage: string;
   action: () => Promise<T>;
   onSuccess: (result: T) => void;
+  commandPath?: string;
 }): Promise<void> {
+  const startedAt = new Date();
+  const commandPath = input.commandPath ?? currentCommandPath;
+
   try {
     if (input.spinner) {
       setInteractiveProgressHandler((message) => {
@@ -89,9 +100,20 @@ export async function runCommandAction<T>(input: {
         input.spinner.succeed(input.successMessage);
       }
     }
+    await recordSuccessfulAction(result, {
+      startedAt,
+      finishedAt: new Date(),
+      commandPath,
+      fallbackMessage: input.successMessage,
+    });
     input.onSuccess(result);
   } catch (error) {
     input.spinner?.stop();
+    await recordFailedAction(error, {
+      startedAt,
+      finishedAt: new Date(),
+      commandPath,
+    });
     throw error;
   } finally {
     setInteractiveProgressHandler(null);
@@ -105,6 +127,116 @@ function extractResultMessage<T>(result: T): string | undefined {
 
   const message = (result as { message?: unknown }).message;
   return typeof message === "string" && message.length > 0 ? message : undefined;
+}
+
+function buildCommanderCommandPath(command: Command): string {
+  const segments: string[] = [];
+  let current: Command | null = command;
+
+  while (current) {
+    const name = current.name();
+    if (name) {
+      segments.unshift(name);
+    }
+    current = current.parent ?? null;
+  }
+
+  return segments.join(" ");
+}
+
+async function recordSuccessfulAction<T>(
+  result: T,
+  input: {
+    startedAt: Date;
+    finishedAt: Date;
+    commandPath?: string;
+    fallbackMessage: string;
+  },
+): Promise<void> {
+  const metadata = extractLoggableResult(result);
+
+  await appendActionLog({
+    startedAt: input.startedAt.toISOString(),
+    finishedAt: input.finishedAt.toISOString(),
+    durationMs: input.finishedAt.getTime() - input.startedAt.getTime(),
+    status: "success",
+    command: buildActionLogCommandLabel({
+      platform: metadata.platform,
+      action: metadata.action,
+      commandPath: input.commandPath,
+    }),
+    ...(input.commandPath ? { commandPath: input.commandPath } : {}),
+    ...(metadata.platform ? { platform: metadata.platform } : {}),
+    ...(metadata.account ? { account: metadata.account } : {}),
+    ...(metadata.action ? { action: metadata.action } : {}),
+    message: metadata.message ?? input.fallbackMessage,
+    ...(metadata.resultId ? { resultId: metadata.resultId } : {}),
+    ...(metadata.resultUrl ? { resultUrl: metadata.resultUrl } : {}),
+    ...(metadata.user ? { user: metadata.user } : {}),
+  }).catch(() => undefined);
+}
+
+async function recordFailedAction(
+  error: unknown,
+  input: {
+    startedAt: Date;
+    finishedAt: Date;
+    commandPath?: string;
+  },
+): Promise<void> {
+  const serialized = errorToJson(error);
+  const details = isAutoCliError(error) ? error.details : undefined;
+
+  await appendActionLog({
+    startedAt: input.startedAt.toISOString(),
+    finishedAt: input.finishedAt.toISOString(),
+    durationMs: input.finishedAt.getTime() - input.startedAt.getTime(),
+    status: "failed",
+    command: buildActionLogCommandLabel({
+      platform: asString(details?.platform),
+      action: asString(details?.action),
+      commandPath: input.commandPath,
+    }),
+    ...(input.commandPath ? { commandPath: input.commandPath } : {}),
+    ...(asString(details?.platform) ? { platform: asString(details?.platform)! } : {}),
+    ...(asString(details?.account) ? { account: asString(details?.account)! } : {}),
+    ...(asString(details?.action) ? { action: asString(details?.action)! } : {}),
+    message: serialized.error.message,
+    errorCode: serialized.error.code,
+  }).catch(() => undefined);
+
+  markActionLogCaptured(error);
+}
+
+function extractLoggableResult<T>(result: T): {
+  platform?: string;
+  account?: string;
+  action?: string;
+  message?: string;
+  resultId?: string;
+  resultUrl?: string;
+  user?: string;
+} {
+  if (!result || typeof result !== "object" || Array.isArray(result)) {
+    return {};
+  }
+
+  const value = result as Partial<AdapterActionResult>;
+  return {
+    ...(typeof value.platform === "string" ? { platform: value.platform } : {}),
+    ...(typeof value.account === "string" ? { account: value.account } : {}),
+    ...(typeof value.action === "string" ? { action: value.action } : {}),
+    ...(typeof value.message === "string" ? { message: value.message } : {}),
+    ...(typeof value.id === "string" ? { resultId: value.id } : {}),
+    ...(typeof value.url === "string" ? { resultUrl: value.url } : {}),
+    ...(value.user?.username || value.user?.displayName
+      ? { user: value.user.username ?? value.user.displayName }
+      : {}),
+  };
+}
+
+function asString(value: unknown): string | undefined {
+  return typeof value === "string" && value.length > 0 ? value : undefined;
 }
 
 function readLoginMetadata(result: AdapterActionResult): {
