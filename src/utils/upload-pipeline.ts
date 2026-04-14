@@ -1,5 +1,5 @@
-import { access, readFile } from "node:fs/promises";
-import { constants } from "node:fs";
+import { access, readFile, stat } from "node:fs/promises";
+import { constants, createReadStream, type ReadStream } from "node:fs";
 import { basename, extname } from "node:path";
 
 import { AutoCliError } from "../errors.js";
@@ -15,6 +15,10 @@ export interface UploadAsset {
   bytes: Buffer;
   size: number;
   sizeBytes: number;
+}
+
+export interface StreamUploadAsset extends Omit<UploadAsset, "bytes"> {
+  stream: ReadStream;
 }
 
 export interface ReadUploadAssetOptions {
@@ -96,6 +100,55 @@ export async function readUploadAsset(path: string, options: ReadUploadAssetOpti
   }
 
   return asset;
+}
+
+export async function streamUploadAsset(path: string, options: ReadUploadAssetOptions = {}): Promise<StreamUploadAsset> {
+  const trimmed = path.trim();
+
+  await access(trimmed, constants.R_OK).catch(() => {
+    throw new AutoCliError(
+      options.notFoundCode ?? "FILE_NOT_FOUND",
+      options.notFoundMessage ?? `File not found or unreadable: ${trimmed}`,
+      {
+        details: {
+          path: trimmed,
+          ...(options.details ?? {}),
+        },
+      },
+    );
+  });
+
+  const fileStat = await stat(trimmed);
+  const extension = extname(trimmed).toLowerCase();
+  const mimeType = normalizeMimeType(options.mimeType) ?? MIME_BY_EXTENSION[extension] ?? "application/octet-stream";
+  const kind = detectUploadAssetKind(mimeType);
+
+  if (options.allowedKinds && options.allowedKinds.length > 0 && !options.allowedKinds.includes(kind)) {
+    throw new AutoCliError(
+      options.unsupportedCode ?? "UNSUPPORTED_MEDIA_TYPE",
+      options.unsupportedMessage ?? `Unsupported upload asset kind: ${kind}`,
+      {
+        details: {
+          path: trimmed,
+          mimeType,
+          kind,
+          allowedKinds: options.allowedKinds,
+          ...(options.details ?? {}),
+        },
+      },
+    );
+  }
+
+  return {
+    path: trimmed,
+    filename: basename(trimmed),
+    extension,
+    mimeType,
+    kind,
+    stream: createReadStream(trimmed),
+    size: fileStat.size,
+    sizeBytes: fileStat.size,
+  };
 }
 
 export function detectUploadAssetKind(mimeType: string): UploadAssetKind {
