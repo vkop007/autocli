@@ -1,8 +1,8 @@
-import { access, readFile } from "node:fs/promises";
-import { basename } from "node:path";
+import { access } from "node:fs/promises";
 import { constants } from "node:fs";
 
 import { AutoCliError } from "../../../errors.js";
+import { appendUploadFileField, readUploadAsset } from "../../../utils/upload-pipeline.js";
 
 import type {
   TelegramBotApiErrorPayload,
@@ -11,6 +11,7 @@ import type {
   TelegramBotUpdate,
   TelegramBotUser,
 } from "./types.js";
+import type { UploadAsset } from "../../../utils/upload-pipeline.js";
 
 const TELEGRAM_API_BASE = "https://api.telegram.org";
 
@@ -220,7 +221,7 @@ export class TelegramBotApi implements TelegramBotApiClient {
 
     const form = new FormData();
     form.append("chat_id", String(input.chatId));
-    form.append(fieldName, prepared.mediaValue, prepared.fileName ?? basename(input.media));
+    appendUploadFileField(form, fieldName, prepared.mediaValue);
     this.appendOptional(form, "caption", input.caption);
     this.appendOptional(form, "parse_mode", input.parseMode);
     this.appendOptional(form, "reply_to_message_id", input.replyToMessageId);
@@ -231,7 +232,7 @@ export class TelegramBotApi implements TelegramBotApiClient {
     });
   }
 
-  private async resolveMediaInput(value: string): Promise<{ mediaValue: string | File; fileName?: string }> {
+  private async resolveMediaInput(value: string): Promise<{ mediaValue: string | Pick<UploadAsset, "bytes" | "mimeType" | "filename"> }> {
     const trimmed = value.trim();
     if (this.looksLikeUrl(trimmed)) {
       return { mediaValue: trimmed };
@@ -244,10 +245,8 @@ export class TelegramBotApi implements TelegramBotApiClient {
       return { mediaValue: trimmed };
     }
 
-    const bytes = await readFile(trimmed);
     return {
-      mediaValue: new File([bytes], basename(trimmed)),
-      fileName: basename(trimmed),
+      mediaValue: await readUploadAsset(trimmed),
     };
   }
 

@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import { AutoCliError, isAutoCliError } from "../../../errors.js";
 import { readMediaFile } from "../../../utils/media.js";
+import { appendUploadFileField } from "../../../utils/upload-pipeline.js";
 
 import type { SessionHttpClient } from "../../../utils/http-client.js";
 import type { SessionStatus } from "../../../types.js";
@@ -184,7 +185,7 @@ export class ClaudeService {
 
         try {
           const chatId = await this.createChat(client, candidate.uuid);
-          const fileId = await this.uploadFile(client, candidate.uuid, chatId, media.filename, media.mimeType, media.bytes);
+          const fileId = await this.uploadFile(client, candidate.uuid, chatId, media);
           const stream = await this.sendMessage(client, candidate.uuid, chatId, {
             prompt: input.caption?.trim() || "Describe this image.",
             model: input.model,
@@ -299,12 +300,14 @@ export class ClaudeService {
     client: SessionHttpClient,
     organizationId: string,
     chatId: string,
-    filename: string,
-    mimeType: string,
-    bytes: Buffer,
+    file: {
+      filename: string;
+      mimeType: string;
+      bytes: Buffer;
+    },
   ): Promise<string> {
     const form = new FormData();
-    form.append("file", new Blob([new Uint8Array(bytes)], { type: mimeType }), filename);
+    appendUploadFileField(form, "file", file);
     form.append("orgUuid", organizationId);
 
     const response = await client.request<ClaudeUploadResponse>(`${CLAUDE_BASE_URL}/api/${organizationId}/upload`, {

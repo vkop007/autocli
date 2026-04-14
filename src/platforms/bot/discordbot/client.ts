@@ -1,5 +1,6 @@
 import { AutoCliError } from "../../../errors.js";
 import { readUploadFile } from "../../../utils/file-source.js";
+import { createUploadFile } from "../../../utils/upload-pipeline.js";
 
 import type { DiscordChannel, DiscordCurrentUser, DiscordGuild, DiscordMessage } from "./types.js";
 import { DISCORD_API_BASE_URL } from "./helpers.js";
@@ -101,7 +102,6 @@ export class DiscordApiClient {
   ): Promise<DiscordMessage> {
     const file = await readUploadFile(input.filePath);
     const form = new FormData();
-    const bytes = new Uint8Array(file.bytes);
     form.append(
       "payload_json",
       JSON.stringify({
@@ -115,7 +115,7 @@ export class DiscordApiClient {
           : {}),
       }),
     );
-    form.append("files[0]", new File([bytes], file.filename, { type: file.mimeType }));
+    form.append("files[0]", createUploadFile(file));
 
     return this.request<DiscordMessage>("POST", `/channels/${encodeURIComponent(channelId)}/messages`, {
       body: form,

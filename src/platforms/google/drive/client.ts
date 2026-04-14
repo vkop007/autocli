@@ -1,7 +1,8 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { basename, dirname, extname } from "node:path";
+import { mkdir, writeFile } from "node:fs/promises";
+import { dirname } from "node:path";
 
 import { GoogleApiClient } from "../shared/client.js";
+import { buildMultipartRelatedUpload, readUploadAsset } from "../../../utils/upload-pipeline.js";
 
 export interface DriveUserProfile {
   displayName?: string;
@@ -88,26 +89,25 @@ export class DriveApiClient {
     parentId?: string;
     mimeType?: string;
   }): Promise<DriveFile> {
-    const buffer = await readFile(input.filePath);
+    const asset = await readUploadAsset(input.filePath, {
+      mimeType: input.mimeType,
+    });
     const metadata = {
-      name: input.name?.trim() || basename(input.filePath),
+      name: input.name?.trim() || asset.filename,
       ...(input.parentId ? { parents: [input.parentId] } : {}),
     };
-    const boundary = `autocli-drive-${Date.now()}`;
-    const mimeType = input.mimeType?.trim() || guessMimeType(input.filePath);
-    const prefix = Buffer.from(
-      `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n--${boundary}\r\nContent-Type: ${mimeType}\r\n\r\n`,
-      "utf8",
-    );
-    const suffix = Buffer.from(`\r\n--${boundary}--`, "utf8");
-    const body = Buffer.concat([prefix, buffer, suffix]);
+    const upload = buildMultipartRelatedUpload({
+      metadata,
+      asset,
+      boundaryPrefix: "autocli-drive",
+    });
 
     return this.client.json<DriveFile>("https://www.googleapis.com/upload/drive/v3/files", {
       method: "POST",
       headers: {
-        "content-type": `multipart/related; boundary=${boundary}`,
+        "content-type": upload.contentType,
       },
-      body,
+      body: upload.body,
     }, {
       uploadType: "multipart",
       fields: "id,name,mimeType,size,createdTime,modifiedTime,parents,webViewLink,webContentLink",
@@ -135,36 +135,5 @@ export class DriveApiClient {
         accept: "*/*",
       },
     });
-  }
-}
-
-function guessMimeType(filePath: string): string {
-  const extension = extname(filePath).toLowerCase();
-  switch (extension) {
-    case ".txt":
-      return "text/plain";
-    case ".json":
-      return "application/json";
-    case ".csv":
-      return "text/csv";
-    case ".md":
-      return "text/markdown";
-    case ".pdf":
-      return "application/pdf";
-    case ".jpg":
-    case ".jpeg":
-      return "image/jpeg";
-    case ".png":
-      return "image/png";
-    case ".gif":
-      return "image/gif";
-    case ".webp":
-      return "image/webp";
-    case ".mp4":
-      return "video/mp4";
-    case ".mp3":
-      return "audio/mpeg";
-    default:
-      return "application/octet-stream";
   }
 }
