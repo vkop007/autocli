@@ -1,4 +1,5 @@
 import { AutoCliError } from "../../../errors.js";
+import { createUploadBlob } from "../../../utils/upload-pipeline.js";
 
 type SlackApiResponse = {
   ok: boolean;
@@ -114,7 +115,7 @@ export class SlackbotApiClient {
           "Content-Type": input.mimeType,
           "Content-Length": String(bytes.byteLength),
         },
-        body: new Blob([bytes], { type: input.mimeType }),
+        body: createUploadBlob({ bytes: Buffer.from(bytes), mimeType: input.mimeType }),
       });
     } catch (error) {
       throw new AutoCliError("SLACK_UPLOAD_UNAVAILABLE", "Unable to reach Slack's external upload URL.", {

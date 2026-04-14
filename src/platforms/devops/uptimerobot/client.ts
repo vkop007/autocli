@@ -1,7 +1,7 @@
-import { readFile } from "node:fs/promises";
 import { basename } from "node:path";
 
 import { AutoCliError } from "../../../errors.js";
+import { appendUploadFileField, readUploadAsset } from "../../../utils/upload-pipeline.js";
 
 type QueryValue = string | number | boolean | null | undefined;
 type RequestBodyValue = Record<string, unknown> | FormData | string;
@@ -457,11 +457,13 @@ async function appendFormValue(formData: FormData, key: string, value: unknown):
 
   if (isFileDescriptor(value)) {
     const fileName = value.filename?.trim() || basename(value.filePath);
-    const buffer = await readFile(value.filePath);
-    const blob = new Blob([buffer], {
-      type: value.contentType?.trim() || "application/octet-stream",
+    const asset = await readUploadAsset(value.filePath, {
+      mimeType: value.contentType,
+      details: {
+        field: key,
+      },
     });
-    formData.append(key, blob, fileName);
+    appendUploadFileField(formData, key, asset, fileName);
     return;
   }
 

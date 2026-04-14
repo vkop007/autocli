@@ -1,4 +1,5 @@
 import { readMediaFile } from "../../../utils/media.js";
+import { appendUploadFileField } from "../../../utils/upload-pipeline.js";
 import { parseXProfileTarget, parseXTarget } from "../../../utils/targets.js";
 import { AutoCliError } from "../../../errors.js";
 import { maybeAutoRefreshSession } from "../../../utils/autorefresh.js";
@@ -1183,7 +1184,7 @@ export class XAdapter extends BasePlatformAdapter {
     appendForm.set("command", "APPEND");
     appendForm.set("media_id", mediaId);
     appendForm.set("segment_index", "0");
-    appendForm.set("media", new Blob([new Uint8Array(media.bytes)], { type: media.mimeType }), media.filename);
+    appendUploadFileField(appendForm, "media", media);
 
     await this.tryRequestChain(
       X_MEDIA_UPLOAD_ENDPOINTS.map(

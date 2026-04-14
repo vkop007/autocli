@@ -5,6 +5,7 @@ import { extname, join } from "node:path";
 import { ensureDirectory, getCachePath } from "../../../config.js";
 import { AutoCliError, isAutoCliError } from "../../../errors.js";
 import { readMediaFile } from "../../../utils/media.js";
+import { appendUploadFileField } from "../../../utils/upload-pipeline.js";
 
 import type { SessionHttpClient } from "../../../utils/http-client.js";
 import type { SessionStatus } from "../../../types.js";
@@ -350,7 +351,7 @@ export class GeminiService {
     file: Awaited<ReturnType<typeof readMediaFile>>,
   ): Promise<string> {
     const form = new FormData();
-    form.append("file", new Blob([new Uint8Array(file.bytes)], { type: file.mimeType }), file.filename);
+    appendUploadFileField(form, "file", file);
 
     const response = await client.request<string>(GEMINI_UPLOAD_URL, {
       method: "POST",
