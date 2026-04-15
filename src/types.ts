@@ -90,6 +90,7 @@ export interface CommandContext {
   commandPath?: string;
   select?: string[];
   filter?: string;
+  format?: 'json' | 'csv' | 'table' | 'yaml' | 'markdown' | 'html';
 }
 
 export interface AdapterActionResult {

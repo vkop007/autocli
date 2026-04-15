@@ -15,6 +15,7 @@ Use this skill when the task maps to an existing AutoCLI provider or when you ne
 - Prefer `--json` for agent work unless the user explicitly wants human-readable output.
 - Use `--filter '<condition>'` to filter list results by field values instead of piping to jq or external tools.
 - Use `--select <field1,field2>` to extract and return only specific fields from results.
+- Use `--format <type>` to transform output to csv, table, yaml, markdown, or html instead of external formatters.
 - If the intent matches a known recipe, use that exact command first. Read [references/recipes.md](references/recipes.md).
 - If the category or provider is unclear, read [references/category-map.md](references/category-map.md).
 - If the provider is already known and you need its exact command surface, read [references/providers/index.md](references/providers/index.md) and then the matching provider file.
@@ -99,6 +100,9 @@ autocli data json query '{"items":[{"title":"AutoCLI"}]}' 'items[0].title'
 autocli developer github repos --json --filter 'stargazers_count > 1000 AND language = "TypeScript"' --select name,stargazers_count,url
 autocli social reddit search "ai agents" --json --filter 'score > 100' --select title,author,url
 autocli devops vercel projects --json --select name,updated_at,environment --filter 'production_branch != null'
+autocli developer github repos --json --filter 'stargazers_count > 100000' --format csv > repos.csv
+autocli social reddit search "ai" --json --format table --filter 'score > 100'
+autocli devops railway services --json --format yaml --select name,status,environment
 ```
 
 ## When To Read More

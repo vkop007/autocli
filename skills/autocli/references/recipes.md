@@ -40,6 +40,11 @@ Use this file when the user intent is clear and you want the fastest correct Aut
 | Filter results by field value | `autocli <category> <provider> <action> --json --filter '<condition>'` | none |
 | Select only specific fields | `autocli <category> <provider> <action> --json --select <field1,field2>` | none |
 | Filter and select together | `autocli <category> <provider> <action> --json --filter '<condition>' --select <fields>` | none |
+| Export to CSV | `autocli <category> <provider> <action> --json --format csv` | none |
+| Display as table | `autocli <category> <provider> <action> --json --format table` | none |
+| Generate markdown | `autocli <category> <provider> <action> --json --format markdown` | none |
+| Create HTML report | `autocli <category> <provider> <action> --json --format html > report.html` | none |
+| YAML output | `autocli <category> <provider> <action> --json --format yaml` | none |
 
 ## Filtering & Selection Examples
 
@@ -51,6 +56,10 @@ Use this file when the user intent is clear and you want the fastest correct Aut
 | Recently updated Jira tickets | `autocli developer jira issues --json --filter 'updated_at >= today' --select key,summary,priority,assignee` |
 | High-engagement LinkedIn posts | `autocli social linkedin feed --json --filter 'engagement_count > 500' --select content,engagement_count,timestamp` |
 | Node.js packages on npm | `autocli tools npm search node --json --select name,version,downloads --filter 'downloads > 10000'` |
+| Top TypeScript repos to CSV | `autocli developer github repos --json --filter 'language = "TypeScript" AND stargazers_count > 100000' --format csv > top-ts.csv` |
+| GitHub repos as html table | `autocli developer github repos --json --select name,language,stargazers_count --format html > repos.html` |
+| DevOps services as YAML | `autocli devops railway services --json --format yaml --select name,status > services.yaml` |
+| Reddit hot posts as markdown | `autocli social reddit search "trending" --json --format markdown --filter 'score > 1000' --select title,score` |
 
 ## Quick Recovery Rules
 

@@ -14,6 +14,7 @@ If the user intent is already concrete, read [recipes.md](recipes.md) first and 
 - `... --json --select <fields>`: extract only specific fields from results
 - `... --json --filter '<condition>'`: filter list results by conditions without external tools
 - `... --json --filter '<condition>' --select <fields>`: combine filtering and field selection
+- `... --json --format csv|table|yaml|markdown|html`: transform output format without external tools
 
 ## Categories
 
