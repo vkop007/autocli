@@ -55,8 +55,9 @@ export function createProgram(): Command {
     .version(packageJson.version, "-v, --version", "Show the installed version")
     .option("--json", "Emit machine-readable JSON output")
     .option("--verbose", "Enable verbose logging")
-    .option("--select <fields>", "Select specific fields from results (comma-separated). Only works with --json")
-    .option("--filter <expression>", "Filter results by expression (e.g. 'stars > 100 AND language = \"TypeScript\"'). Only works with --json")
+    .option("--select <fields>", "Select specific fields from results (comma-separated). Works with --json or --format")
+    .option("--filter <expression>", "Filter results by expression (e.g. 'stars > 100 AND language = \"TypeScript\"'). Works with --json or --format")
+    .option("--format <type>", "Output format: csv, table, yaml, markdown, html. Works with or without --json")
     .showHelpAfterError()
     .addHelpText("beforeAll", `${HELP_FRAME}\n`)
     .addHelpText(
@@ -69,6 +70,11 @@ Filtering & Selection:
   autocli developer github repos --json --select name,stargazers_count,language
   autocli social x posts --json --filter 'public_metrics.like_count > 1000'
   autocli developer github repos --json --select name,stars --filter 'stargazers_count > 100 AND language = "TypeScript"'
+
+Format Transformations (with or without --json):
+  autocli developer github repos --json --format csv > repos.csv
+  autocli social reddit search "ai" --format table --filter 'score > 100'
+  autocli devops vercel projects --format yaml --select name,updated_at
 `,
     )
     .addCommand(createLoginCommand())

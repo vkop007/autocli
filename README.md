@@ -362,6 +362,54 @@ autocli developer github repos --json \
 - **Nested fields**: Access via dot notation, e.g., `public_metrics.like_count`
 
 For detailed examples and syntax reference, see [FILTERING_GUIDE.md](./FILTERING_GUIDE.md).
+
+## Output Format Transformations
+
+Transform JSON results into different formats without external tools using `--format`:
+
+### Available Formats
+
+- **`csv`** - Comma-separated values (for spreadsheets and data pipelines)
+- **`table`** - Formatted terminal table with unicode borders
+- **`yaml`** - YAML output (for configuration and infrastructure)
+- **`markdown`** - Markdown tables (for documentation and reports)
+- **`html`** - HTML tables (for email reports and web pages)
+- **`json`** - Default JSON format
+
+### Examples
+
+```bash
+# Export to CSV for Excel
+autocli developer github repos --json --format csv > repos.csv
+
+# Display as formatted table in terminal
+autocli social reddit search "ai" --json --format table --filter 'score > 100'
+
+# Generate markdown table for documentation
+autocli developer github repos --json --format markdown --select name,language,stargazers_count
+
+# Create HTML report
+autocli devops vercel projects --json --format html --select name,updated_at > report.html
+
+# YAML for configuration/infrastructure
+autocli devops railway services --json --format yaml > services.yaml
+```
+
+### Combine Formats with Filtering & Selection
+
+```bash
+# High-star TypeScript repos as CSV
+autocli developer github repos --json \
+  --filter 'language = "TypeScript" AND stargazers_count > 100000' \
+  --select name,stargazers_count,forks_count \
+  --format csv > top-ts-repos.csv
+
+# Popular posts as markdown table
+autocli social reddit search "bun cli" --json \
+  --filter 'score > 500' \
+  --select title,author,score \
+  --format markdown
+```
 ## Stability Levels
 
 - `stable`: ready for routine automation and the default choice when you have options

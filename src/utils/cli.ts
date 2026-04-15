@@ -7,9 +7,11 @@ import { printJson } from "./output.js";
 import { setInteractiveProgressHandler } from "./interactive-progress.js";
 import { appendActionLog, buildActionLogCommandLabel, markActionLogCaptured } from "./action-log.js";
 import { transformOutput, validateSelectFields } from "../core/output/output-transform.js";
+import { formatOutput } from "../core/output/format-transformer.js";
 import { AutoCliError } from "../errors.js";
 
 let currentCommandPath: string | undefined;
+let currentCommandContext: Partial<CommandContext> | undefined;
 
 export function resolveCommandContext(command: Command): CommandContext {
   const options = command.optsWithGlobals<{
@@ -17,6 +19,7 @@ export function resolveCommandContext(command: Command): CommandContext {
     verbose?: boolean;
     select?: string;
     filter?: string;
+    format?: string;
   }>();
   const commandPath = buildCommanderCommandPath(command);
   currentCommandPath = commandPath;
@@ -29,30 +32,47 @@ export function resolveCommandContext(command: Command): CommandContext {
         .filter((f) => f.length > 0)
     : undefined;
 
-  return {
+  // Validate format
+  const format = options.format as CommandContext['format'] | undefined;
+  const validFormats = ['json', 'csv', 'table', 'yaml', 'markdown', 'html'];
+  if (format && !validFormats.includes(format)) {
+    throw new AutoCliError("INVALID_FORMAT", `Unknown format: ${format}. Valid options: ${validFormats.join(', ')}`);
+  }
+
+  const context: CommandContext = {
     json: Boolean(options.json),
     verbose: Boolean(options.verbose),
     commandPath,
     select: selectFields,
     filter: options.filter,
+    format: format || 'json',
   };
+  
+  // Store for fallback access by printActionResult
+  currentCommandContext = context;
+  
+  return context;
+}
+
+export function getCurrentCommandContext(): Partial<CommandContext> | undefined {
+  return currentCommandContext;
 }
 
 export function printActionResult(result: AdapterActionResult, json: boolean, context?: Partial<CommandContext>): void {
-  // Apply output transformations if requested
-  if (context?.select || context?.filter) {
-    if (!context.select && !context.filter) {
-      if (json) printJson(result);
-      return;
-    }
-
+  // Use provided context or fall back to current command context
+  const effectiveContext = context || currentCommandContext || {};
+  const outputFormat = effectiveContext.format || 'json';
+  const hasFormatRequest = outputFormat !== 'json';
+  
+  // Apply filtering and selection if requested
+  if (effectiveContext.select || effectiveContext.filter) {
     // Validate select fields first
-    if (context.select && result.data) {
-      const validation = validateSelectFields(result.data, context.select);
+    if (effectiveContext.select && result.data) {
+      const validation = validateSelectFields(result.data, effectiveContext.select);
       if (!validation.valid) {
         throw new AutoCliError("INVALID_FIELD_SELECTION", `Field(s) not found in results: ${validation.missingFields?.join(", ")}`, {
           details: {
-            requested_fields: context.select,
+            requested_fields: effectiveContext.select,
             missing_fields: validation.missingFields,
           },
         });
@@ -62,12 +82,19 @@ export function printActionResult(result: AdapterActionResult, json: boolean, co
     // Apply transforms to the data section
     if (result.data) {
       result.data = transformOutput(result.data, {
-        select: context.select,
-        filter: context.filter,
+        select: effectiveContext.select,
+        filter: effectiveContext.filter,
       }) as Record<string, unknown>;
     }
   }
 
+  // If format transformation is requested, apply it and return (suppress normal metadata output)
+  if (hasFormatRequest) {
+    console.log(formatOutput(result.data || result, { format: outputFormat }));
+    return;
+  }
+
+  // Otherwise, output as JSON or human-readable format
   if (json) {
     printJson(result);
     return;

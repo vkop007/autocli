@@ -1,4 +1,4 @@
-import { printActionResult } from "../../../utils/cli.js";
+import { printActionResult, getCurrentCommandContext } from "../../../utils/cli.js";
 import { printJson } from "../../../utils/output.js";
 
 import type { AdapterActionResult } from "../../../types.js";
@@ -9,7 +9,18 @@ export function printSocialSearchResult(result: AdapterActionResult, json: boole
     return;
   }
 
+  // Check if a format transformation was applied at the global level
+  const ctx = getCurrentCommandContext();
+  const hasFormatRequest = ctx?.format && ctx.format !== 'json';
+  
+  // Print action result (which applies format transformation if requested)
   printActionResult(result, false);
+  
+  // If format transformation was applied, don't print the detailed items
+  if (hasFormatRequest) {
+    return;
+  }
+  
   const items = Array.isArray(result.data?.items) ? (result.data.items as Array<Record<string, unknown>>) : [];
   if (items.length === 0) {
     console.log("No results found.");
