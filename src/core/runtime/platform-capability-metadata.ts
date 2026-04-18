@@ -78,6 +78,11 @@ const CATEGORY_DEFAULTS: Partial<Record<PlatformCategory, PlatformCapabilityMeta
     browserLogin: "partial",
     stability: "partial",
   },
+  careers: {
+    discovery: "supported",
+    mutation: "unsupported",
+    stability: "stable",
+  },
   shopping: {
     discovery: "supported",
     mutation: "unknown",

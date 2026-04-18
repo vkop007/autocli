@@ -7,9 +7,9 @@ Generated from the real AutoCLI provider definition and command tree.
 - Command prefix: `autocli careers indeed`
 - Aliases: none
 - Auth: `none`
-- Stability: `unknown`
-- Discovery: `unknown`
-- Mutation: `unknown`
+- Stability: `stable`
+- Discovery: `supported`
+- Mutation: `unsupported`
 - Browser login: `unsupported`
 - Browser fallback: `unsupported`
 - Async jobs: `unsupported`
