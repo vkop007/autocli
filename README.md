@@ -1,9 +1,11 @@
 # AutoCLI
 
+<!-- GENERATED:badges:start -->
 [![npm version](https://img.shields.io/npm/v/%40vk007%2Fautocli)](https://www.npmjs.com/package/@vk007/autocli)
 [![license](https://img.shields.io/github/license/vkop007/autocli)](./LICENSE)
-[![providers](https://img.shields.io/badge/providers-116-blue)](#category-overview)
+[![providers](https://img.shields.io/badge/providers-117-blue)](#category-overview)
 [![categories](https://img.shields.io/badge/categories-16-6f42c1)](#category-overview)
+<!-- GENERATED:badges:end -->
 
 AutoCLI is a terminal automation toolkit for developers and AI agents that turns websites, LLMs, developer platforms, editors, and utilities into one reusable CLI.
 
@@ -18,7 +20,9 @@ What makes AutoCLI especially useful is that it does not stop at API tokens. It 
 
 ## Why It Matters
 
-- One command surface across `114` providers.
+<!-- GENERATED:why-it-matters-count:start -->
+- One command surface across `117` providers.
+<!-- GENERATED:why-it-matters-count:end -->
 - Shared browser login means less manual cookie exporting for cookie-backed platforms.
 - Sessions and tokens stay local, so follow-up commands are short and automation-friendly.
 - Category-based routing stays predictable as the tool grows: `autocli llm ...`, `autocli google ...`, `autocli social ...`, `autocli developer ...`, `autocli devops ...`.
@@ -56,15 +60,18 @@ autocli llm qwen text "Summarize this changelog"
 
 ## At a Glance
 
+<!-- GENERATED:at-a-glance:start -->
 | Item | Value |
 | --- | --- |
 | Package | `@vk007/autocli` |
 | CLI command | `autocli` |
-| Providers | `116` |
+| Providers | `117` |
 | Categories | `16` |
 | npm install | `npm install -g @vk007/autocli` |
 | bun install | `bun install -g @vk007/autocli` |
 | Local setup | `bun install` |
+| Docs sync | `bun run sync:docs` |
+<!-- GENERATED:at-a-glance:end -->
 
 ## Get Started
 
@@ -148,6 +155,7 @@ Every provider help page now includes:
 
 AutoCLI is category-only. Provider commands never live at the root.
 
+<!-- GENERATED:command-model-categories:start -->
 - `autocli llm ...`
 - `autocli editor ...`
 - `autocli finance ...`
@@ -164,6 +172,7 @@ AutoCLI is category-only. Provider commands never live at the root.
 - `autocli devops ...`
 - `autocli bot ...`
 - `autocli tools ...`
+<!-- GENERATED:command-model-categories:end -->
 
 Examples:
 
@@ -445,25 +454,30 @@ autocli devops railway capabilities --json
 
 ## Category Overview
 
-| Category | Providers | Count | Needs | Why use it | Route |
-| --- | --- | ---: | --- | --- | --- |
-| `llm` | ChatGPT, Claude, DeepSeek, Gemini, Grok, Mistral, Perplexity, Qwen, Z.ai | 9 | cookies | Browserless prompting, image flows, generation jobs | `autocli llm <provider> ...` |
-| `editor` | Archive, Audio, Document, GIF, Image, PDF, Subtitle, Video | 8 | local tools | Media and file transformations from the terminal | `autocli editor <provider> ...` |
-| `finance` | Crypto, Currency/Forex, Stocks | 3 | none | Market, forex, and crypto lookups | `autocli finance <provider> ...` |
-| `data` | CSV, HTML, JSON, Markdown, Text, XML, YAML | 7 | none | Structured data cleanup, conversion, filtering, and extraction for agents | `autocli data <provider> ...` |
-| `maps` | Geo, OpenStreetMap, OSRM | 3 | none | Geocoding, reverse lookup, routing, geometry helpers | `autocli maps <provider> ...` |
-| `movie` | AniList, IMDb, JustWatch, Kitsu, Letterboxd, MyAnimeList, TMDb, TVMaze | 8 | none or cookies | Public title lookup, anime tracking, streaming availability, and community taste signals | `autocli movie <provider> ...` |
-| `news` | News | 1 | none | Public headline discovery, source search, and feed aggregation | `autocli news ...` |
-| `music` | Bandcamp, Deezer, SoundCloud, Spotify, YouTube Music | 5 | none or cookies | Public music discovery plus session-backed playback and library workflows | `autocli music <provider> ...` |
-| `social` | Bluesky, Facebook, Instagram, LinkedIn, Mastodon, Pinterest, Reddit, Telegram, Threads, TikTok, Twitch, WhatsApp, X, YouTube | 14 | none, cookies, or session | Public profile/thread lookup plus cookie-backed posting, Reddit discovery and write automation, Twitch creator discovery, federated discovery, MTProto messaging, and QR/session-backed chat control where supported | `autocli social <provider> ...` |
-| `careers` | Indeed, ZipRecruiter | 2 | none | Job search and discovery across major job boards | `autocli careers <provider> ...` |
-| `shopping` | Amazon, eBay, Etsy, Flipkart | 4 | none or cookies | Product discovery plus account/cart/order surfaces where supported | `autocli shopping <provider> ...` |
-| `developer` | Confluence, GitHub, GitLab, Jira, Linear, Notion, Trello | 7 | cookies | Developer and workspace automation | `autocli developer <provider> ...` |
-| `devops` | Cloudflare, DigitalOcean, Fly.io, Netlify, Railway, Render, Supabase, UptimeRobot, Vercel | 9 | api token | Infrastructure, deployment, DNS, platform, backend, and uptime-monitoring automation | `autocli devops <provider> ...` |
-| `bot` | Discord Bot, GitHub Bot, Slack Bot, Telegram Bot | 4 | bot token or app token | Notifications, chat ops, bot messaging | `autocli bot <provider> ...` |
-| `tools` | Cheat, DNS, Download, Favicon, Headers, HTTP Toolkit, IP, Markdown Fetch, Metadata, oEmbed, Page Links, QR, Redirect, Robots, RSS, Screenshot, Sitemap, SSL, Time, Timezone, Transcript, Translate, Uptime, Weather, Web Search, Whois | 26 | none or cookies | Public utilities, cross-site downloads, transcript extraction, session-aware request inspection, and zero-setup helpers | `autocli tools <provider> ...` |
+<!-- GENERATED:category-overview:start -->
+This inventory is generated from the live platform registry.
 
-AutoCLI currently exposes `110` providers across `15` active command groups.
+| Category | Representative providers | Count | Auth modes | Use it for | Route |
+| --- | --- | ---: | --- | --- | --- |
+| `llm` | `chatgpt`, `claude`, `deepseek`, `gemini`, `grok`, +4 more | 9 | `cookies` | Prompting, chat, image, and generation workflows. | `autocli llm ...` |
+| `editor` | `archive`, `audio`, `document`, `gif`, `image`, +3 more | 8 | `none` | Local file, media, and document transformations. | `autocli editor ...` |
+| `finance` | `crypto`, `currency`, `stocks` | 3 | `none` | Market, forex, and crypto lookups. | `autocli finance ...` |
+| `data` | `csv`, `html`, `json`, `markdown`, `text`, +2 more | 7 | `none` | Structured data cleanup, conversion, filtering, and extraction. | `autocli data ...` |
+| `google` | `calendar`, `docs`, `drive`, `forms`, `gmail`, +1 more | 6 | `oauth2` | Google Workspace APIs and account-backed productivity flows. | `autocli google ...` |
+| `maps` | `geo`, `openstreetmap`, `osrm` | 3 | `none` | Geocoding, routing, elevation, and geometry helpers. | `autocli maps ...` |
+| `movie` | `anilist`, `imdb`, `justwatch`, `kitsu`, `letterboxd`, +3 more | 8 | `cookies`, `none` | Title lookup, recommendations, and streaming availability. | `autocli movie ...` |
+| `news` | `news` | 1 | `none` | Headline discovery, source search, and feed aggregation. | `autocli news ...` |
+| `music` | `bandcamp`, `deezer`, `soundcloud`, `spotify`, `youtube-music` | 5 | `cookies`, `none` | Music discovery, playback, and library-style workflows. | `autocli music ...` |
+| `social` | `bluesky`, `facebook`, `instagram`, `linkedin`, `mastodon`, +9 more | 14 | `cookies`, `none`, `session` | Posting, profile lookup, messaging, and public social reads. | `autocli social ...` |
+| `careers` | `indeed`, `ziprecruiter` | 2 | `none` | Job search and hiring discovery workflows. | `autocli careers ...` |
+| `shopping` | `amazon`, `ebay`, `etsy`, `flipkart` | 4 | `cookies`, `none` | Product discovery plus cart and order surfaces where supported. | `autocli shopping ...` |
+| `developer` | `confluence`, `github`, `gitlab`, `jira`, `linear`, +2 more | 7 | `cookies` | Code hosting, issues, docs, and workspace automation. | `autocli developer ...` |
+| `devops` | `cloudflare`, `digitalocean`, `fly`, `netlify`, `railway`, +4 more | 9 | `api token` | Infrastructure, deployments, DNS, and uptime automation. | `autocli devops ...` |
+| `bot` | `discordbot`, `githubbot`, `slackbot`, `telegrambot` | 4 | `api token`, `bot token` | Bot-token messaging and chat ops. | `autocli bot ...` |
+| `tools` | `cheat`, `dns`, `download`, `favicon`, `headers`, +22 more | 27 | `cookies`, `none`, `session` | Public utilities, temp mail, downloads, transcripts, and web helpers. | `autocli tools ...` |
+
+AutoCLI currently exposes `117` providers across `16` active command groups.
+<!-- GENERATED:category-overview:end -->
 
 ## Access Modes
 
@@ -536,17 +550,22 @@ bun run link:global
 
 If your shell still says `command not found`, open a new shell or run `hash -r`.
 
-### Skill Doc Sync
+### Documentation Sync
 
-Regenerate the provider-specific skill references and sync the installed Codex skill copy in one step:
+Refresh the generated README sections, regenerate the provider-specific skill references, and sync the installed Codex skill copy:
 
 ```bash
+bun run generate:readme
+bun run generate:skill-providers
+bun run sync:docs
 bun run sync:skills
 ```
 
-This refreshes the generated files under [`skills/autocli/references/providers`](./skills/autocli/references/providers) and copies the repo skill into your local Codex skill directory (defaults to `~/.codex/skills/autocli` unless `CODEX_HOME` is set).
+`bun run generate:readme` refreshes the marker-based sections in this README from the live provider registry.
 
-`npm publish` now runs this automatically through `prepublishOnly`, so release builds regenerate and sync the skill docs before typecheck, tests, and build.
+`bun run sync:docs` runs the README generator, refreshes the generated files under [`skills/autocli/references/providers`](./skills/autocli/references/providers), and copies the repo skill into your local Codex skill directory (defaults to `~/.codex/skills/autocli` unless `CODEX_HOME` is set).
+
+`npm publish` now runs this automatically through `prepublishOnly`, so release builds regenerate and sync the docs before typecheck, tests, and build.
 
 ### Platform Registry Sync
 
@@ -737,190 +756,248 @@ After the first `login`, later commands normally omit `--account` or `--bot` and
 
 ## Provider Matrix
 
-The `Stability` column below matches the runtime metadata behind `autocli <category> <provider> capabilities --json`.
+<!-- GENERATED:provider-matrix:start -->
+The tables below are generated from provider manifests and runtime capability metadata, so they stay aligned with `autocli <category> <provider> capabilities --json`.
 
 ### LLM
 
-| Provider | Stability | Needs | Best for | Notes |
-| --- | --- | --- | --- | --- |
-| ChatGPT | `stable` | cookies | text prompts and image prompting | Authenticated web flow is supported; richer media generation is still evolving. |
-| Claude | `partial` | cookies | Claude web-session access | Text prompting is the clearest supported path today; richer media flows still depend on private web-flow drift. |
-| DeepSeek | `partial` | cookies + local token | browserless DeepSeek chat | Text chat works; image and video prompting are not mapped yet. Needs browser cookies and sometimes `userToken` from site storage. |
-| Gemini | `stable` | cookies | Google Gemini prompting and media flows | Works from imported browser sessions; download helpers are wired for media jobs. |
-| Grok | `partial` | cookies | text, image, and async video generation | Best current fit for job-style image/video workflows. |
-| Mistral | `partial` | cookies | browserless Mistral chat | Cookie-backed text flow is implemented; image/video support is still limited. |
-| Perplexity | `partial` | cookies | search-heavy prompting | Uses Perplexity’s live web flow for browserless text prompts; image/video support is still limited. |
-| Qwen | `partial` | cookies | cookie-backed Qwen chat | Usually works directly from exported browser cookies. |
-| Z.ai | `partial` | cookies | cookie-backed chat workflows | Session-backed provider for text-oriented usage today; media flows are still limited. |
+| Provider | Stability | Auth | Read | Write | Browser login | Async jobs | Command |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| ChatGPT | `stable` | `cookies` | `supported` | `supported` | `supported` | `partial` | `autocli llm chatgpt` |
+| Claude | `partial` | `cookies` | `supported` | `supported` | `supported` | `partial` | `autocli llm claude` |
+| DeepSeek | `partial` | `cookies` | `supported` | `supported` | `supported` | `partial` | `autocli llm deepseek` |
+| Gemini | `stable` | `cookies` | `supported` | `supported` | `supported` | `partial` | `autocli llm gemini` |
+| Grok | `partial` | `cookies` | `supported` | `supported` | `supported` | `supported` | `autocli llm grok` |
+| Mistral | `partial` | `cookies` | `supported` | `supported` | `supported` | `partial` | `autocli llm mistral` |
+| Perplexity | `partial` | `cookies` | `supported` | `supported` | `supported` | `partial` | `autocli llm perplexity` |
+| Qwen | `partial` | `cookies` | `supported` | `supported` | `supported` | `partial` | `autocli llm qwen` |
+| Z.ai | `partial` | `cookies` | `supported` | `supported` | `supported` | `partial` | `autocli llm zai` |
+
+Notes:
+- `chatgpt`: Shared browser login works well for cookie capture and reuse.
+- `deepseek`: Some flows also need a token recovered from browser storage.
+- `grok`: AutoCLI can fall back to an in-browser Grok request path when the browserless endpoint is blocked.
 
 ### Editor
 
-| Provider | Stability | Needs | Best for | Notes |
-| --- | --- | --- | --- | --- |
-| Archive Editor | `stable` | local tools | create, inspect, and extract archives | Good for zip/tar/gzip workflows. |
-| Audio Editor | `stable` | local tools | trim, convert, normalize, denoise, report | Built around `ffmpeg` and related local tooling. |
-| Document Editor | `stable` | local tools | document conversion, OCR, and text extraction | Useful for format conversion, OCR, and markdown export. |
-| GIF Editor | `stable` | local tools | GIF create, optimize, and video conversion | Great for social clips and quick previews. |
-| Image Editor | `stable` | local tools | image transformation pipelines | Includes upscale, background remove, watermark, compress, metadata strip, and more. |
-| PDF Editor | `stable` | local tools | merge, split, watermark, reorder, secure | Also supports `to-images`, with better multi-page output when `pdftoppm` is installed. |
-| Subtitle Editor | `stable` | local tools | shift, clean, merge, burn subtitles | Pairs well with YouTube and video publishing flows. |
-| Video Editor | `stable` | local tools | split, stabilize, scene detect, overlay, transcode | Strong `ffmpeg`-driven video workflow surface. |
+| Provider | Stability | Auth | Read | Write | Browser login | Async jobs | Command |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Archive Editor | `stable` | `none` | `supported` | `supported` | `unsupported` | `unsupported` | `autocli editor archive` |
+| Audio Editor | `stable` | `none` | `supported` | `supported` | `unsupported` | `unsupported` | `autocli editor audio` |
+| Document Editor | `stable` | `none` | `supported` | `supported` | `unsupported` | `unsupported` | `autocli editor document` |
+| GIF Editor | `stable` | `none` | `supported` | `supported` | `unsupported` | `unsupported` | `autocli editor gif` |
+| Image Editor | `stable` | `none` | `supported` | `supported` | `unsupported` | `unsupported` | `autocli editor image` |
+| PDF Editor | `stable` | `none` | `supported` | `supported` | `unsupported` | `unsupported` | `autocli editor pdf` |
+| Subtitle Editor | `stable` | `none` | `supported` | `supported` | `unsupported` | `unsupported` | `autocli editor subtitle` |
+| Video Editor | `stable` | `none` | `supported` | `supported` | `unsupported` | `unsupported` | `autocli editor video` |
 
 ### Finance
 
-| Provider | Stability | Needs | Best for | Notes |
-| --- | --- | --- | --- | --- |
-| Crypto | `stable` | none | crypto spot price lookup | No key required. |
-| Currency | `stable` | none | currency conversion and forex math | Also exposed naturally as forex conversion. |
-| Stocks | `stable` | none | stock quote lookups | Public market data surface. |
+| Provider | Stability | Auth | Read | Write | Browser login | Async jobs | Command |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Crypto | `stable` | `none` | `supported` | `unsupported` | `unsupported` | `unsupported` | `autocli finance crypto` |
+| Currency | `stable` | `none` | `supported` | `unsupported` | `unsupported` | `unsupported` | `autocli finance currency` |
+| Stocks | `stable` | `none` | `supported` | `unsupported` | `unsupported` | `unsupported` | `autocli finance stocks` |
 
 ### Data
 
-| Provider | Stability | Needs | Best for | Notes |
-| --- | --- | --- | --- | --- |
-| CSV | `stable` | none | inspect, filter, and convert CSV | Good for tabular exports and spreadsheet-style data. |
-| HTML | `stable` | none | extract plain text or convert HTML to Markdown | Useful after scraping or page capture workflows. |
-| JSON | `stable` | none | format, query, and merge JSON | Best glue layer for agent workflows across providers. |
-| Markdown | `stable` | none | convert Markdown to HTML or text | Good for docs, release notes, and prompt shaping. |
-| Text | `stable` | none | stats, replace, and dedupe lines | Useful for cleanup and normalization between steps. |
-| XML | `stable` | none | format XML and convert it to JSON | Useful for feeds, sitemaps, and older structured formats. |
-| YAML | `stable` | none | format YAML and convert it to JSON | Good for configs, manifests, and infra files. |
+| Provider | Stability | Auth | Read | Write | Browser login | Async jobs | Command |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| CSV | `stable` | `none` | `supported` | `supported` | `unsupported` | `unsupported` | `autocli data csv` |
+| HTML | `stable` | `none` | `supported` | `supported` | `unsupported` | `unsupported` | `autocli data html` |
+| JSON | `stable` | `none` | `supported` | `supported` | `unsupported` | `unsupported` | `autocli data json` |
+| Markdown | `stable` | `none` | `supported` | `supported` | `unsupported` | `unsupported` | `autocli data markdown` |
+| Text | `stable` | `none` | `supported` | `supported` | `unsupported` | `unsupported` | `autocli data text` |
+| XML | `stable` | `none` | `supported` | `supported` | `unsupported` | `unsupported` | `autocli data xml` |
+| YAML | `stable` | `none` | `supported` | `supported` | `unsupported` | `unsupported` | `autocli data yaml` |
+
+### Google
+
+| Provider | Stability | Auth | Read | Write | Browser login | Async jobs | Command |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Gmail | `stable` | `oauth2` | `supported` | `supported` | `unsupported` | `unsupported` | `autocli google gmail` |
+| Google Calendar | `stable` | `oauth2` | `supported` | `supported` | `unsupported` | `unsupported` | `autocli google calendar` |
+| Google Docs | `stable` | `oauth2` | `supported` | `supported` | `unsupported` | `unsupported` | `autocli google docs` |
+| Google Drive | `stable` | `oauth2` | `supported` | `supported` | `unsupported` | `unsupported` | `autocli google drive` |
+| Google Forms | `stable` | `oauth2` | `supported` | `supported` | `unsupported` | `unsupported` | `autocli google forms` |
+| Google Sheets | `stable` | `oauth2` | `supported` | `supported` | `unsupported` | `unsupported` | `autocli google sheets` |
+
+Notes:
+- `gmail`: Uses Google's OAuth2 flow and stores refresh tokens locally for headless reuse.
+- `calendar`: Uses Google's OAuth2 flow for calendar listing plus Google Calendar event reads and writes.
+- `docs`: Uses Google's OAuth2 flow for Google Docs listing, content reads, document creation, and text edits.
+- `drive`: Uses Google's OAuth2 flow and supports Drive file listing, uploads, downloads, and deletes.
+- `forms`: Uses Google's OAuth2 flow plus Drive-backed listing and deletion for Google Forms CRUD, responses, and publish settings.
+- `sheets`: Uses Google's OAuth2 flow for spreadsheet reads and writes.
 
 ### Maps
 
-| Provider | Stability | Needs | Best for | Notes |
-| --- | --- | --- | --- | --- |
-| Geo | `stable` | none | distance, midpoint, plus codes, elevation | Pure local/public helpers plus public elevation lookup. |
-| OpenStreetMap | `stable` | none | search, reverse geocode, nearby lookup | Uses public OSM and Overpass services. |
-| OSRM | `stable` | none | route, trip, table, nearest, match | Public routing and trip calculations. |
+| Provider | Stability | Auth | Read | Write | Browser login | Async jobs | Command |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Geo | `stable` | `none` | `supported` | `unsupported` | `unsupported` | `unsupported` | `autocli maps geo` |
+| OpenStreetMap | `stable` | `none` | `supported` | `unsupported` | `unsupported` | `unsupported` | `autocli maps openstreetmap` |
+| OSRM | `stable` | `none` | `supported` | `unsupported` | `unsupported` | `unsupported` | `autocli maps osrm` |
 
 ### Movie
 
-| Provider | Stability | Needs | Best for | Notes |
-| --- | --- | --- | --- | --- |
-| AniList | `stable` | none | anime title lookup, trending, recommendations | Public anime metadata plus trending and recs. |
-| IMDb | `stable` | none | movie and show lookup | Public search/title surface. |
-| JustWatch | `stable` | none | where-to-watch checks | Streaming availability lookup. |
-| Kitsu | `stable` | none | anime and manga discovery | Alternative anime metadata source. |
-| Letterboxd | `stable` | none | film pages, diary feeds, and community taste | Public film pages plus profile and diary/RSS reading. |
-| MyAnimeList | `stable` | none or cookies | public search plus your own saved list | Public lookups work without cookies; personal defaults can use cookies. |
-| TMDb | `stable` | none | broad movie and TV title lookup | Uses TMDb's live public web catalog for search, title detail, popular titles, and recommendations. |
-| TVMaze | `stable` | none | TV and episode-oriented title lookup | Strong TV-first public catalog with episode lists. |
-
-### Music
-
-| Provider | Stability | Needs | Best for | Notes |
-| --- | --- | --- | --- | --- |
-| Bandcamp | `stable` | none | public artist, album, and track lookup | Uses Bandcamp search plus readable album, track, and artist pages. |
-| Deezer | `stable` | none | public track, album, artist, and playlist lookup | Uses Deezer's public entity API and a public search fallback where regional search is weak. |
-| SoundCloud | `stable` | none | public track, playlist, and user discovery | Uses SoundCloud's public web client flow and can download tracks when a public stream is exposed. |
-| Spotify | `stable` | cookies | library, playback, queue, playlists | Strongest playback-control surface in the repo today. |
-| YouTube Music | `partial` | cookies | search and local playback control | Read commands can fall back to public browsing in some flows. |
-
-### Social
-
-| Provider | Stability | Needs | Best for | Notes |
-| --- | --- | --- | --- | --- |
-| Bluesky | `stable` | none | public profile, feed, and thread lookup | Uses Bluesky's public appview API, so it is cleaner and more stable than most social adapters. |
-| Facebook | `partial` | cookies | session import and light account automation | Validation and safer read surfaces are strongest today; protected write flows are still conservative. |
-| Instagram | `partial` | cookies | posting, downloads, stories, follows | One of the strongest cookie-backed social adapters in the repo. |
-| LinkedIn | `partial` | cookies | posting and engagement | Text posting works best; richer media/write surfaces can drift and may need adapter refreshes over time. |
-| Mastodon | `stable` | none | federated profile, posts, and thread lookup | Uses public instance APIs and respects the target instance when resolving accounts and statuses. |
-| Pinterest | `stable` | none | public pin, profile, and board discovery | Good public-read discovery surface without cookies. |
-| Reddit | `partial` | none or cookies | public post/thread discovery plus session-backed posting, comments, votes, and saves | Public reads use Reddit's JSON endpoints; writes can use a saved session or the shared browser profile with `--browser`. |
-| Telegram | `partial` | session | QR, phone, or session-string login for account messaging | Uses MTProto with a saved user session, not browser cookies. |
-| Threads | `partial` | none | public profile, post, and reply lookup | Uses the live Threads web surface through readable extraction; good for discovery, not write automation yet. |
-| TikTok | `partial` | cookies | session handling and light public automation | Session validation and read flows are strongest today; signing for private web writes is still a known hard part. |
-| WhatsApp | `partial` | session | QR or pairing-code login for account messaging | Uses a saved WhatsApp multi-device auth state with cached chats/messages for terminal workflows. |
-| X | `partial` | cookies | posting, likes, profile/tweet lookup | Strong cookie-backed adapter with browser-backed write flows to reduce X automation friction. |
-| YouTube | `partial` | cookies | search, likes, comments, downloads | Upload/community posting are still separate future work. |
-
-### Partial Support Notes
-
-These providers are intentionally included, but their current browserless surface is narrower than their full website:
-
-- `Claude`, `DeepSeek`, `Mistral`, `Perplexity`, and `Z.ai` are strongest on text-oriented prompting today.
-- `Facebook` and `TikTok` are more reliable for session validation and lighter read flows than for protected web writes.
-- `LinkedIn` works best for text-first posting and engagement, but richer web flows can drift.
-- `YouTube` is strong for search, engagement, subscriptions, and downloads, while upload/community publishing is still separate future work.
-
-### Shopping
-
-| Provider | Stability | Needs | Best for | Notes |
-| --- | --- | --- | --- | --- |
-| Amazon | `partial` | cookies | account, cart, add-to-cart, remove-from-cart, update-cart, search, product lookup | `add-to-cart`, `remove-from-cart`, `update-cart`, `cart`, `orders`, and `order` support browser-backed execution when the saved session alone is not enough. |
-| eBay | `stable` | none | public listings, item lookup, seller discovery | Uses public readable page extraction plus the public autocomplete endpoint. |
-| Etsy | `partial` | none | public listing and shop discovery | Direct Etsy fetches are anti-bot protected, so this adapter uses public site-search discovery today. |
-| Flipkart | `stable` | cookies | account, wishlist, cart, add-to-cart, remove-from-cart, update-cart, orders | Uses the saved Flipkart session for cart actions. New adds use the authenticated cart endpoint; quantity updates and removals use the saved session in an invisible browser. |
-
-### Developer
-
-| Provider | Stability | Needs | Best for | Notes |
-| --- | --- | --- | --- | --- |
-| Confluence | `stable` | cookies | spaces, pages, search, comments, page creation | Uses an Atlassian web session to search and edit workspace documentation from the terminal. |
-| GitHub | `stable` | cookies | repos, issues, pull requests, stars | Uses a saved GitHub web session for browserless developer automation. |
-| GitLab | `stable` | cookies | projects, issues, merge requests | Uses a saved GitLab web session instead of personal access tokens. |
-| Jira | `stable` | cookies | projects, issues, JQL search, issue creation | Saves a site-scoped Jira web session and reuses it for browserless workspace automation. |
-| Linear | `partial` | cookies | issue management and comments | Uses the saved Linear web session for GraphQL issue workflows. |
-| Notion | `partial` | cookies | search, pages, databases, comments | Uses the saved Notion web session instead of an official integration token. |
-| Trello | `stable` | cookies | boards, lists, cards, card creation | Uses a saved Trello web session for browserless board and card workflows. |
-
-### DevOps
-
-| Provider | Stability | Needs | Best for | Notes |
-| --- | --- | --- | --- | --- |
-| Cloudflare | `stable` | api token | zones, DNS, and account-level infrastructure automation | Strong official API surface for DNS and zone operations. |
-| DigitalOcean | `stable` | api token | App Platform, deployments, and domains | Uses the official App Platform and account APIs. |
-| Fly.io | `partial` | api token | apps, machines, volumes, and certificates | Some tokens may need an explicit `--org` slug for the cleanest results. |
-| Netlify | `stable` | api token | sites, deploys, DNS, and team account automation | Good fit for deployment and static hosting workflows. |
-| Railway | `partial` | api token | projects, services, and environment-oriented platform workflows | Uses Railway’s GraphQL surface, so deeper actions may still expand over time. |
-| Render | `stable` | api token | services, projects, and env-group automation | Strong official REST API for deployment and service inspection. |
-| Supabase | `stable` | api token | organizations, projects, and functions | Good backend/platform automation surface. |
-| Vercel | `stable` | api token | teams, projects, and deployments | Strong deployment-centric API coverage. |
-
-### Bot
-
-| Provider | Stability | Needs | Best for | Notes |
-| --- | --- | --- | --- | --- |
-| Discord Bot | `stable` | bot token | guild/channel messaging automation | Good for notifications and chat ops. |
-| GitHub Bot | `stable` | api token | GitHub app or bot-token actions | Same GitHub surface, but bot-style auth. |
-| Slack Bot | `stable` | bot token | channel history, send, edit, file upload | Strong for workspace notification flows. |
-| Telegram Bot | `stable` | bot token | send, edit, media, updates | Good default bot adapter for lightweight notifications. |
-
-### Tools
-
-| Provider | Stability | Needs | Best for | Notes |
-| --- | --- | --- | --- | --- |
-| Cheat | `stable` | none | shell and language cheat sheets | Fast terminal help. |
-| DNS | `stable` | none | DNS record lookups | Good for quick ops checks. |
-| Favicon | `stable` | none | site icon discovery and verification | Resolves declared icon tags, falls back to `/favicon.ico`, and verifies candidates. |
-| Headers | `stable` | none | inspect raw HTTP response headers | Useful for cache, CDN, and server debugging. |
-| HTTP Toolkit | `stable` | none or cookies | inspect saved sessions, attach to the shared browser, and replay authenticated requests | Best for session-aware debugging on sites where plain `curl` is not enough. |
-| IP | `stable` | none | public IP and network details | Fast no-auth network lookup. |
-| Markdown Fetch | `stable` | none | turn pages into markdown-like text | Useful for scraping readable content. |
-| Metadata | `stable` | none | webpage title and social tags | Extracts title, description, canonical, favicon, Open Graph, and Twitter tags. |
-| oEmbed | `stable` | none | embeddable media/page metadata from URLs | Uses page-discovered oEmbed endpoints first, then falls back to a public resolver. |
-| Page Links | `stable` | none | internal/external link extraction from webpages | Useful for crawls, site audits, and agent discovery. |
-| QR | `stable` | none | QR generation | Can save or print a public image URL. |
-| Redirect | `stable` | none | redirect-chain tracing | Shows each HTTP hop and final destination. |
-| Robots | `stable` | none | `robots.txt` inspection | Useful for site crawling checks. |
-| RSS | `stable` | none | feed inspection | Reads RSS/Atom without setup. |
-| Screenshot | `stable` | none | URL-to-image captures | Public no-key render service. |
-| Sitemap | `stable` | none | sitemap discovery and listing | Good for SEO/crawl inspection. |
-| SSL | `stable` | none | TLS certificate inspection | Shows certificate, issuer, SANs, protocol, and expiry. |
-| Time | `stable` | none | timezone and current time lookup | Public time APIs. |
-| Timezone | `stable` | none | resolve timezone from a place, coordinates, or IANA zone | Useful for scheduling, agent routing, and regional workflows. |
-| Translate | `stable` | none | quick translation | Uses a public translation endpoint. |
-| Uptime | `stable` | none | latency and HTTP health checks | Lightweight monitoring helper. |
-| Weather | `stable` | none | weather lookup | No account required. |
-| Web Search | `stable` | none | multi-engine search | Supports summaries and engine selection. |
-| Whois | `stable` | none | domain registration details | Useful for domain inspection. |
+| Provider | Stability | Auth | Read | Write | Browser login | Async jobs | Command |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| AniList | `stable` | `none` | `supported` | `unsupported` | `unsupported` | `unsupported` | `autocli movie anilist` |
+| IMDb | `stable` | `none` | `supported` | `unsupported` | `unsupported` | `unsupported` | `autocli movie imdb` |
+| JustWatch | `stable` | `none` | `supported` | `unsupported` | `unsupported` | `unsupported` | `autocli movie justwatch` |
+| Kitsu | `stable` | `none` | `supported` | `unsupported` | `unsupported` | `unsupported` | `autocli movie kitsu` |
+| Letterboxd | `stable` | `none` | `supported` | `unsupported` | `unsupported` | `unsupported` | `autocli movie letterboxd` |
+| MyAnimeList | `stable` | `cookies`, `none` | `supported` | `unsupported` | `unsupported` | `unsupported` | `autocli movie myanimelist` |
+| TMDb | `stable` | `none` | `supported` | `unsupported` | `unsupported` | `unsupported` | `autocli movie tmdb` |
+| TVMaze | `stable` | `none` | `supported` | `unsupported` | `unsupported` | `unsupported` | `autocli movie tvmaze` |
 
 ### News
 
-| Provider | Stability | Needs | Best for | Notes |
-| --- | --- | --- | --- | --- |
-| News | `stable` | none | headline and feed aggregation | Pulls from public no-key sources like Google News, GDELT, Hacker News, Reddit, and raw RSS feeds. |
+| Provider | Stability | Auth | Read | Write | Browser login | Async jobs | Command |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| News | `stable` | `none` | `supported` | `unsupported` | `unsupported` | `unsupported` | `autocli news` |
+
+### Music
+
+| Provider | Stability | Auth | Read | Write | Browser login | Async jobs | Command |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Bandcamp | `stable` | `none` | `supported` | `unsupported` | `partial` | `unsupported` | `autocli music bandcamp` |
+| Deezer | `stable` | `none` | `supported` | `unsupported` | `partial` | `unsupported` | `autocli music deezer` |
+| SoundCloud | `stable` | `none` | `supported` | `partial` | `partial` | `unsupported` | `autocli music soundcloud` |
+| Spotify | `stable` | `cookies` | `supported` | `supported` | `supported` | `unsupported` | `autocli music spotify` |
+| YouTube Music | `partial` | `cookies` | `supported` | `supported` | `supported` | `unsupported` | `autocli music youtube-music` |
+
+### Social
+
+| Provider | Stability | Auth | Read | Write | Browser login | Async jobs | Command |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Bluesky | `stable` | `none`, `session` | `supported` | `supported` | `unsupported` | `unsupported` | `autocli social bluesky` |
+| Facebook | `partial` | `cookies` | `supported` | `supported` | `supported` | `unsupported` | `autocli social facebook` |
+| Instagram | `partial` | `cookies` | `supported` | `supported` | `supported` | `unsupported` | `autocli social instagram` |
+| LinkedIn | `partial` | `cookies` | `supported` | `partial` | `supported` | `unsupported` | `autocli social linkedin` |
+| Mastodon | `stable` | `none` | `supported` | `unsupported` | `unsupported` | `unsupported` | `autocli social mastodon` |
+| Pinterest | `stable` | `none` | `supported` | `unsupported` | `unsupported` | `unsupported` | `autocli social pinterest` |
+| Reddit | `partial` | `none`, `cookies` | `supported` | `supported` | `supported` | `unsupported` | `autocli social reddit` |
+| Telegram | `partial` | `session` | `supported` | `supported` | `unsupported` | `unsupported` | `autocli social telegram` |
+| Threads | `partial` | `none` | `supported` | `unsupported` | `unsupported` | `unsupported` | `autocli social threads` |
+| TikTok | `partial` | `cookies` | `supported` | `partial` | `supported` | `unsupported` | `autocli social tiktok` |
+| Twitch | `partial` | `cookies` | `supported` | `partial` | `supported` | `unsupported` | `autocli social twitch` |
+| WhatsApp | `partial` | `session` | `supported` | `supported` | `unsupported` | `unsupported` | `autocli social whatsapp` |
+| X | `partial` | `cookies` | `supported` | `supported` | `supported` | `unsupported` | `autocli social x` |
+| YouTube | `partial` | `cookies` | `supported` | `partial` | `supported` | `unsupported` | `autocli social youtube` |
+
+Notes:
+- `bluesky`: Public reads stay available without auth. App-password login enables saved-session `me`, `post`, `comment`, and `like` commands without browser automation.
+- `facebook`: Facebook writes now run through browser-backed post, like, and comment flows. Use `--browser` to jump straight into the shared AutoCLI browser profile when you want the visible browser path.
+- `instagram`: Reads and image/comment writes are browserless; post and comment deletion can fall back to browser-backed flows when Instagram's web APIs get flaky.
+- `reddit`: Public reads are stable; writes can use a saved session or the shared browser profile.
+- `telegram`: Uses saved MTProto sessions instead of browser cookies.
+- `twitch`: Uses Twitch's authenticated web GraphQL surface for channel, stream, video, and clip lookups.
+- `twitch`: Follow and unfollow try Twitch's web mutation path first, then can fall back to the shared AutoCLI browser profile when Twitch enforces an integrity challenge.
+- `twitch`: Clip creation and stream settings updates currently run through the shared AutoCLI browser profile.
+- `whatsapp`: Uses QR or pairing-code session state instead of browser cookies.
+- `x`: X write actions run through browser-backed flows. Use `--browser` to force the shared AutoCLI browser profile immediately when you want the live browser path.
+- `youtube`: Studio uploads are browser-backed. Watch-page likes, dislikes, comments, and subscriptions still use request tokens from the saved session.
+
+### Careers
+
+| Provider | Stability | Auth | Read | Write | Browser login | Async jobs | Command |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Indeed | `stable` | `none` | `supported` | `unsupported` | `unsupported` | `unsupported` | `autocli careers indeed` |
+| ZipRecruiter | `stable` | `none` | `supported` | `unsupported` | `unsupported` | `unsupported` | `autocli careers ziprecruiter` |
+
+### Shopping
+
+| Provider | Stability | Auth | Read | Write | Browser login | Async jobs | Command |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Amazon | `partial` | `cookies` | `supported` | `partial` | `supported` | `unsupported` | `autocli shopping amazon` |
+| eBay | `stable` | `none` | `supported` | `unsupported` | `unsupported` | `unsupported` | `autocli shopping ebay` |
+| Etsy | `partial` | `none` | `supported` | `unsupported` | `unsupported` | `unsupported` | `autocli shopping etsy` |
+| Flipkart | `stable` | `cookies` | `supported` | `supported` | `supported` | `unsupported` | `autocli shopping flipkart` |
+
+Notes:
+- `amazon`: `add-to-cart`, `remove-from-cart`, `update-cart`, `orders`, `order`, and `cart` support browser-backed execution when the saved session alone is not enough.
+- `flipkart`: Uses the saved Flipkart session for cart actions. New adds use the authenticated cart endpoint; quantity updates and removals use the saved session in an invisible browser.
+
+### Developer
+
+| Provider | Stability | Auth | Read | Write | Browser login | Async jobs | Command |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Confluence | `stable` | `cookies` | `supported` | `supported` | `supported` | `unsupported` | `autocli developer confluence` |
+| GitHub | `stable` | `cookies` | `supported` | `supported` | `supported` | `unsupported` | `autocli developer github` |
+| GitLab | `stable` | `cookies` | `supported` | `supported` | `supported` | `unsupported` | `autocli developer gitlab` |
+| Jira | `stable` | `cookies` | `supported` | `supported` | `supported` | `unsupported` | `autocli developer jira` |
+| Linear | `partial` | `cookies` | `supported` | `supported` | `supported` | `unsupported` | `autocli developer linear` |
+| Notion | `partial` | `cookies` | `supported` | `supported` | `supported` | `unsupported` | `autocli developer notion` |
+| Trello | `stable` | `cookies` | `supported` | `supported` | `supported` | `unsupported` | `autocli developer trello` |
+
+Notes:
+- `github`: Uses a saved GitHub web session for browserless repository automation.
+
+### DevOps
+
+| Provider | Stability | Auth | Read | Write | Browser login | Async jobs | Command |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Cloudflare | `stable` | `api token` | `supported` | `unsupported` | `unsupported` | `unsupported` | `autocli devops cloudflare` |
+| DigitalOcean | `stable` | `api token` | `supported` | `unsupported` | `unsupported` | `unsupported` | `autocli devops digitalocean` |
+| Fly.io | `partial` | `api token` | `supported` | `unsupported` | `unsupported` | `unsupported` | `autocli devops fly` |
+| Netlify | `stable` | `api token` | `supported` | `unsupported` | `unsupported` | `unsupported` | `autocli devops netlify` |
+| Railway | `partial` | `api token` | `supported` | `unsupported` | `unsupported` | `unsupported` | `autocli devops railway` |
+| Render | `stable` | `api token` | `supported` | `unsupported` | `unsupported` | `unsupported` | `autocli devops render` |
+| Supabase | `stable` | `api token` | `supported` | `unsupported` | `unsupported` | `unsupported` | `autocli devops supabase` |
+| UptimeRobot | `stable` | `api token` | `supported` | `supported` | `unsupported` | `unsupported` | `autocli devops uptimerobot` |
+| Vercel | `stable` | `api token` | `supported` | `unsupported` | `unsupported` | `unsupported` | `autocli devops vercel` |
+
+Notes:
+- `fly`: Org-aware app listing may require an explicit --org slug for some tokens.
+- `railway`: Uses Railway's GraphQL surface, so some deeper actions may still be added later.
+- `uptimerobot`: Uses UptimeRobot's official v3 API with bearer-token authentication.
+
+### Bot
+
+| Provider | Stability | Auth | Read | Write | Browser login | Async jobs | Command |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Discord Bot | `stable` | `bot token` | `supported` | `supported` | `unsupported` | `unsupported` | `autocli bot discordbot` |
+| GitHub Bot | `stable` | `api token` | `supported` | `supported` | `unsupported` | `unsupported` | `autocli bot githubbot` |
+| Slack Bot | `stable` | `bot token` | `supported` | `supported` | `unsupported` | `unsupported` | `autocli bot slackbot` |
+| Telegram Bot | `stable` | `bot token` | `supported` | `supported` | `unsupported` | `unsupported` | `autocli bot telegrambot` |
+
+### Tools
+
+| Provider | Stability | Auth | Read | Write | Browser login | Async jobs | Command |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Cheat | `stable` | `none` | `supported` | `unknown` | `unsupported` | `unsupported` | `autocli tools cheat` |
+| DNS | `stable` | `none` | `supported` | `unknown` | `unsupported` | `unsupported` | `autocli tools dns` |
+| Download | `stable` | `none`, `cookies` | `supported` | `unknown` | `unsupported` | `unsupported` | `autocli tools download` |
+| Favicon | `stable` | `none` | `supported` | `unknown` | `unsupported` | `unsupported` | `autocli tools favicon` |
+| Headers | `stable` | `none` | `supported` | `unknown` | `unsupported` | `unsupported` | `autocli tools headers` |
+| HTTP Toolkit | `stable` | `none`, `cookies` | `supported` | `supported` | `unsupported` | `unsupported` | `autocli tools http` |
+| IP | `stable` | `none` | `supported` | `unknown` | `unsupported` | `unsupported` | `autocli tools ip` |
+| Markdown Fetch | `stable` | `none` | `supported` | `unknown` | `unsupported` | `unsupported` | `autocli tools markdown-fetch` |
+| Metadata | `stable` | `none` | `supported` | `unknown` | `unsupported` | `unsupported` | `autocli tools metadata` |
+| oEmbed | `stable` | `none` | `supported` | `unknown` | `unsupported` | `unsupported` | `autocli tools oembed` |
+| Page Links | `stable` | `none` | `supported` | `unknown` | `unsupported` | `unsupported` | `autocli tools page-links` |
+| QR | `stable` | `none` | `supported` | `unknown` | `unsupported` | `unsupported` | `autocli tools qr` |
+| Redirect | `stable` | `none` | `supported` | `unknown` | `unsupported` | `unsupported` | `autocli tools redirect` |
+| Robots | `stable` | `none` | `supported` | `unknown` | `unsupported` | `unsupported` | `autocli tools robots` |
+| RSS | `stable` | `none` | `supported` | `unknown` | `unsupported` | `unsupported` | `autocli tools rss` |
+| Screenshot | `stable` | `none` | `supported` | `unknown` | `unsupported` | `unsupported` | `autocli tools screenshot` |
+| Sitemap | `stable` | `none` | `supported` | `unknown` | `unsupported` | `unsupported` | `autocli tools sitemap` |
+| SSL | `stable` | `none` | `supported` | `unknown` | `unsupported` | `unsupported` | `autocli tools ssl` |
+| Temp Mail | `stable` | `session` | `supported` | `supported` | `unsupported` | `unsupported` | `autocli tools tempmail` |
+| Time | `stable` | `none` | `supported` | `unknown` | `unsupported` | `unsupported` | `autocli tools time` |
+| Timezone | `stable` | `none` | `supported` | `unknown` | `unsupported` | `unsupported` | `autocli tools timezone` |
+| Transcript | `stable` | `none` | `supported` | `unknown` | `unsupported` | `unsupported` | `autocli tools transcript` |
+| Translate | `stable` | `none` | `supported` | `unknown` | `unsupported` | `unsupported` | `autocli tools translate` |
+| Uptime | `stable` | `none` | `supported` | `unknown` | `unsupported` | `unsupported` | `autocli tools uptime` |
+| Weather | `stable` | `none` | `supported` | `unknown` | `unsupported` | `unsupported` | `autocli tools weather` |
+| Web Search | `stable` | `none` | `supported` | `unknown` | `unsupported` | `unsupported` | `autocli tools websearch` |
+| Whois | `stable` | `none` | `supported` | `unknown` | `unsupported` | `unsupported` | `autocli tools whois` |
+
+Notes:
+- `http`: Best used with saved sessions or the shared browser profile for authenticated request inspection and replay.
+- `tempmail`: Uses Mail.tm's free disposable inbox API and stores the mailbox session locally for reuse.
+<!-- GENERATED:provider-matrix:end -->
 
 ## Agent-Friendly Output
 
