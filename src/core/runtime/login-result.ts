@@ -80,6 +80,8 @@ const ACTION_FOLLOW_UPS: Partial<Record<string, readonly string[]>> = {
 const META_EXCLUDED_KEYS = new Set(["guidance", "login", "meta", "candidates", "requests", "cookies", "localStorage", "sessionStorage"]);
 const LIST_ALIAS_KEYS = [
   "items",
+  "models",
+  "datasets",
   "results",
   "posts",
   "recommendations",

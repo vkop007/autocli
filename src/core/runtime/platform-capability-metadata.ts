@@ -24,6 +24,11 @@ const BASE_DEFAULTS: PlatformCapabilityMetadataInput = {
 };
 
 const CATEGORY_DEFAULTS: Partial<Record<PlatformCategory, PlatformCapabilityMetadataInput>> = {
+  ai: {
+    discovery: "supported",
+    mutation: "unknown",
+    stability: "partial",
+  },
   llm: {
     discovery: "supported",
     mutation: "supported",

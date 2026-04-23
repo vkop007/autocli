@@ -3,8 +3,8 @@
 <!-- GENERATED:badges:start -->
 [![npm version](https://img.shields.io/npm/v/mikacli)](https://www.npmjs.com/package/mikacli)
 [![license](https://img.shields.io/github/license/vkop007/mikacli)](./LICENSE)
-[![providers](https://img.shields.io/badge/providers-117-blue)](#category-overview)
-[![categories](https://img.shields.io/badge/categories-16-6f42c1)](#category-overview)
+[![providers](https://img.shields.io/badge/providers-118-blue)](#category-overview)
+[![categories](https://img.shields.io/badge/categories-17-6f42c1)](#category-overview)
 <!-- GENERATED:badges:end -->
 
 MikaCLI is a terminal automation toolkit for developers and AI agents that turns websites, LLMs, developer platforms, editors, and utilities into one reusable CLI.
@@ -21,7 +21,7 @@ What makes MikaCLI especially useful is that it does not stop at API tokens. It 
 ## Why It Matters
 
 <!-- GENERATED:why-it-matters-count:start -->
-- One command surface across `117` providers.
+- One command surface across `118` providers.
 <!-- GENERATED:why-it-matters-count:end -->
 - Shared browser login means less manual cookie exporting for cookie-backed platforms.
 - Sessions and tokens stay local, so follow-up commands are short and automation-friendly.
@@ -65,8 +65,8 @@ mikacli llm qwen text "Summarize this changelog"
 | --- | --- |
 | Package | `mikacli` |
 | CLI command | `mikacli` |
-| Providers | `117` |
-| Categories | `16` |
+| Providers | `118` |
+| Categories | `17` |
 | npm install | `npm install -g mikacli` |
 | bun install | `bun install -g mikacli` |
 | Local setup | `bun install` |
@@ -157,6 +157,7 @@ MikaCLI is category-only. Provider commands never live at the root.
 
 <!-- GENERATED:command-model-categories:start -->
 - `mikacli llm ...`
+- `mikacli ai ...`
 - `mikacli editor ...`
 - `mikacli finance ...`
 - `mikacli data ...`
@@ -460,6 +461,7 @@ This inventory is generated from the live platform registry.
 | Category | Representative providers | Count | Auth modes | Use it for | Route |
 | --- | --- | ---: | --- | --- | --- |
 | `llm` | `chatgpt`, `claude`, `deepseek`, `gemini`, `grok`, +4 more | 9 | `cookies` | Prompting, chat, image, and generation workflows. | `mikacli llm ...` |
+| `ai` | `huggingface` | 1 | `none` | Model hubs, datasets, Spaces, local runtimes, and inference APIs. | `mikacli ai ...` |
 | `editor` | `archive`, `audio`, `document`, `gif`, `image`, +3 more | 8 | `none` | Local file, media, and document transformations. | `mikacli editor ...` |
 | `finance` | `crypto`, `currency`, `stocks` | 3 | `none` | Market, forex, and crypto lookups. | `mikacli finance ...` |
 | `data` | `csv`, `html`, `json`, `markdown`, `text`, +2 more | 7 | `none` | Structured data cleanup, conversion, filtering, and extraction. | `mikacli data ...` |
@@ -476,7 +478,7 @@ This inventory is generated from the live platform registry.
 | `bot` | `discordbot`, `githubbot`, `slackbot`, `telegrambot` | 4 | `api token`, `bot token` | Bot-token messaging and chat ops. | `mikacli bot ...` |
 | `tools` | `cheat`, `dns`, `download`, `favicon`, `headers`, +22 more | 27 | `cookies`, `none`, `session` | Public utilities, temp mail, downloads, transcripts, and web helpers. | `mikacli tools ...` |
 
-MikaCLI currently exposes `117` providers across `16` active command groups.
+MikaCLI currently exposes `118` providers across `17` active command groups.
 <!-- GENERATED:category-overview:end -->
 
 ## Access Modes
@@ -778,6 +780,15 @@ Notes:
 - `deepseek`: Some flows also need a token recovered from browser storage.
 - `grok`: MikaCLI can fall back to an in-browser Grok request path when the browserless endpoint is blocked.
 
+### AI
+
+| Provider | Stability | Auth | Read | Write | Browser login | Async jobs | Command |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Hugging Face | `stable` | `none` | `supported` | `unsupported` | `unsupported` | `unsupported` | `mikacli ai huggingface` |
+
+Notes:
+- `huggingface`: Uses Hugging Face Hub public APIs for model, dataset, and Space discovery.
+
 ### Editor
 
 | Provider | Stability | Auth | Read | Write | Browser login | Async jobs | Command |
@@ -1062,6 +1073,7 @@ For cookie-backed providers that support interactive capture, you can also use `
     │   └── runtime
     ├── commands
     ├── platforms
+    │   ├── ai
     │   ├── bot
     │   ├── developer
     │   ├── editor

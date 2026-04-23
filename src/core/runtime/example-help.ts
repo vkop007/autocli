@@ -41,6 +41,7 @@ const SAFE_DISCOVERY_COMMANDS = [
 
 const PLATFORM_CATEGORY_PREFIXES = [
   "llm",
+  "ai",
   "editor",
   "finance",
   "data",

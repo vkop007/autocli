@@ -16,6 +16,10 @@ Use these files when the main `$mikacli` skill already knows the provider and ne
 - [Qwen](./qwen.md)
 - [Z.ai](./zai.md)
 
+## ai
+
+- [Hugging Face](./huggingface.md)
+
 ## editor
 
 - [Archive Editor](./archive.md)

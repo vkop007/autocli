@@ -5,242 +5,244 @@
 import type { PlatformConfig } from "./config.js";
 import type { GeneratedPlatformName } from "./generated-metadata.js";
 
-import { runtimeConfig as platformRuntimeConfig0 } from "./bot/discordbot/runtime.js";
-import { runtimeConfig as platformRuntimeConfig1 } from "./bot/githubbot/runtime.js";
-import { runtimeConfig as platformRuntimeConfig2 } from "./bot/slackbot/runtime.js";
-import { runtimeConfig as platformRuntimeConfig3 } from "./bot/telegrambot/runtime.js";
-import { runtimeConfig as platformRuntimeConfig4 } from "./careers/indeed/runtime.js";
-import { runtimeConfig as platformRuntimeConfig5 } from "./careers/ziprecruiter/runtime.js";
-import { runtimeConfig as platformRuntimeConfig6 } from "./data/csv/runtime.js";
-import { runtimeConfig as platformRuntimeConfig7 } from "./data/html/runtime.js";
-import { runtimeConfig as platformRuntimeConfig8 } from "./data/json/runtime.js";
-import { runtimeConfig as platformRuntimeConfig9 } from "./data/markdown/runtime.js";
-import { runtimeConfig as platformRuntimeConfig10 } from "./data/text/runtime.js";
-import { runtimeConfig as platformRuntimeConfig11 } from "./data/xml/runtime.js";
-import { runtimeConfig as platformRuntimeConfig12 } from "./data/yaml/runtime.js";
-import { runtimeConfig as platformRuntimeConfig13 } from "./developer/confluence/runtime.js";
-import { runtimeConfig as platformRuntimeConfig14 } from "./developer/github/runtime.js";
-import { runtimeConfig as platformRuntimeConfig15 } from "./developer/gitlab/runtime.js";
-import { runtimeConfig as platformRuntimeConfig16 } from "./developer/jira/runtime.js";
-import { runtimeConfig as platformRuntimeConfig17 } from "./developer/linear/runtime.js";
-import { runtimeConfig as platformRuntimeConfig18 } from "./developer/notion/runtime.js";
-import { runtimeConfig as platformRuntimeConfig19 } from "./developer/trello/runtime.js";
-import { runtimeConfig as platformRuntimeConfig20 } from "./devops/cloudflare/runtime.js";
-import { runtimeConfig as platformRuntimeConfig21 } from "./devops/digitalocean/runtime.js";
-import { runtimeConfig as platformRuntimeConfig22 } from "./devops/fly/runtime.js";
-import { runtimeConfig as platformRuntimeConfig23 } from "./devops/netlify/runtime.js";
-import { runtimeConfig as platformRuntimeConfig24 } from "./devops/railway/runtime.js";
-import { runtimeConfig as platformRuntimeConfig25 } from "./devops/render/runtime.js";
-import { runtimeConfig as platformRuntimeConfig26 } from "./devops/supabase/runtime.js";
-import { runtimeConfig as platformRuntimeConfig27 } from "./devops/uptimerobot/runtime.js";
-import { runtimeConfig as platformRuntimeConfig28 } from "./devops/vercel/runtime.js";
-import { runtimeConfig as platformRuntimeConfig29 } from "./editor/archive/runtime.js";
-import { runtimeConfig as platformRuntimeConfig30 } from "./editor/audio/runtime.js";
-import { runtimeConfig as platformRuntimeConfig31 } from "./editor/document/runtime.js";
-import { runtimeConfig as platformRuntimeConfig32 } from "./editor/gif/runtime.js";
-import { runtimeConfig as platformRuntimeConfig33 } from "./editor/image/runtime.js";
-import { runtimeConfig as platformRuntimeConfig34 } from "./editor/pdf/runtime.js";
-import { runtimeConfig as platformRuntimeConfig35 } from "./editor/subtitle/runtime.js";
-import { runtimeConfig as platformRuntimeConfig36 } from "./editor/video/runtime.js";
-import { runtimeConfig as platformRuntimeConfig37 } from "./finance/crypto/runtime.js";
-import { runtimeConfig as platformRuntimeConfig38 } from "./finance/currency/runtime.js";
-import { runtimeConfig as platformRuntimeConfig39 } from "./finance/stocks/runtime.js";
-import { runtimeConfig as platformRuntimeConfig40 } from "./google/calendar/runtime.js";
-import { runtimeConfig as platformRuntimeConfig41 } from "./google/docs/runtime.js";
-import { runtimeConfig as platformRuntimeConfig42 } from "./google/drive/runtime.js";
-import { runtimeConfig as platformRuntimeConfig43 } from "./google/forms/runtime.js";
-import { runtimeConfig as platformRuntimeConfig44 } from "./google/gmail/runtime.js";
-import { runtimeConfig as platformRuntimeConfig45 } from "./google/sheets/runtime.js";
-import { runtimeConfig as platformRuntimeConfig46 } from "./llm/chatgpt/runtime.js";
-import { runtimeConfig as platformRuntimeConfig47 } from "./llm/claude/runtime.js";
-import { runtimeConfig as platformRuntimeConfig48 } from "./llm/deepseek/runtime.js";
-import { runtimeConfig as platformRuntimeConfig49 } from "./llm/gemini/runtime.js";
-import { runtimeConfig as platformRuntimeConfig50 } from "./llm/grok/runtime.js";
-import { runtimeConfig as platformRuntimeConfig51 } from "./llm/mistral/runtime.js";
-import { runtimeConfig as platformRuntimeConfig52 } from "./llm/perplexity/runtime.js";
-import { runtimeConfig as platformRuntimeConfig53 } from "./llm/qwen/runtime.js";
-import { runtimeConfig as platformRuntimeConfig54 } from "./llm/zai/runtime.js";
-import { runtimeConfig as platformRuntimeConfig55 } from "./maps/geo/runtime.js";
-import { runtimeConfig as platformRuntimeConfig56 } from "./maps/openstreetmap/runtime.js";
-import { runtimeConfig as platformRuntimeConfig57 } from "./maps/osrm/runtime.js";
-import { runtimeConfig as platformRuntimeConfig58 } from "./movie/anilist/runtime.js";
-import { runtimeConfig as platformRuntimeConfig59 } from "./movie/imdb/runtime.js";
-import { runtimeConfig as platformRuntimeConfig60 } from "./movie/justwatch/runtime.js";
-import { runtimeConfig as platformRuntimeConfig61 } from "./movie/kitsu/runtime.js";
-import { runtimeConfig as platformRuntimeConfig62 } from "./movie/letterboxd/runtime.js";
-import { runtimeConfig as platformRuntimeConfig63 } from "./movie/myanimelist/runtime.js";
-import { runtimeConfig as platformRuntimeConfig64 } from "./movie/tmdb/runtime.js";
-import { runtimeConfig as platformRuntimeConfig65 } from "./movie/tvmaze/runtime.js";
-import { runtimeConfig as platformRuntimeConfig66 } from "./music/bandcamp/runtime.js";
-import { runtimeConfig as platformRuntimeConfig67 } from "./music/deezer/runtime.js";
-import { runtimeConfig as platformRuntimeConfig68 } from "./music/soundcloud/runtime.js";
-import { runtimeConfig as platformRuntimeConfig69 } from "./music/spotify/runtime.js";
-import { runtimeConfig as platformRuntimeConfig70 } from "./music/youtube-music/runtime.js";
-import { runtimeConfig as platformRuntimeConfig71 } from "./news/news/runtime.js";
-import { runtimeConfig as platformRuntimeConfig72 } from "./shopping/amazon/runtime.js";
-import { runtimeConfig as platformRuntimeConfig73 } from "./shopping/ebay/runtime.js";
-import { runtimeConfig as platformRuntimeConfig74 } from "./shopping/etsy/runtime.js";
-import { runtimeConfig as platformRuntimeConfig75 } from "./shopping/flipkart/runtime.js";
-import { runtimeConfig as platformRuntimeConfig76 } from "./social/bluesky/runtime.js";
-import { runtimeConfig as platformRuntimeConfig77 } from "./social/facebook/runtime.js";
-import { runtimeConfig as platformRuntimeConfig78 } from "./social/instagram/runtime.js";
-import { runtimeConfig as platformRuntimeConfig79 } from "./social/linkedin/runtime.js";
-import { runtimeConfig as platformRuntimeConfig80 } from "./social/mastodon/runtime.js";
-import { runtimeConfig as platformRuntimeConfig81 } from "./social/pinterest/runtime.js";
-import { runtimeConfig as platformRuntimeConfig82 } from "./social/reddit/runtime.js";
-import { runtimeConfig as platformRuntimeConfig83 } from "./social/telegram/runtime.js";
-import { runtimeConfig as platformRuntimeConfig84 } from "./social/threads/runtime.js";
-import { runtimeConfig as platformRuntimeConfig85 } from "./social/tiktok/runtime.js";
-import { runtimeConfig as platformRuntimeConfig86 } from "./social/twitch/runtime.js";
-import { runtimeConfig as platformRuntimeConfig87 } from "./social/whatsapp/runtime.js";
-import { runtimeConfig as platformRuntimeConfig88 } from "./social/x/runtime.js";
-import { runtimeConfig as platformRuntimeConfig89 } from "./social/youtube/runtime.js";
-import { runtimeConfig as platformRuntimeConfig90 } from "./tools/cheat/runtime.js";
-import { runtimeConfig as platformRuntimeConfig91 } from "./tools/dns/runtime.js";
-import { runtimeConfig as platformRuntimeConfig92 } from "./tools/download/runtime.js";
-import { runtimeConfig as platformRuntimeConfig93 } from "./tools/favicon/runtime.js";
-import { runtimeConfig as platformRuntimeConfig94 } from "./tools/headers/runtime.js";
-import { runtimeConfig as platformRuntimeConfig95 } from "./tools/http/runtime.js";
-import { runtimeConfig as platformRuntimeConfig96 } from "./tools/ip/runtime.js";
-import { runtimeConfig as platformRuntimeConfig97 } from "./tools/markdown-fetch/runtime.js";
-import { runtimeConfig as platformRuntimeConfig98 } from "./tools/metadata/runtime.js";
-import { runtimeConfig as platformRuntimeConfig99 } from "./tools/oembed/runtime.js";
-import { runtimeConfig as platformRuntimeConfig100 } from "./tools/page-links/runtime.js";
-import { runtimeConfig as platformRuntimeConfig101 } from "./tools/qr/runtime.js";
-import { runtimeConfig as platformRuntimeConfig102 } from "./tools/redirect/runtime.js";
-import { runtimeConfig as platformRuntimeConfig103 } from "./tools/robots/runtime.js";
-import { runtimeConfig as platformRuntimeConfig104 } from "./tools/rss/runtime.js";
-import { runtimeConfig as platformRuntimeConfig105 } from "./tools/screenshot/runtime.js";
-import { runtimeConfig as platformRuntimeConfig106 } from "./tools/sitemap/runtime.js";
-import { runtimeConfig as platformRuntimeConfig107 } from "./tools/ssl/runtime.js";
-import { runtimeConfig as platformRuntimeConfig108 } from "./tools/tempmail/runtime.js";
-import { runtimeConfig as platformRuntimeConfig109 } from "./tools/time/runtime.js";
-import { runtimeConfig as platformRuntimeConfig110 } from "./tools/timezone/runtime.js";
-import { runtimeConfig as platformRuntimeConfig111 } from "./tools/transcript/runtime.js";
-import { runtimeConfig as platformRuntimeConfig112 } from "./tools/translate/runtime.js";
-import { runtimeConfig as platformRuntimeConfig113 } from "./tools/uptime/runtime.js";
-import { runtimeConfig as platformRuntimeConfig114 } from "./tools/weather/runtime.js";
-import { runtimeConfig as platformRuntimeConfig115 } from "./tools/websearch/runtime.js";
-import { runtimeConfig as platformRuntimeConfig116 } from "./tools/whois/runtime.js";
+import { runtimeConfig as platformRuntimeConfig0 } from "./ai/huggingface/runtime.js";
+import { runtimeConfig as platformRuntimeConfig1 } from "./bot/discordbot/runtime.js";
+import { runtimeConfig as platformRuntimeConfig2 } from "./bot/githubbot/runtime.js";
+import { runtimeConfig as platformRuntimeConfig3 } from "./bot/slackbot/runtime.js";
+import { runtimeConfig as platformRuntimeConfig4 } from "./bot/telegrambot/runtime.js";
+import { runtimeConfig as platformRuntimeConfig5 } from "./careers/indeed/runtime.js";
+import { runtimeConfig as platformRuntimeConfig6 } from "./careers/ziprecruiter/runtime.js";
+import { runtimeConfig as platformRuntimeConfig7 } from "./data/csv/runtime.js";
+import { runtimeConfig as platformRuntimeConfig8 } from "./data/html/runtime.js";
+import { runtimeConfig as platformRuntimeConfig9 } from "./data/json/runtime.js";
+import { runtimeConfig as platformRuntimeConfig10 } from "./data/markdown/runtime.js";
+import { runtimeConfig as platformRuntimeConfig11 } from "./data/text/runtime.js";
+import { runtimeConfig as platformRuntimeConfig12 } from "./data/xml/runtime.js";
+import { runtimeConfig as platformRuntimeConfig13 } from "./data/yaml/runtime.js";
+import { runtimeConfig as platformRuntimeConfig14 } from "./developer/confluence/runtime.js";
+import { runtimeConfig as platformRuntimeConfig15 } from "./developer/github/runtime.js";
+import { runtimeConfig as platformRuntimeConfig16 } from "./developer/gitlab/runtime.js";
+import { runtimeConfig as platformRuntimeConfig17 } from "./developer/jira/runtime.js";
+import { runtimeConfig as platformRuntimeConfig18 } from "./developer/linear/runtime.js";
+import { runtimeConfig as platformRuntimeConfig19 } from "./developer/notion/runtime.js";
+import { runtimeConfig as platformRuntimeConfig20 } from "./developer/trello/runtime.js";
+import { runtimeConfig as platformRuntimeConfig21 } from "./devops/cloudflare/runtime.js";
+import { runtimeConfig as platformRuntimeConfig22 } from "./devops/digitalocean/runtime.js";
+import { runtimeConfig as platformRuntimeConfig23 } from "./devops/fly/runtime.js";
+import { runtimeConfig as platformRuntimeConfig24 } from "./devops/netlify/runtime.js";
+import { runtimeConfig as platformRuntimeConfig25 } from "./devops/railway/runtime.js";
+import { runtimeConfig as platformRuntimeConfig26 } from "./devops/render/runtime.js";
+import { runtimeConfig as platformRuntimeConfig27 } from "./devops/supabase/runtime.js";
+import { runtimeConfig as platformRuntimeConfig28 } from "./devops/uptimerobot/runtime.js";
+import { runtimeConfig as platformRuntimeConfig29 } from "./devops/vercel/runtime.js";
+import { runtimeConfig as platformRuntimeConfig30 } from "./editor/archive/runtime.js";
+import { runtimeConfig as platformRuntimeConfig31 } from "./editor/audio/runtime.js";
+import { runtimeConfig as platformRuntimeConfig32 } from "./editor/document/runtime.js";
+import { runtimeConfig as platformRuntimeConfig33 } from "./editor/gif/runtime.js";
+import { runtimeConfig as platformRuntimeConfig34 } from "./editor/image/runtime.js";
+import { runtimeConfig as platformRuntimeConfig35 } from "./editor/pdf/runtime.js";
+import { runtimeConfig as platformRuntimeConfig36 } from "./editor/subtitle/runtime.js";
+import { runtimeConfig as platformRuntimeConfig37 } from "./editor/video/runtime.js";
+import { runtimeConfig as platformRuntimeConfig38 } from "./finance/crypto/runtime.js";
+import { runtimeConfig as platformRuntimeConfig39 } from "./finance/currency/runtime.js";
+import { runtimeConfig as platformRuntimeConfig40 } from "./finance/stocks/runtime.js";
+import { runtimeConfig as platformRuntimeConfig41 } from "./google/calendar/runtime.js";
+import { runtimeConfig as platformRuntimeConfig42 } from "./google/docs/runtime.js";
+import { runtimeConfig as platformRuntimeConfig43 } from "./google/drive/runtime.js";
+import { runtimeConfig as platformRuntimeConfig44 } from "./google/forms/runtime.js";
+import { runtimeConfig as platformRuntimeConfig45 } from "./google/gmail/runtime.js";
+import { runtimeConfig as platformRuntimeConfig46 } from "./google/sheets/runtime.js";
+import { runtimeConfig as platformRuntimeConfig47 } from "./llm/chatgpt/runtime.js";
+import { runtimeConfig as platformRuntimeConfig48 } from "./llm/claude/runtime.js";
+import { runtimeConfig as platformRuntimeConfig49 } from "./llm/deepseek/runtime.js";
+import { runtimeConfig as platformRuntimeConfig50 } from "./llm/gemini/runtime.js";
+import { runtimeConfig as platformRuntimeConfig51 } from "./llm/grok/runtime.js";
+import { runtimeConfig as platformRuntimeConfig52 } from "./llm/mistral/runtime.js";
+import { runtimeConfig as platformRuntimeConfig53 } from "./llm/perplexity/runtime.js";
+import { runtimeConfig as platformRuntimeConfig54 } from "./llm/qwen/runtime.js";
+import { runtimeConfig as platformRuntimeConfig55 } from "./llm/zai/runtime.js";
+import { runtimeConfig as platformRuntimeConfig56 } from "./maps/geo/runtime.js";
+import { runtimeConfig as platformRuntimeConfig57 } from "./maps/openstreetmap/runtime.js";
+import { runtimeConfig as platformRuntimeConfig58 } from "./maps/osrm/runtime.js";
+import { runtimeConfig as platformRuntimeConfig59 } from "./movie/anilist/runtime.js";
+import { runtimeConfig as platformRuntimeConfig60 } from "./movie/imdb/runtime.js";
+import { runtimeConfig as platformRuntimeConfig61 } from "./movie/justwatch/runtime.js";
+import { runtimeConfig as platformRuntimeConfig62 } from "./movie/kitsu/runtime.js";
+import { runtimeConfig as platformRuntimeConfig63 } from "./movie/letterboxd/runtime.js";
+import { runtimeConfig as platformRuntimeConfig64 } from "./movie/myanimelist/runtime.js";
+import { runtimeConfig as platformRuntimeConfig65 } from "./movie/tmdb/runtime.js";
+import { runtimeConfig as platformRuntimeConfig66 } from "./movie/tvmaze/runtime.js";
+import { runtimeConfig as platformRuntimeConfig67 } from "./music/bandcamp/runtime.js";
+import { runtimeConfig as platformRuntimeConfig68 } from "./music/deezer/runtime.js";
+import { runtimeConfig as platformRuntimeConfig69 } from "./music/soundcloud/runtime.js";
+import { runtimeConfig as platformRuntimeConfig70 } from "./music/spotify/runtime.js";
+import { runtimeConfig as platformRuntimeConfig71 } from "./music/youtube-music/runtime.js";
+import { runtimeConfig as platformRuntimeConfig72 } from "./news/news/runtime.js";
+import { runtimeConfig as platformRuntimeConfig73 } from "./shopping/amazon/runtime.js";
+import { runtimeConfig as platformRuntimeConfig74 } from "./shopping/ebay/runtime.js";
+import { runtimeConfig as platformRuntimeConfig75 } from "./shopping/etsy/runtime.js";
+import { runtimeConfig as platformRuntimeConfig76 } from "./shopping/flipkart/runtime.js";
+import { runtimeConfig as platformRuntimeConfig77 } from "./social/bluesky/runtime.js";
+import { runtimeConfig as platformRuntimeConfig78 } from "./social/facebook/runtime.js";
+import { runtimeConfig as platformRuntimeConfig79 } from "./social/instagram/runtime.js";
+import { runtimeConfig as platformRuntimeConfig80 } from "./social/linkedin/runtime.js";
+import { runtimeConfig as platformRuntimeConfig81 } from "./social/mastodon/runtime.js";
+import { runtimeConfig as platformRuntimeConfig82 } from "./social/pinterest/runtime.js";
+import { runtimeConfig as platformRuntimeConfig83 } from "./social/reddit/runtime.js";
+import { runtimeConfig as platformRuntimeConfig84 } from "./social/telegram/runtime.js";
+import { runtimeConfig as platformRuntimeConfig85 } from "./social/threads/runtime.js";
+import { runtimeConfig as platformRuntimeConfig86 } from "./social/tiktok/runtime.js";
+import { runtimeConfig as platformRuntimeConfig87 } from "./social/twitch/runtime.js";
+import { runtimeConfig as platformRuntimeConfig88 } from "./social/whatsapp/runtime.js";
+import { runtimeConfig as platformRuntimeConfig89 } from "./social/x/runtime.js";
+import { runtimeConfig as platformRuntimeConfig90 } from "./social/youtube/runtime.js";
+import { runtimeConfig as platformRuntimeConfig91 } from "./tools/cheat/runtime.js";
+import { runtimeConfig as platformRuntimeConfig92 } from "./tools/dns/runtime.js";
+import { runtimeConfig as platformRuntimeConfig93 } from "./tools/download/runtime.js";
+import { runtimeConfig as platformRuntimeConfig94 } from "./tools/favicon/runtime.js";
+import { runtimeConfig as platformRuntimeConfig95 } from "./tools/headers/runtime.js";
+import { runtimeConfig as platformRuntimeConfig96 } from "./tools/http/runtime.js";
+import { runtimeConfig as platformRuntimeConfig97 } from "./tools/ip/runtime.js";
+import { runtimeConfig as platformRuntimeConfig98 } from "./tools/markdown-fetch/runtime.js";
+import { runtimeConfig as platformRuntimeConfig99 } from "./tools/metadata/runtime.js";
+import { runtimeConfig as platformRuntimeConfig100 } from "./tools/oembed/runtime.js";
+import { runtimeConfig as platformRuntimeConfig101 } from "./tools/page-links/runtime.js";
+import { runtimeConfig as platformRuntimeConfig102 } from "./tools/qr/runtime.js";
+import { runtimeConfig as platformRuntimeConfig103 } from "./tools/redirect/runtime.js";
+import { runtimeConfig as platformRuntimeConfig104 } from "./tools/robots/runtime.js";
+import { runtimeConfig as platformRuntimeConfig105 } from "./tools/rss/runtime.js";
+import { runtimeConfig as platformRuntimeConfig106 } from "./tools/screenshot/runtime.js";
+import { runtimeConfig as platformRuntimeConfig107 } from "./tools/sitemap/runtime.js";
+import { runtimeConfig as platformRuntimeConfig108 } from "./tools/ssl/runtime.js";
+import { runtimeConfig as platformRuntimeConfig109 } from "./tools/tempmail/runtime.js";
+import { runtimeConfig as platformRuntimeConfig110 } from "./tools/time/runtime.js";
+import { runtimeConfig as platformRuntimeConfig111 } from "./tools/timezone/runtime.js";
+import { runtimeConfig as platformRuntimeConfig112 } from "./tools/transcript/runtime.js";
+import { runtimeConfig as platformRuntimeConfig113 } from "./tools/translate/runtime.js";
+import { runtimeConfig as platformRuntimeConfig114 } from "./tools/uptime/runtime.js";
+import { runtimeConfig as platformRuntimeConfig115 } from "./tools/weather/runtime.js";
+import { runtimeConfig as platformRuntimeConfig116 } from "./tools/websearch/runtime.js";
+import { runtimeConfig as platformRuntimeConfig117 } from "./tools/whois/runtime.js";
 
 export function getGeneratedPlatformConfig(): Record<GeneratedPlatformName, PlatformConfig> {
   return {
-  "discordbot": platformRuntimeConfig0,
-  "githubbot": platformRuntimeConfig1,
-  "slackbot": platformRuntimeConfig2,
-  "telegrambot": platformRuntimeConfig3,
-  "indeed": platformRuntimeConfig4,
-  "ziprecruiter": platformRuntimeConfig5,
-  "csv": platformRuntimeConfig6,
-  "html": platformRuntimeConfig7,
-  "json": platformRuntimeConfig8,
-  "markdown": platformRuntimeConfig9,
-  "text": platformRuntimeConfig10,
-  "xml": platformRuntimeConfig11,
-  "yaml": platformRuntimeConfig12,
-  "confluence": platformRuntimeConfig13,
-  "github": platformRuntimeConfig14,
-  "gitlab": platformRuntimeConfig15,
-  "jira": platformRuntimeConfig16,
-  "linear": platformRuntimeConfig17,
-  "notion": platformRuntimeConfig18,
-  "trello": platformRuntimeConfig19,
-  "cloudflare": platformRuntimeConfig20,
-  "digitalocean": platformRuntimeConfig21,
-  "fly": platformRuntimeConfig22,
-  "netlify": platformRuntimeConfig23,
-  "railway": platformRuntimeConfig24,
-  "render": platformRuntimeConfig25,
-  "supabase": platformRuntimeConfig26,
-  "uptimerobot": platformRuntimeConfig27,
-  "vercel": platformRuntimeConfig28,
-  "archive": platformRuntimeConfig29,
-  "audio": platformRuntimeConfig30,
-  "document": platformRuntimeConfig31,
-  "gif": platformRuntimeConfig32,
-  "image": platformRuntimeConfig33,
-  "pdf": platformRuntimeConfig34,
-  "subtitle": platformRuntimeConfig35,
-  "video": platformRuntimeConfig36,
-  "crypto": platformRuntimeConfig37,
-  "currency": platformRuntimeConfig38,
-  "stocks": platformRuntimeConfig39,
-  "calendar": platformRuntimeConfig40,
-  "docs": platformRuntimeConfig41,
-  "drive": platformRuntimeConfig42,
-  "forms": platformRuntimeConfig43,
-  "gmail": platformRuntimeConfig44,
-  "sheets": platformRuntimeConfig45,
-  "chatgpt": platformRuntimeConfig46,
-  "claude": platformRuntimeConfig47,
-  "deepseek": platformRuntimeConfig48,
-  "gemini": platformRuntimeConfig49,
-  "grok": platformRuntimeConfig50,
-  "mistral": platformRuntimeConfig51,
-  "perplexity": platformRuntimeConfig52,
-  "qwen": platformRuntimeConfig53,
-  "zai": platformRuntimeConfig54,
-  "geo": platformRuntimeConfig55,
-  "openstreetmap": platformRuntimeConfig56,
-  "osrm": platformRuntimeConfig57,
-  "anilist": platformRuntimeConfig58,
-  "imdb": platformRuntimeConfig59,
-  "justwatch": platformRuntimeConfig60,
-  "kitsu": platformRuntimeConfig61,
-  "letterboxd": platformRuntimeConfig62,
-  "myanimelist": platformRuntimeConfig63,
-  "tmdb": platformRuntimeConfig64,
-  "tvmaze": platformRuntimeConfig65,
-  "bandcamp": platformRuntimeConfig66,
-  "deezer": platformRuntimeConfig67,
-  "soundcloud": platformRuntimeConfig68,
-  "spotify": platformRuntimeConfig69,
-  "youtube-music": platformRuntimeConfig70,
-  "news": platformRuntimeConfig71,
-  "amazon": platformRuntimeConfig72,
-  "ebay": platformRuntimeConfig73,
-  "etsy": platformRuntimeConfig74,
-  "flipkart": platformRuntimeConfig75,
-  "bluesky": platformRuntimeConfig76,
-  "facebook": platformRuntimeConfig77,
-  "instagram": platformRuntimeConfig78,
-  "linkedin": platformRuntimeConfig79,
-  "mastodon": platformRuntimeConfig80,
-  "pinterest": platformRuntimeConfig81,
-  "reddit": platformRuntimeConfig82,
-  "telegram": platformRuntimeConfig83,
-  "threads": platformRuntimeConfig84,
-  "tiktok": platformRuntimeConfig85,
-  "twitch": platformRuntimeConfig86,
-  "whatsapp": platformRuntimeConfig87,
-  "x": platformRuntimeConfig88,
-  "youtube": platformRuntimeConfig89,
-  "cheat": platformRuntimeConfig90,
-  "dns": platformRuntimeConfig91,
-  "download": platformRuntimeConfig92,
-  "favicon": platformRuntimeConfig93,
-  "headers": platformRuntimeConfig94,
-  "http": platformRuntimeConfig95,
-  "ip": platformRuntimeConfig96,
-  "markdown-fetch": platformRuntimeConfig97,
-  "metadata": platformRuntimeConfig98,
-  "oembed": platformRuntimeConfig99,
-  "page-links": platformRuntimeConfig100,
-  "qr": platformRuntimeConfig101,
-  "redirect": platformRuntimeConfig102,
-  "robots": platformRuntimeConfig103,
-  "rss": platformRuntimeConfig104,
-  "screenshot": platformRuntimeConfig105,
-  "sitemap": platformRuntimeConfig106,
-  "ssl": platformRuntimeConfig107,
-  "tempmail": platformRuntimeConfig108,
-  "time": platformRuntimeConfig109,
-  "timezone": platformRuntimeConfig110,
-  "transcript": platformRuntimeConfig111,
-  "translate": platformRuntimeConfig112,
-  "uptime": platformRuntimeConfig113,
-  "weather": platformRuntimeConfig114,
-  "websearch": platformRuntimeConfig115,
-  "whois": platformRuntimeConfig116,
+  "huggingface": platformRuntimeConfig0,
+  "discordbot": platformRuntimeConfig1,
+  "githubbot": platformRuntimeConfig2,
+  "slackbot": platformRuntimeConfig3,
+  "telegrambot": platformRuntimeConfig4,
+  "indeed": platformRuntimeConfig5,
+  "ziprecruiter": platformRuntimeConfig6,
+  "csv": platformRuntimeConfig7,
+  "html": platformRuntimeConfig8,
+  "json": platformRuntimeConfig9,
+  "markdown": platformRuntimeConfig10,
+  "text": platformRuntimeConfig11,
+  "xml": platformRuntimeConfig12,
+  "yaml": platformRuntimeConfig13,
+  "confluence": platformRuntimeConfig14,
+  "github": platformRuntimeConfig15,
+  "gitlab": platformRuntimeConfig16,
+  "jira": platformRuntimeConfig17,
+  "linear": platformRuntimeConfig18,
+  "notion": platformRuntimeConfig19,
+  "trello": platformRuntimeConfig20,
+  "cloudflare": platformRuntimeConfig21,
+  "digitalocean": platformRuntimeConfig22,
+  "fly": platformRuntimeConfig23,
+  "netlify": platformRuntimeConfig24,
+  "railway": platformRuntimeConfig25,
+  "render": platformRuntimeConfig26,
+  "supabase": platformRuntimeConfig27,
+  "uptimerobot": platformRuntimeConfig28,
+  "vercel": platformRuntimeConfig29,
+  "archive": platformRuntimeConfig30,
+  "audio": platformRuntimeConfig31,
+  "document": platformRuntimeConfig32,
+  "gif": platformRuntimeConfig33,
+  "image": platformRuntimeConfig34,
+  "pdf": platformRuntimeConfig35,
+  "subtitle": platformRuntimeConfig36,
+  "video": platformRuntimeConfig37,
+  "crypto": platformRuntimeConfig38,
+  "currency": platformRuntimeConfig39,
+  "stocks": platformRuntimeConfig40,
+  "calendar": platformRuntimeConfig41,
+  "docs": platformRuntimeConfig42,
+  "drive": platformRuntimeConfig43,
+  "forms": platformRuntimeConfig44,
+  "gmail": platformRuntimeConfig45,
+  "sheets": platformRuntimeConfig46,
+  "chatgpt": platformRuntimeConfig47,
+  "claude": platformRuntimeConfig48,
+  "deepseek": platformRuntimeConfig49,
+  "gemini": platformRuntimeConfig50,
+  "grok": platformRuntimeConfig51,
+  "mistral": platformRuntimeConfig52,
+  "perplexity": platformRuntimeConfig53,
+  "qwen": platformRuntimeConfig54,
+  "zai": platformRuntimeConfig55,
+  "geo": platformRuntimeConfig56,
+  "openstreetmap": platformRuntimeConfig57,
+  "osrm": platformRuntimeConfig58,
+  "anilist": platformRuntimeConfig59,
+  "imdb": platformRuntimeConfig60,
+  "justwatch": platformRuntimeConfig61,
+  "kitsu": platformRuntimeConfig62,
+  "letterboxd": platformRuntimeConfig63,
+  "myanimelist": platformRuntimeConfig64,
+  "tmdb": platformRuntimeConfig65,
+  "tvmaze": platformRuntimeConfig66,
+  "bandcamp": platformRuntimeConfig67,
+  "deezer": platformRuntimeConfig68,
+  "soundcloud": platformRuntimeConfig69,
+  "spotify": platformRuntimeConfig70,
+  "youtube-music": platformRuntimeConfig71,
+  "news": platformRuntimeConfig72,
+  "amazon": platformRuntimeConfig73,
+  "ebay": platformRuntimeConfig74,
+  "etsy": platformRuntimeConfig75,
+  "flipkart": platformRuntimeConfig76,
+  "bluesky": platformRuntimeConfig77,
+  "facebook": platformRuntimeConfig78,
+  "instagram": platformRuntimeConfig79,
+  "linkedin": platformRuntimeConfig80,
+  "mastodon": platformRuntimeConfig81,
+  "pinterest": platformRuntimeConfig82,
+  "reddit": platformRuntimeConfig83,
+  "telegram": platformRuntimeConfig84,
+  "threads": platformRuntimeConfig85,
+  "tiktok": platformRuntimeConfig86,
+  "twitch": platformRuntimeConfig87,
+  "whatsapp": platformRuntimeConfig88,
+  "x": platformRuntimeConfig89,
+  "youtube": platformRuntimeConfig90,
+  "cheat": platformRuntimeConfig91,
+  "dns": platformRuntimeConfig92,
+  "download": platformRuntimeConfig93,
+  "favicon": platformRuntimeConfig94,
+  "headers": platformRuntimeConfig95,
+  "http": platformRuntimeConfig96,
+  "ip": platformRuntimeConfig97,
+  "markdown-fetch": platformRuntimeConfig98,
+  "metadata": platformRuntimeConfig99,
+  "oembed": platformRuntimeConfig100,
+  "page-links": platformRuntimeConfig101,
+  "qr": platformRuntimeConfig102,
+  "redirect": platformRuntimeConfig103,
+  "robots": platformRuntimeConfig104,
+  "rss": platformRuntimeConfig105,
+  "screenshot": platformRuntimeConfig106,
+  "sitemap": platformRuntimeConfig107,
+  "ssl": platformRuntimeConfig108,
+  "tempmail": platformRuntimeConfig109,
+  "time": platformRuntimeConfig110,
+  "timezone": platformRuntimeConfig111,
+  "transcript": platformRuntimeConfig112,
+  "translate": platformRuntimeConfig113,
+  "uptime": platformRuntimeConfig114,
+  "weather": platformRuntimeConfig115,
+  "websearch": platformRuntimeConfig116,
+  "whois": platformRuntimeConfig117,
   };
 }

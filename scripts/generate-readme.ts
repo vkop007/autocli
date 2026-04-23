@@ -37,6 +37,7 @@ const AUTH_LABELS: Record<AuthStrategyKind, string> = {
 
 const CATEGORY_SUMMARIES: Record<PlatformCategory, string> = {
   llm: "Prompting, chat, image, and generation workflows.",
+  ai: "Model hubs, datasets, Spaces, local runtimes, and inference APIs.",
   editor: "Local file, media, and document transformations.",
   finance: "Market, forex, and crypto lookups.",
   data: "Structured data cleanup, conversion, filtering, and extraction.",
@@ -56,6 +57,7 @@ const CATEGORY_SUMMARIES: Record<PlatformCategory, string> = {
 };
 
 const CATEGORY_HEADINGS: Partial<Record<PlatformCategory, string>> = {
+  ai: "AI",
   llm: "LLM",
   devops: "DevOps",
 };
