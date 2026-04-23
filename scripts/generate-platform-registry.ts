@@ -12,6 +12,7 @@ const metadataOutputPath = join(platformRoot, "generated-metadata.ts");
 const runtimeConfigOutputPath = join(platformRoot, "generated-runtime-config.ts");
 const CATEGORY_ORDER: readonly PlatformCategory[] = [
   "llm",
+  "ai",
   "editor",
   "finance",
   "data",

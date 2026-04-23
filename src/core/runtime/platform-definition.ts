@@ -5,6 +5,7 @@ import type { PlatformName } from "../../platforms/config.js";
 
 export type PlatformCategory =
   | "llm"
+  | "ai"
   | "editor"
   | "finance"
   | "data"

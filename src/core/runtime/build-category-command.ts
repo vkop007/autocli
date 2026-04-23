@@ -9,6 +9,9 @@ interface PlatformCategoryDefinition {
 }
 
 const PLATFORM_CATEGORY_DEFINITIONS: Record<PlatformCategory, PlatformCategoryDefinition> = {
+  ai: {
+    description: "AI infrastructure, model hubs, datasets, Spaces, and inference APIs",
+  },
   bot: {
     description: "Bot-token providers like Telegram, Discord, and Slack",
   },

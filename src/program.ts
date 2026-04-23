@@ -16,7 +16,7 @@ import { buildCategoryCommand } from "./core/runtime/build-category-command.js";
 import { getPlatformCategories, getPlatformDefinitions, getPlatformDefinitionsByCategory } from "./platforms/index.js";
 
 const HELP_FRAME = `${pc.bold(pc.cyan("MikaCLI"))}
-${pc.dim("Terminal automation across LLMs, editors, finance, data, Google apps, maps, movies, news, socials, shopping, developer platforms, devops, bots, and tools")}
+${pc.dim("Terminal automation across LLMs, AI infrastructure, editors, finance, data, Google apps, maps, movies, news, socials, shopping, developer platforms, devops, bots, and tools")}
 `;
 
 const ROOT_EXAMPLES = [
@@ -24,6 +24,8 @@ const ROOT_EXAMPLES = [
   "mikacli logout x default",
   'mikacli search "youtube download"',
   'mikacli llm chatgpt text "Hello my name is Justine"',
+  'mikacli ai huggingface models search "text embedding"',
+  'mikacli ai ollama models search "llama"',
   "mikacli doctor",
   "mikacli sessions",
   "mikacli logs --status failed --since 1h",
@@ -52,7 +54,7 @@ export function createProgram(): Command {
   program
     .name("mikacli")
     .description(
-      "Automate platforms from the terminal using category-based commands for llm, editor, finance, data, google, maps, movie, news, music, social, shopping, developer, devops, bot, and tools.",
+      "Automate platforms from the terminal using category-based commands for llm, ai, editor, finance, data, google, maps, movie, news, music, social, shopping, developer, devops, bot, and tools.",
     )
     .version(packageJson.version, "-v, --version", "Show the installed version")
     .option("--json", "Emit machine-readable JSON output")

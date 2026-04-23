@@ -301,6 +301,77 @@ Run Instagram actions from a newline-delimited or JSON array input file
 
 No command-specific options.
 
+#### `like`
+
+Usage:
+```bash
+mikacli social instagram batch like [options] <inputFile>
+```
+
+Like Instagram posts from a batch input file
+
+Options:
+
+- `--account <name>`: Optional override for a specific saved Instagram session
+- `--fail-fast`: Stop after the first failed target
+
+#### `unlike`
+
+Usage:
+```bash
+mikacli social instagram batch unlike [options] <inputFile>
+```
+
+Unlike Instagram posts from a batch input file
+
+Options:
+
+- `--account <name>`: Optional override for a specific saved Instagram session
+- `--fail-fast`: Stop after the first failed target
+
+#### `follow`
+
+Usage:
+```bash
+mikacli social instagram batch follow [options] <inputFile>
+```
+
+Follow Instagram profiles from a batch input file
+
+Options:
+
+- `--account <name>`: Optional override for a specific saved Instagram session
+- `--fail-fast`: Stop after the first failed target
+
+#### `unfollow`
+
+Usage:
+```bash
+mikacli social instagram batch unfollow [options] <inputFile>
+```
+
+Unfollow Instagram profiles from a batch input file
+
+Options:
+
+- `--account <name>`: Optional override for a specific saved Instagram session
+- `--fail-fast`: Stop after the first failed target
+
+#### `comment`
+
+Usage:
+```bash
+mikacli social instagram batch comment [options] <inputFile> <text>
+```
+
+Send the same Instagram comment to every target in a batch input file
+
+Options:
+
+- `--account <name>`: Optional override for a specific saved Instagram session
+- `--fail-fast`: Stop after the first failed target
+
+
 ### `capabilities`
 
 Usage:

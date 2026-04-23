@@ -186,13 +186,16 @@ function buildCommandUsage(command: Command): string {
   return `${command.name()} ${usage}`.trim();
 }
 
-function renderSubcommand(prefix: string, command: Command): string {
+function renderSubcommand(prefix: string, command: Command, depth = 3): string {
   const usage = `${prefix} ${buildCommandUsage(command)}`.trim();
   const aliases = command.aliases();
   const options = renderOptions(command.options);
+  const heading = "#".repeat(Math.min(depth, 6));
+  const nestedPrefix = `${prefix} ${command.name()}`.trim();
+  const nested = command.commands.map((subcommand) => renderSubcommand(nestedPrefix, subcommand, depth + 1)).join("\n");
   const aliasLine = aliases.length > 0 ? `Aliases: ${aliases.map((alias) => `\`${alias}\``).join(", ")}\n\n` : "";
 
-  return `### \`${command.name()}\`
+  return `${heading} \`${command.name()}\`
 
 Usage:
 \`\`\`bash
@@ -201,7 +204,7 @@ ${usage}
 
 ${aliasLine}${command.description() || "No description."}
 
-${options ? `Options:\n\n${options}` : "No command-specific options."}
+${options ? `Options:\n\n${options}` : "No command-specific options."}${nested ? `\n\n${nested}` : ""}
 `;
 }
 

@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -18,5 +18,13 @@ describe("MikaCLI skill provider references", () => {
 
   test("includes a generated provider index", () => {
     expect(existsSync(join(providerReferenceDir, "index.md"))).toBe(true);
+  });
+
+  test("documents nested provider command groups", () => {
+    const huggingFaceReference = readFileSync(join(providerReferenceDir, "huggingface.md"), "utf8");
+
+    expect(huggingFaceReference).toContain("mikacli ai huggingface models search");
+    expect(huggingFaceReference).toContain("mikacli ai huggingface datasets search");
+    expect(huggingFaceReference).toContain("mikacli ai huggingface spaces search");
   });
 });

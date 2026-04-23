@@ -21,6 +21,7 @@ If the user intent is already concrete, read [recipes.md](recipes.md) first and 
 | Category | Use it for | Representative providers | Typical commands |
 | --- | --- | --- | --- |
 | `llm` | prompting and generation | `chatgpt`, `gemini`, `grok`, `mistral`, `perplexity`, `qwen` | `login`, `status`, `text`, `image`, `video` |
+| `ai` | model hubs, datasets, Spaces, and inference infrastructure | `huggingface`, `ollama` | `models search`, `models show`, `datasets search`, `spaces search` |
 | `google` | Google workspace and account APIs | `calendar`, `docs`, `forms`, `gmail`, `drive`, `sheets` | `auth-url`, `login`, `me`, `calendars`, `documents`, `forms`, `events`, `files`, `labels`, `values`, `append` |
 | `social` | posting, profile lookup, messaging, public social reads | `x`, `instagram`, `reddit`, `bluesky`, `mastodon`, `telegram`, `whatsapp`, `youtube` | `login`, `me`, `profile`, `posts`, `thread`, `post`, `comment`, `send` |
 | `careers` | job search and discovery | `indeed`, `ziprecruiter` | `search` |

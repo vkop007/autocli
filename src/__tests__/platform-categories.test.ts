@@ -19,6 +19,11 @@ describe("platform category routing", () => {
     ]);
   });
 
+  test("includes the ai category and providers", () => {
+    expect(getPlatformCategories()).toContain("ai");
+    expect(getPlatformDefinitionsByCategory("ai").map((definition) => definition.id)).toEqual(["huggingface", "ollama"]);
+  });
+
   test("includes the new music category", () => {
     expect(getPlatformCategories()).toContain("music");
     expect(getPlatformDefinitionsByCategory("music").map((definition) => definition.id)).toEqual([
