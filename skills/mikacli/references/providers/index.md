@@ -19,6 +19,7 @@ Use these files when the main `$mikacli` skill already knows the provider and ne
 ## ai
 
 - [Hugging Face](./huggingface.md)
+- [Ollama](./ollama.md)
 
 ## editor
 

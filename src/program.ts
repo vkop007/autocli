@@ -25,6 +25,7 @@ const ROOT_EXAMPLES = [
   'mikacli search "youtube download"',
   'mikacli llm chatgpt text "Hello my name is Justine"',
   'mikacli ai huggingface models search "text embedding"',
+  'mikacli ai ollama models search "llama"',
   "mikacli doctor",
   "mikacli sessions",
   "mikacli logs --status failed --since 1h",
